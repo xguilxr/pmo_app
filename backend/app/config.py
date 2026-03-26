@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     model_config = {
         "env_file": ["../.env", "../../.env"],  # backend/.env or pmo_app/.env
         "env_file_encoding": "utf-8",
+        "extra": "ignore",
     }
 
 
