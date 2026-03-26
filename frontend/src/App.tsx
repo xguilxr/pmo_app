@@ -3,6 +3,7 @@ import AppLayout from './components/layout/AppLayout';
 import DashboardPage from './pages/DashboardPage';
 import ProjectsPage from './pages/ProjectsPage';
 import LoginPage from './pages/LoginPage';
+import MinutesPage from './pages/MinutesPage';
 import PlaceholderPage from './pages/PlaceholderPage';
 import './i18n';
 
@@ -21,7 +22,7 @@ export default function App() {
           <Route path="/changes" element={<PlaceholderPage />} />
           <Route path="/documents" element={<PlaceholderPage />} />
           <Route path="/lessons" element={<PlaceholderPage />} />
-          <Route path="/minutes" element={<PlaceholderPage />} />
+          <Route path="/minutes" element={<MinutesPage />} />
           <Route path="/admin/users" element={<PlaceholderPage />} />
           <Route path="/admin/roles" element={<PlaceholderPage />} />
           <Route path="/admin/organizations" element={<PlaceholderPage />} />

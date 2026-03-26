@@ -18,6 +18,7 @@
     "organizations": "Organizaciones",
     "settings": "Configuración",
     "logout": "Cerrar Sesión",
+    "manageAccount": "Administrar Cuenta",
     "projectModules": "Módulos de Proyecto"
   },
   "dashboard": {
@@ -75,6 +76,34 @@
     "login": "Iniciar Sesión",
     "forgotPassword": "¿Olvidaste tu contraseña?",
     "invalidCredentials": "Credenciales incorrectas"
+  },
+  "minutes": {
+    "title": "Minutas",
+    "newMinute": "+ Nueva Minuta",
+    "newMinuteAI": "Nueva Minuta con IA",
+    "generateFromTranscript": "Generar desde Transcripción",
+    "transcript": "Transcripción",
+    "transcriptPlaceholder": "Pega aquí la transcripción de la reunión...",
+    "orUploadFile": "o sube un archivo (.txt, .srt, .docx)",
+    "selectProject": "Proyecto",
+    "meetingTitle": "Título de la reunión",
+    "meetingDate": "Fecha de reunión",
+    "generate": "Generar Minuta",
+    "generating": "Generando minuta con IA...",
+    "generatedIn": "Generada en",
+    "modelUsed": "Modelo",
+    "editBeforeSaving": "Revisa y edita la minuta antes de guardar",
+    "save": "Guardar Minuta",
+    "saved": "Minuta guardada exitosamente",
+    "folio": "Folio",
+    "date": "Fecha",
+    "project": "Proyecto",
+    "source": "Origen",
+    "manual": "Manual",
+    "aiGenerated": "Generada con IA",
+    "noMinutes": "No hay minutas registradas",
+    "viewDetail": "Ver detalle",
+    "error": "Error al generar la minuta"
   },
   "common": {
     "loading": "Cargando...",
