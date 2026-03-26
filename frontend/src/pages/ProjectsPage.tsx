@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Search, X } from 'lucide-react';
-import { projects as allProjects, companies, projectTypes, priorities } from '../data/mock';
+import { projects as initialProjects, companies, projectTypes, priorities } from '../data/mock';
 import ProgressBar from '../components/common/ProgressBar';
 import PhaseBadge from '../components/common/PhaseBadge';
 
@@ -16,6 +16,8 @@ export default function ProjectsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
+  const [allProjects, setAllProjects] = useState(initialProjects);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [status, setStatus] = useState<StatusFilter>('Todos');
   const [company, setCompany] = useState('');
   const [folio, setFolio] = useState('');
@@ -65,7 +67,10 @@ export default function ProjectsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-900">{t('projects.title')}</h2>
-        <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+        >
           <Plus className="w-4 h-4" />
           {t('projects.newProject')}
         </button>
@@ -224,6 +229,119 @@ export default function ProjectsPage() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Create Project Modal */}
+      {showCreateModal && (
+        <CreateProjectModal
+          onClose={() => setShowCreateModal(false)}
+          onCreate={(project) => {
+            setAllProjects([project, ...allProjects]);
+            setShowCreateModal(false);
+            navigate(`/projects/${project.id}`);
+          }}
+          nextId={allProjects.length + 1}
+        />
+      )}
+    </div>
+  );
+}
+
+function CreateProjectModal({ onClose, onCreate, nextId }: {
+  onClose: () => void;
+  onCreate: (p: typeof initialProjects[0]) => void;
+  nextId: number;
+}) {
+  const { t } = useTranslation();
+  const [form, setForm] = useState({
+    name: '',
+    type: projectTypes[0],
+    priority: 'Media' as 'Alta' | 'Media' | 'Baja',
+    company: companies[0],
+    startDate: '',
+    endDate: '',
+    budget: 0,
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const folio = `PRJ-${new Date().getFullYear()}-${String(nextId).padStart(3, '0')}`;
+    onCreate({
+      id: nextId,
+      folio,
+      name: form.name,
+      type: form.type,
+      priority: form.priority,
+      company: form.company,
+      phase: 'Planificación',
+      progress: 0,
+      plannedProgress: 0,
+      budget: form.budget,
+      realBudget: 0,
+      startDate: form.startDate,
+      endDate: form.endDate,
+      health: 'green',
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-lg border border-gray-200 shadow-xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h3 className="text-lg font-bold text-gray-900">{t('projects.newProject')}</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.name')}</label>
+            <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.type')}</label>
+              <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                {projectTypes.map((ty) => <option key={ty} value={ty}>{ty}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.priority')}</label>
+              <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value as 'Alta' | 'Media' | 'Baja' })}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                {priorities.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.company')}</label>
+            <select value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              {companies.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.startDate')}</label>
+              <input type="date" required value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.endDate')}</label>
+              <input type="date" required value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.budget')}</label>
+            <input type="number" min="0" step="1000" required value={form.budget} onChange={(e) => setForm({ ...form, budget: Number(e.target.value) })}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">{t('common.cancel')}</button>
+            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">{t('common.save')}</button>
+          </div>
+        </form>
       </div>
     </div>
   );
