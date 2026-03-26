@@ -18,6 +18,7 @@
     "organizations": "Organizations",
     "settings": "Settings",
     "logout": "Logout",
+    "manageAccount": "Manage Account",
     "projectModules": "Project Modules"
   },
   "dashboard": {
@@ -75,6 +76,34 @@
     "login": "Sign In",
     "forgotPassword": "Forgot your password?",
     "invalidCredentials": "Invalid credentials"
+  },
+  "minutes": {
+    "title": "Minutes",
+    "newMinute": "+ New Minute",
+    "newMinuteAI": "New Minute with AI",
+    "generateFromTranscript": "Generate from Transcript",
+    "transcript": "Transcript",
+    "transcriptPlaceholder": "Paste the meeting transcript here...",
+    "orUploadFile": "or upload a file (.txt, .srt, .docx)",
+    "selectProject": "Project",
+    "meetingTitle": "Meeting title",
+    "meetingDate": "Meeting date",
+    "generate": "Generate Minute",
+    "generating": "Generating minute with AI...",
+    "generatedIn": "Generated in",
+    "modelUsed": "Model",
+    "editBeforeSaving": "Review and edit the minute before saving",
+    "save": "Save Minute",
+    "saved": "Minute saved successfully",
+    "folio": "Folio",
+    "date": "Date",
+    "project": "Project",
+    "source": "Source",
+    "manual": "Manual",
+    "aiGenerated": "AI Generated",
+    "noMinutes": "No minutes recorded",
+    "viewDetail": "View detail",
+    "error": "Error generating minute"
   },
   "common": {
     "loading": "Loading...",
