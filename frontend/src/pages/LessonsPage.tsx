@@ -1,0 +1,62 @@
+import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
+import { CheckCircle2, TrendingUp, AlertCircle, Plus } from 'lucide-react';
+
+interface Lesson { id: number; folio: string; title: string; description: string; category: string; projectPhase: string; recommendation: string; projectName: string; projectId: number; recordedBy: string; createdAt: string; }
+
+const mockLessons: Lesson[] = [
+  { id: 1, folio: 'LEC-2026-001', title: 'Importancia del change management temprano', description: 'El equipo de usuarios no fue involucrado desde el inicio, causando resistencia al cambio', category: 'improvement', projectPhase: 'Ejecución', recommendation: 'Involucrar a key users desde planificación', projectName: 'Migración ERP SAP', projectId: 1, recordedBy: 'Juan García', createdAt: '2026-03-15' },
+  { id: 2, folio: 'LEC-2026-002', title: 'Automatización de pruebas acelera entregas', description: 'La implementación de pruebas automatizadas redujo el ciclo de QA en 40%', category: 'success', projectPhase: 'Ejecución', recommendation: 'Incluir automatización de pruebas desde sprint 1', projectName: 'Portal Clientes B2B', projectId: 2, recordedBy: 'María Rodríguez', createdAt: '2026-03-10' },
+  { id: 3, folio: 'LEC-2026-003', title: 'Subestimación de integración legacy', description: 'Los sistemas legacy requirieron 3x más esfuerzo del estimado para integrar', category: 'error', projectPhase: 'Ejecución', recommendation: 'Realizar POC de integración antes de estimar', projectName: 'Implementación CRM Salesforce', projectId: 6, recordedBy: 'Juan García', createdAt: '2026-03-18' },
+];
+
+export default function LessonsPage() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const catConfig: Record<string, { icon: typeof CheckCircle2; color: string; bgColor: string; label: string }> = {
+    success: { icon: CheckCircle2, color: 'text-green-600', bgColor: 'bg-green-50 border-green-200', label: 'Éxito' },
+    improvement: { icon: TrendingUp, color: 'text-amber-600', bgColor: 'bg-amber-50 border-amber-200', label: 'Mejora' },
+    error: { icon: AlertCircle, color: 'text-red-600', bgColor: 'bg-red-50 border-red-200', label: 'Error' },
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-900">{t('nav.lessons')}</h2>
+        <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"><Plus className="w-4 h-4" />{t('projectDetail.addLesson')}</button>
+      </div>
+      <div className="space-y-4">
+        {mockLessons.map(l => {
+          const cat = catConfig[l.category] || catConfig.improvement;
+          const Icon = cat.icon;
+          return (
+            <div key={l.id} className={`bg-white rounded-xl border p-5 ${cat.bgColor} hover:shadow-md transition-shadow cursor-pointer`} onClick={() => navigate(`/projects/${l.projectId}`)}>
+              <div className="flex items-start gap-3">
+                <Icon className={`w-5 h-5 mt-0.5 ${cat.color}`} />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-mono text-xs text-gray-400">{l.folio}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cat.color} bg-white/60`}>{cat.label}</span>
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">{l.projectPhase}</span>
+                    <span className="text-xs text-blue-600">{l.projectName}</span>
+                  </div>
+                  <h4 className="font-semibold text-gray-900">{l.title}</h4>
+                  <p className="text-sm text-gray-600 mt-1">{l.description}</p>
+                  {l.recommendation && (
+                    <div className="mt-3 p-3 bg-white/60 rounded-lg">
+                      <p className="text-xs font-medium text-gray-500 mb-1">{t('projectDetail.recommendation')}</p>
+                      <p className="text-sm text-gray-700">{l.recommendation}</p>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 mt-3 text-xs text-gray-400">
+                    <span>{l.recordedBy}</span><span>{l.createdAt}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

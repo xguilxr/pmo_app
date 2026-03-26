@@ -5,7 +5,15 @@ import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import LoginPage from './pages/LoginPage';
 import MinutesPage from './pages/MinutesPage';
-import PlaceholderPage from './pages/PlaceholderPage';
+import RequestsPage from './pages/RequestsPage';
+import RisksPage from './pages/RisksPage';
+import IssuesPage from './pages/IssuesPage';
+import ChangesPage from './pages/ChangesPage';
+import DocumentsPage from './pages/DocumentsPage';
+import LessonsPage from './pages/LessonsPage';
+import AdminUsersPage from './pages/admin/AdminUsersPage';
+import AdminRolesPage from './pages/admin/AdminRolesPage';
+import AdminOrganizationsPage from './pages/admin/AdminOrganizationsPage';
 import './i18n';
 
 export default function App() {
@@ -17,17 +25,17 @@ export default function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:id" element={<ProjectDetailPage />} />
-          <Route path="/requests" element={<PlaceholderPage />} />
-          <Route path="/risks" element={<PlaceholderPage />} />
-          <Route path="/issues" element={<PlaceholderPage />} />
-          <Route path="/changes" element={<PlaceholderPage />} />
-          <Route path="/documents" element={<PlaceholderPage />} />
-          <Route path="/lessons" element={<PlaceholderPage />} />
+          <Route path="/requests" element={<RequestsPage />} />
+          <Route path="/risks" element={<RisksPage />} />
+          <Route path="/issues" element={<IssuesPage />} />
+          <Route path="/changes" element={<ChangesPage />} />
+          <Route path="/documents" element={<DocumentsPage />} />
+          <Route path="/lessons" element={<LessonsPage />} />
           <Route path="/minutes" element={<MinutesPage />} />
-          <Route path="/admin/users" element={<PlaceholderPage />} />
-          <Route path="/admin/roles" element={<PlaceholderPage />} />
-          <Route path="/admin/organizations" element={<PlaceholderPage />} />
-          <Route path="/admin/projects" element={<PlaceholderPage />} />
+          <Route path="/admin/users" element={<AdminUsersPage />} />
+          <Route path="/admin/roles" element={<AdminRolesPage />} />
+          <Route path="/admin/organizations" element={<AdminOrganizationsPage />} />
+          <Route path="/admin/projects" element={<ProjectsPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
