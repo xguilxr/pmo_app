@@ -1,0 +1,70 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models.user import User
+from app.models.project import Project
+from app.models.objective import ProjectObjective
+from app.schemas.objective import ObjectiveCreate, ObjectiveUpdate, ObjectiveResponse
+from app.auth.security import get_current_user
+
+router = APIRouter(prefix="/projects/{project_id}/objectives", tags=["Project Objectives"])
+
+
+@router.get("", response_model=list[ObjectiveResponse])
+def list_objectives(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    project = db.query(Project).filter(Project.id == project_id, Project.deleted_at.is_(None)).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    return db.query(ProjectObjective).filter(
+        ProjectObjective.project_id == project_id,
+        ProjectObjective.deleted_at.is_(None)
+    ).all()
+
+
+@router.post("", response_model=ObjectiveResponse, status_code=status.HTTP_201_CREATED)
+def create_objective(project_id: int, data: ObjectiveCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    project = db.query(Project).filter(Project.id == project_id, Project.deleted_at.is_(None)).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    obj = ProjectObjective(
+        description=data.description,
+        type=data.type,
+        target_value=data.target_value,
+        current_value=data.current_value,
+        project_id=project_id,
+    )
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.patch("/{objective_id}", response_model=ObjectiveResponse)
+def update_objective(project_id: int, objective_id: int, data: ObjectiveUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    obj = db.query(ProjectObjective).filter(
+        ProjectObjective.id == objective_id,
+        ProjectObjective.project_id == project_id,
+        ProjectObjective.deleted_at.is_(None)
+    ).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Objetivo no encontrado")
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(obj, field, value)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.delete("/{objective_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_objective(project_id: int, objective_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    obj = db.query(ProjectObjective).filter(
+        ProjectObjective.id == objective_id,
+        ProjectObjective.project_id == project_id,
+        ProjectObjective.deleted_at.is_(None)
+    ).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Objetivo no encontrado")
+    from datetime import datetime
+    obj.deleted_at = datetime.utcnow()
+    db.commit()

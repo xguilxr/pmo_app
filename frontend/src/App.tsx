@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
 import DashboardPage from './pages/DashboardPage';
 import ProjectsPage from './pages/ProjectsPage';
+import ProjectDetailPage from './pages/ProjectDetailPage';
 import LoginPage from './pages/LoginPage';
 import MinutesPage from './pages/MinutesPage';
 import PlaceholderPage from './pages/PlaceholderPage';
@@ -15,7 +16,7 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/projects/:id" element={<PlaceholderPage />} />
+          <Route path="/projects/:id" element={<ProjectDetailPage />} />
           <Route path="/requests" element={<PlaceholderPage />} />
           <Route path="/risks" element={<PlaceholderPage />} />
           <Route path="/issues" element={<PlaceholderPage />} />

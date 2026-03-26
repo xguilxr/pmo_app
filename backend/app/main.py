@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.api import auth, users, projects, dashboard, minutes
+from app.api import auth, users, projects, dashboard, minutes, risks, issues, changes, documents, lessons, areas, objectives
 import app.models  # noqa: F401 — register all models with SQLAlchemy mapper
 
 settings = get_settings()
@@ -29,6 +29,13 @@ app.include_router(users.router, prefix="/api")
 app.include_router(projects.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(minutes.router, prefix="/api")
+app.include_router(risks.router, prefix="/api")
+app.include_router(issues.router, prefix="/api")
+app.include_router(changes.router, prefix="/api")
+app.include_router(documents.router, prefix="/api")
+app.include_router(lessons.router, prefix="/api")
+app.include_router(areas.router, prefix="/api")
+app.include_router(objectives.router, prefix="/api")
 
 
 @app.get("/api/health")
