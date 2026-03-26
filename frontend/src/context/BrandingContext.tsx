@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
-import { BrandingConfig, getBranding, setBranding as setGlobalBranding, getColors, colorMap } from '../config/branding';
+import type { BrandingConfig } from '../config/branding';
+import { getBranding, setBranding as setGlobalBranding, getColors, colorMap } from '../config/branding';
 
 interface BrandingContextType {
   branding: BrandingConfig;
