@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { FolderKanban, Globe, Eye, EyeOff } from 'lucide-react';
+import { useBranding } from '../context/BrandingContext';
 
 export default function LoginPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const { branding, colors } = useBranding();
   const [userOrEmail, setUserOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -26,7 +28,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
+    <div className={`min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4`}>
       <div className="absolute top-4 right-4">
         <button
           onClick={toggleLang}
@@ -39,10 +41,14 @@ export default function LoginPage() {
 
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 mb-4">
-            <FolderKanban className="w-8 h-8 text-white" />
+          <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl ${colors.bg600} mb-4`}>
+            {branding.logoUrl ? (
+              <img src={branding.logoUrl} alt={branding.logoText} className="w-10 h-10 object-contain" />
+            ) : (
+              <FolderKanban className="w-8 h-8 text-white" />
+            )}
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('login.subtitle')}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{branding.logoText}</h1>
           <p className="text-gray-500 mt-1">{t('login.title')}</p>
         </div>
 
@@ -91,13 +97,13 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className={`w-full ${colors.bg600} text-white rounded-lg py-2.5 text-sm font-medium ${colors.hover700} transition-colors focus:outline-none focus:ring-2 ${colors.ring} focus:ring-offset-2`}
           >
             {t('login.login')}
           </button>
 
           <div className="text-center">
-            <button type="button" className="text-sm text-blue-600 hover:text-blue-800 transition-colors">
+            <button type="button" className={`text-sm ${colors.text600} hover:opacity-80 transition-colors`}>
               {t('login.forgotPassword')}
             </button>
           </div>

@@ -19,23 +19,25 @@ import {
   LogOut,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useBranding } from '../../context/BrandingContext';
 
 export default function Sidebar() {
   const { t } = useTranslation();
+  const { branding, colors } = useBranding();
   const [modulesOpen, setModulesOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
       isActive
-        ? 'bg-blue-50 text-blue-700 font-medium'
+        ? `${colors.bg50} ${colors.text700} font-medium`
         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
     }`;
 
   const subLinkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 pl-9 pr-3 py-1.5 rounded-lg text-sm transition-colors ${
       isActive
-        ? 'bg-blue-50 text-blue-700 font-medium'
+        ? `${colors.bg50} ${colors.text700} font-medium`
         : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
     }`;
 
@@ -43,8 +45,12 @@ export default function Sidebar() {
     <aside className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col fixed left-0 top-0">
       <div className="p-4 border-b border-gray-200">
         <h1 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-          <FolderKanban className="w-6 h-6 text-blue-600" />
-          PMO Platform
+          {branding.logoUrl ? (
+            <img src={branding.logoUrl} alt={branding.logoText} className="w-8 h-8 object-contain" />
+          ) : (
+            <FolderKanban className={`w-6 h-6 ${colors.text600}`} />
+          )}
+          {branding.logoText}
         </h1>
       </div>
 
