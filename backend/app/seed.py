@@ -14,6 +14,8 @@ from app.models.project import Project
 from app.models.project_request import ProjectRequest
 from app.models.modules import Risk, Issue, Change, Document, Lesson, Minute
 from app.models.task import Task, TaskDependency
+from app.models.area import ProjectArea
+from app.models.objective import ProjectObjective
 from app.models.audit import AuditLog
 from app.models.report import ProgressReport
 from app.auth.security import hash_password
@@ -131,6 +133,50 @@ def seed():
         # --- Sample Changes ---
         db.add_all([
             Change(folio="CHG-2026-001", title="Ampliar alcance módulo de reportes", description="Incluir reportes ejecutivos adicionales", change_type="scope", impact="2 semanas adicionales", requested_by="Director Comercial", request_date=date(2026,3,1), status="in_review", project_id=sample_projects[5].id, created_by_id=pm2.id),
+        ])
+
+        # --- Sample Project Areas ---
+        db.add_all([
+            ProjectArea(name="Dirección de Proyecto", description="Gestión y seguimiento del proyecto", role_in_project="Sponsor", project_id=sample_projects[0].id, responsible_id=admin.id),
+            ProjectArea(name="Desarrollo", description="Equipo de desarrollo técnico", role_in_project="Líder Técnico", project_id=sample_projects[0].id, responsible_id=pm1.id),
+            ProjectArea(name="QA / Pruebas", description="Control de calidad y testing", role_in_project="QA Lead", project_id=sample_projects[0].id, responsible_id=pm2.id),
+            ProjectArea(name="Infraestructura", description="Servidores, redes y ambientes", role_in_project="Arquitecto", project_id=sample_projects[0].id, responsible_id=pm1.id),
+            ProjectArea(name="Negocio", description="Análisis de requerimientos y validación", role_in_project="Analista de Negocio", project_id=sample_projects[0].id, responsible_id=pm2.id),
+            # Areas for project 2
+            ProjectArea(name="Diseño UX/UI", description="Diseño de experiencia de usuario", role_in_project="Diseñador Lead", project_id=sample_projects[1].id, responsible_id=pm2.id),
+            ProjectArea(name="Backend", description="Desarrollo de servicios y APIs", role_in_project="Desarrollador Sr.", project_id=sample_projects[1].id, responsible_id=pm1.id),
+            ProjectArea(name="Frontend", description="Desarrollo de interfaz de usuario", role_in_project="Desarrollador Frontend", project_id=sample_projects[1].id, responsible_id=pm2.id),
+            # Areas for project 6
+            ProjectArea(name="Consultoría CRM", description="Configuración y parametrización Salesforce", role_in_project="Consultor Salesforce", project_id=sample_projects[5].id, responsible_id=pm1.id),
+            ProjectArea(name="Migración de Datos", description="Migración de datos legacy al CRM", role_in_project="Ingeniero de Datos", project_id=sample_projects[5].id, responsible_id=pm2.id),
+            ProjectArea(name="Capacitación", description="Formación de usuarios finales", role_in_project="Capacitador", project_id=sample_projects[5].id, responsible_id=admin.id),
+        ])
+
+        # --- Sample Project Objectives ---
+        db.add_all([
+            ProjectObjective(description="Migrar 100% de módulos financieros a SAP S/4HANA", type="general", target_value="100%", current_value="65%", progress=65, status="in_progress", project_id=sample_projects[0].id),
+            ProjectObjective(description="Reducir tiempo de cierre contable mensual de 10 a 3 días", type="specific", target_value="3 días", current_value="6 días", progress=40, status="in_progress", project_id=sample_projects[0].id),
+            ProjectObjective(description="Capacitar al 100% del personal financiero", type="specific", target_value="45 personas", current_value="20 personas", progress=44, status="in_progress", project_id=sample_projects[0].id),
+            ProjectObjective(description="SLA de disponibilidad del portal ≥ 99.5%", type="kpi", target_value="99.5%", current_value="99.2%", progress=80, status="in_progress", project_id=sample_projects[1].id),
+            ProjectObjective(description="Incrementar ventas B2B online en 30%", type="general", target_value="30%", current_value="12%", progress=40, status="in_progress", project_id=sample_projects[1].id),
+            ProjectObjective(description="Automatizar el 80% de cálculos de nómina", type="general", target_value="80%", current_value="10%", progress=12, status="pending", project_id=sample_projects[2].id),
+            ProjectObjective(description="Adopción del CRM por 200 usuarios comerciales", type="general", target_value="200 usuarios", current_value="30 usuarios", progress=15, status="in_progress", project_id=sample_projects[5].id),
+            ProjectObjective(description="Obtener certificación ISO 27001 antes del 30 junio", type="general", target_value="Certificación", current_value="Auditoría interna completada", progress=55, status="in_progress", project_id=sample_projects[7].id),
+        ])
+
+        # --- Sample Documents ---
+        db.add_all([
+            Document(folio="DOC-2026-001", name="Project Charter - Migración ERP", description="Acta de constitución del proyecto", category="plan", file_path="/docs/prj001/charter.pdf", file_type="pdf", file_size=245000, project_id=sample_projects[0].id, uploaded_by_id=admin.id, created_by_id=admin.id),
+            Document(folio="DOC-2026-002", name="Plan de Proyecto ERP", description="Cronograma y plan detallado", category="plan", file_path="/docs/prj001/plan.xlsx", file_type="xlsx", file_size=890000, project_id=sample_projects[0].id, uploaded_by_id=pm1.id, created_by_id=pm1.id),
+            Document(folio="DOC-2026-003", name="Arquitectura Portal B2B", description="Documento de arquitectura técnica", category="report", file_path="/docs/prj002/arquitectura.pdf", file_type="pdf", file_size=1200000, project_id=sample_projects[1].id, uploaded_by_id=pm2.id, created_by_id=pm2.id),
+            Document(folio="DOC-2026-004", name="Contrato Salesforce", description="Contrato de licenciamiento CRM", category="contract", file_path="/docs/prj006/contrato_sf.pdf", file_type="pdf", file_size=520000, project_id=sample_projects[5].id, uploaded_by_id=admin.id, created_by_id=admin.id),
+        ])
+
+        # --- Sample Lessons ---
+        db.add_all([
+            Lesson(folio="LEC-2026-001", title="Importancia del change management temprano", description="El equipo de usuarios no fue involucrado desde el inicio, lo que causó resistencia al cambio", category="improvement", project_phase="Ejecución", recommendation="Involucrar a key users desde la fase de planificación", project_id=sample_projects[0].id, recorded_by_id=pm1.id, created_by_id=pm1.id),
+            Lesson(folio="LEC-2026-002", title="Automatización de pruebas acelera entregas", description="La implementación de pruebas automatizadas redujo el ciclo de QA en 40%", category="success", project_phase="Ejecución", recommendation="Incluir automatización de pruebas desde sprint 1", project_id=sample_projects[1].id, recorded_by_id=pm2.id, created_by_id=pm2.id),
+            Lesson(folio="LEC-2025-001", title="Documentación de infraestructura como código", description="La falta de documentación IaC causó retrasos en la replicación de ambientes", category="error", project_phase="Soporte", recommendation="Usar Terraform/Ansible desde el inicio del proyecto", project_id=sample_projects[8].id, recorded_by_id=pm2.id, created_by_id=pm2.id),
         ])
 
         db.commit()

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Search, X } from 'lucide-react';
 import { projects as allProjects, companies, projectTypes, priorities } from '../data/mock';
 import ProgressBar from '../components/common/ProgressBar';
@@ -14,6 +14,7 @@ function formatMXN(value: number) {
 
 export default function ProjectsPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   const [status, setStatus] = useState<StatusFilter>('Todos');
   const [company, setCompany] = useState('');
@@ -200,7 +201,7 @@ export default function ProjectsPage() {
               </tr>
             ) : (
               filtered.map((p) => (
-                <tr key={p.id} className="border-b border-gray-100 hover:bg-blue-50/40 transition-colors cursor-pointer">
+                <tr key={p.id} onClick={() => navigate(`/projects/${p.id}`)} className="border-b border-gray-100 hover:bg-blue-50/40 transition-colors cursor-pointer">
                   <td className="px-4 py-3 text-gray-500 font-mono text-xs">{p.folio}</td>
                   <td className="px-4 py-3">
                     <Link to={`/projects/${p.id}`} className="text-blue-600 hover:text-blue-800 font-medium">
