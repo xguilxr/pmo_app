@@ -49,7 +49,17 @@ Se necesita definir el stack tecnológico para la plataforma PMO como servicio. 
 | Soporte i18n              | 10%  | ★★★★               | ★★★☆              | ★★★★        | ★★★☆              |
 
 ## Decisión
-**Pendiente.** Se recomienda evaluar Opción A (FastAPI + React) u Opción D (FastAPI + HTMX) como finalistas.
+**Opción A: Python (FastAPI) + Railway + React SPA**
+
+Factores determinantes:
+- Gantt chart interactivo para MS Project requiere componentes React maduros (frappe-gantt, dhtmlx-gantt)
+- Dashboard con 4+ gráficos y filtros combinados necesitan estado en cliente
+- Editor rich text para reportes de avance editables
+- Drag & drop futuro en Gantt
+- Lazy loading compensa el peso adicional de React vs HTMX
 
 ## Consecuencias
-Se documentarán una vez tomada la decisión.
+- Se mantienen dos proyectos: `backend/` (FastAPI) y `frontend/` (React + Vite)
+- Se necesita configurar CORS en el backend
+- Deploy en Railway: dos servicios o monorepo con build step
+- El equipo debe manejar Python + TypeScript/React

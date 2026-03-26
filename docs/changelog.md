@@ -5,6 +5,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
 ---
 
+## [0.2.0] - 2026-03-26
+
+### Agregado
+- EP-008: Inteligencia Artificial - Minutas desde transcripción y reportes de avance automatizados (US-027 a US-029)
+- EP-009: Integración con Microsoft Project - Importación .mpp/.xml/.xlsx, Gantt chart, gestión de tareas (US-030 a US-032)
+- 41 nuevos casos de prueba (TC-124 a TC-164)
+- Variables de IA en `.env.example`: Ollama, Claude API, parámetros
+- Variables de MS Project en `.env.example`
+- ADR-001 actualizado: decisión tomada → FastAPI + React (Vite)
+
+---
+
 ## [0.1.0] - 2026-03-26
 
 ### Agregado
