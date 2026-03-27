@@ -19,14 +19,6 @@ interface Issue {
   commitmentDate: string;
 }
 
-const mockIssues: Issue[] = [
-  { id: 1, folio: 'INC-2026-001', title: 'Integración API fallando en staging', type: 'issue', priority: 'Alta', status: 'open', projectName: 'Migración ERP SAP', projectId: 1, reportDate: '2026-03-10', commitmentDate: '2026-03-20' },
-  { id: 2, folio: 'INC-2026-002', title: 'Definir estándar de documentación', type: 'decision', priority: 'Media', status: 'open', projectName: 'Portal Clientes B2B', projectId: 2, reportDate: '2026-03-05', commitmentDate: '' },
-  { id: 3, folio: 'INC-2026-003', title: 'Capacitación pendiente equipo ventas', type: 'action', priority: 'Alta', status: 'in_progress', projectName: 'Implementación CRM Salesforce', projectId: 6, reportDate: '2026-03-12', commitmentDate: '2026-03-30' },
-  { id: 4, folio: 'INC-2026-004', title: 'Conflicto de versiones en dependencias', type: 'issue', priority: 'Media', status: 'resolved', projectName: 'App Móvil Ventas', projectId: 4, reportDate: '2026-03-08', commitmentDate: '2026-03-15' },
-  { id: 5, folio: 'INC-2026-005', title: 'Aprobar diseño de dashboard ejecutivo', type: 'decision', priority: 'Alta', status: 'open', projectName: 'Data Warehouse Analytics', projectId: 7, reportDate: '2026-03-20', commitmentDate: '2026-03-28' },
-];
-
 interface ApiIssue {
   id: number;
   folio: string;
@@ -66,7 +58,7 @@ export default function IssuesPage() {
 
   const { data: apiIssues, loading, error, refetch } = useApi<ApiIssue[]>(() => api.get('/issues'), []);
 
-  const issues: Issue[] = apiIssues ? apiIssues.map(mapApiIssue) : mockIssues;
+  const issues: Issue[] = apiIssues ? apiIssues.map(mapApiIssue) : [];
 
   const uniqueProjects = [...new Set(issues.map(i => i.projectName))];
 

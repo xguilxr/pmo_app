@@ -10,11 +10,7 @@ import {
 import KpiCard from '../components/common/KpiCard';
 import HealthBadge from '../components/common/HealthBadge';
 import ProgressBar from '../components/common/ProgressBar';
-import {
-  kpis, projects, projectsByPhase, avgProgressByPhase,
-  budgetByType, portfolioHealth,
-  type Project,
-} from '../data/mock';
+import { type Project } from '../data/mock';
 import { api } from '../services/api';
 import { useApi, LoadingSpinner } from '../hooks/useApi';
 import { Link } from 'react-router-dom';
@@ -70,7 +66,7 @@ export default function DashboardPage() {
   const { data: apiKpis, loading: kpisLoading } = useApi(() => api.get<DashboardKPIs>('/dashboard/kpis'), []);
   const { data: apiProjects, loading: projectsLoading } = useApi(() => api.get<ProjectRow[]>('/projects'), []);
 
-  // Use API data when available, otherwise fall back to mock data
+  // Use API data when available, otherwise fall back to empty/zero defaults
   const kpiData = apiKpis
     ? {
         activeProjects: apiKpis.active_projects,
@@ -82,7 +78,7 @@ export default function DashboardPage() {
         severeRisks: apiKpis.severe_risks,
         openAids: apiKpis.open_aids,
       }
-    : kpis;
+    : { activeProjects: 0, requestsInReview: 0, openRisks: 0, changesInReview: 0, totalBudget: 0, avgProgress: 0, severeRisks: 0, openAids: 0 };
 
   const projectData: Project[] = apiProjects
     ? apiProjects.map(p => ({
@@ -91,7 +87,7 @@ export default function DashboardPage() {
         name: p.name,
         type: p.type,
         priority: p.priority as 'Alta' | 'Media' | 'Baja',
-        company: '', // API doesn't return company name directly
+        company: '',
         phase: p.phase as Project['phase'],
         progress: p.progress,
         plannedProgress: p.planned_progress || 0,
@@ -101,23 +97,21 @@ export default function DashboardPage() {
         endDate: p.end_date,
         health: p.health as Project['health'],
       }))
-    : projects;
+    : [];
 
   const activeProjects = projectData.filter(p => p.phase !== 'Cerrado');
 
   // Compute chart data from projectData
   const computedProjectsByPhase = useMemo(() => {
-    if (!apiProjects) return projectsByPhase;
     const phases = ['Planificación', 'Ejecución', 'Soporte', 'Cerrado'];
     return phases.map(phase => ({
       name: phase,
       value: projectData.filter(p => p.phase === phase).length,
       color: PHASE_COLORS[phase] || '#6b7280',
     }));
-  }, [apiProjects, projectData]);
+  }, [projectData]);
 
   const computedAvgProgressByPhase = useMemo(() => {
-    if (!apiProjects) return avgProgressByPhase;
     const phases = ['Planificación', 'Ejecución', 'Soporte', 'Cerrado'];
     return phases.map(phase => {
       const phaseProjects = projectData.filter(p => p.phase === phase);
@@ -126,19 +120,17 @@ export default function DashboardPage() {
         : 0;
       return { phase, progress: avg };
     });
-  }, [apiProjects, projectData]);
+  }, [projectData]);
 
   const computedBudgetByType = useMemo(() => {
-    if (!apiProjects) return budgetByType;
     const typeMap = new Map<string, number>();
     projectData.forEach(p => {
       typeMap.set(p.type, (typeMap.get(p.type) || 0) + p.budget);
     });
     return Array.from(typeMap.entries()).map(([type, budget]) => ({ type, budget }));
-  }, [apiProjects, projectData]);
+  }, [projectData]);
 
   const computedPortfolioHealth = useMemo(() => {
-    if (!apiProjects) return portfolioHealth;
     const healthCounts = new Map<string, number>();
     projectData.forEach(p => {
       healthCounts.set(p.health, (healthCounts.get(p.health) || 0) + 1);
@@ -148,7 +140,7 @@ export default function DashboardPage() {
       value: healthCounts.get(h) || 0,
       color: HEALTH_COLORS[h].color,
     }));
-  }, [apiProjects, projectData]);
+  }, [projectData]);
 
   if (kpisLoading && projectsLoading) {
     return (

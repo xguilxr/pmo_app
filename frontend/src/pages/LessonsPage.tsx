@@ -8,12 +8,6 @@ import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';
 
 interface Lesson { id: number; folio: string; title: string; description: string; category: string; projectPhase: string; recommendation: string; projectName: string; projectId: number; recordedBy: string; createdAt: string; }
 
-const mockLessons: Lesson[] = [
-  { id: 1, folio: 'LEC-2026-001', title: 'Importancia del change management temprano', description: 'El equipo de usuarios no fue involucrado desde el inicio, causando resistencia al cambio', category: 'improvement', projectPhase: 'Ejecución', recommendation: 'Involucrar a key users desde planificación', projectName: 'Migración ERP SAP', projectId: 1, recordedBy: 'Juan García', createdAt: '2026-03-15' },
-  { id: 2, folio: 'LEC-2026-002', title: 'Automatización de pruebas acelera entregas', description: 'La implementación de pruebas automatizadas redujo el ciclo de QA en 40%', category: 'success', projectPhase: 'Ejecución', recommendation: 'Incluir automatización de pruebas desde sprint 1', projectName: 'Portal Clientes B2B', projectId: 2, recordedBy: 'María Rodríguez', createdAt: '2026-03-10' },
-  { id: 3, folio: 'LEC-2026-003', title: 'Subestimación de integración legacy', description: 'Los sistemas legacy requirieron 3x más esfuerzo del estimado para integrar', category: 'error', projectPhase: 'Ejecución', recommendation: 'Realizar POC de integración antes de estimar', projectName: 'Implementación CRM Salesforce', projectId: 6, recordedBy: 'Juan García', createdAt: '2026-03-18' },
-];
-
 interface ApiLesson {
   id: number;
   folio: string;
@@ -52,7 +46,7 @@ export default function LessonsPage() {
 
   const { data: apiLessons, loading, error, refetch } = useApi<ApiLesson[]>(() => api.get('/lessons'), []);
 
-  const lessons: Lesson[] = apiLessons ? apiLessons.map(mapApiLesson) : mockLessons;
+  const lessons: Lesson[] = apiLessons ? apiLessons.map(mapApiLesson) : [];
 
   const uniqueProjects = [...new Set(lessons.map(l => l.projectName))];
   const uniqueCategories = [...new Set(lessons.map(l => l.category))];

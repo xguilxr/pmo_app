@@ -6,7 +6,6 @@ import {
   Files, Lightbulb, ClipboardList, DollarSign, Target,
   Calendar, Building2, TrendingUp, ListTree, ListChecks, BarChart3
 } from 'lucide-react';
-import { projects } from '../data/mock';
 import { api } from '../services/api';
 import { useApi, LoadingSpinner } from '../hooks/useApi';
 import PhaseBadge from '../components/common/PhaseBadge';
@@ -70,8 +69,6 @@ export default function ProjectDetailPage() {
     [projectId]
   );
 
-  const mockProject = projects.find(p => p.id === projectId);
-
   const project = apiProject
     ? {
         id: apiProject.id,
@@ -89,7 +86,7 @@ export default function ProjectDetailPage() {
         endDate: apiProject.end_date,
         health: (apiProject.health || 'green') as 'green' | 'yellow' | 'red',
       }
-    : mockProject;
+    : null;
 
   if (loading) return <LoadingSpinner />;
 

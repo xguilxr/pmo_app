@@ -21,15 +21,6 @@ interface ProjectRequest {
   reviewNotes: string;
 }
 
-const mockRequests: ProjectRequest[] = [
-  { id: 1, folio: 'REQ-2026-001', projectName: 'Implementación Business Intelligence', description: 'Dashboard gerencial con datos consolidados de ventas, finanzas y operaciones', businessCase: 'Reducir el tiempo de generación de reportes de 5 días a 2 horas', requestedBy: 'Director de Finanzas', organization: 'Grupo Alfa', estimatedBudget: 1500000, priority: 'Alta', startDate: '2026-05-01', status: 'in_review', createdAt: '2026-03-20', reviewNotes: '' },
-  { id: 2, folio: 'REQ-2026-002', projectName: 'Automatización de Compras', description: 'Sistema de órdenes de compra con aprobaciones digitales y trazabilidad', businessCase: 'Eliminar procesos manuales de 200+ órdenes mensuales', requestedBy: 'Gerente de Operaciones', organization: 'Distribuidora MX', estimatedBudget: 800000, priority: 'Media', startDate: '2026-06-01', status: 'in_review', createdAt: '2026-03-18', reviewNotes: '' },
-  { id: 3, folio: 'REQ-2026-003', projectName: 'Portal de Proveedores', description: 'Plataforma para gestión de proveedores, licitaciones y evaluaciones', businessCase: 'Centralizar la gestión de 150+ proveedores activos', requestedBy: 'Director de Compras', organization: 'TechNova', estimatedBudget: 650000, priority: 'Baja', startDate: '2026-07-01', status: 'approved', createdAt: '2026-03-10', reviewNotes: 'Aprobado con presupuesto ajustado a $600,000' },
-  { id: 4, folio: 'REQ-2026-004', projectName: 'Sistema de Tickets Soporte', description: 'Help desk interno con SLAs y escalamientos automáticos', businessCase: 'Tiempo promedio de resolución actual: 48hrs, objetivo: 8hrs', requestedBy: 'Gerente de TI', organization: 'Servicios Global', estimatedBudget: 400000, priority: 'Media', startDate: '2026-04-15', status: 'rejected', createdAt: '2026-03-05', reviewNotes: 'Se sugiere evaluar soluciones SaaS existentes antes de desarrollo custom' },
-  { id: 5, folio: 'REQ-2026-005', projectName: 'Migración Cloud AWS', description: 'Migrar infraestructura on-premise a servicios cloud de AWS', businessCase: 'Reducir costos de infraestructura en 40% y mejorar disponibilidad a 99.9%', requestedBy: 'CTO', organization: 'TechNova', estimatedBudget: 2200000, priority: 'Alta', startDate: '2026-05-15', status: 'in_review', createdAt: '2026-03-22', reviewNotes: '' },
-  { id: 6, folio: 'REQ-2026-006', projectName: 'App de Inventarios', description: 'Aplicación móvil para control de inventario en tiempo real con código de barras', businessCase: 'Reducir diferencias de inventario del 8% al 1%', requestedBy: 'Gerente de Almacén', organization: 'Distribuidora MX', estimatedBudget: 550000, priority: 'Alta', startDate: '2026-06-15', status: 'info_requested', createdAt: '2026-03-15', reviewNotes: 'Se requiere especificación técnica del hardware de escaneo' },
-];
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapApiRequest(raw: any): ProjectRequest {
   return {
@@ -64,7 +55,7 @@ export default function RequestsPage() {
       const raw = await api.get<any[]>('/requests');
       return raw.map(mapApiRequest);
     } catch {
-      return mockRequests;
+      return [];
     }
   }, []);
 
