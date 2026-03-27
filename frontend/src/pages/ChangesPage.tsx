@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw, Plus } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
+import { api } from '../services/api';
+import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';
 
 interface Change {
   id: number;
@@ -24,6 +26,35 @@ const mockChanges: Change[] = [
   { id: 4, folio: 'CHG-2026-004', title: 'Extensión plazo Go-Live', changeType: 'time', impact: '3 semanas adicionales', requestedBy: 'PM', status: 'rejected', projectName: 'Certificación ISO 27001', projectId: 8, requestDate: '2026-03-05' },
 ];
 
+interface ApiChange {
+  id: number;
+  folio: string;
+  title: string;
+  change_type?: string;
+  impact?: string;
+  requested_by?: string;
+  status: string;
+  project_name?: string;
+  project_id: number;
+  request_date?: string;
+  created_at?: string;
+}
+
+function mapApiChange(c: ApiChange): Change {
+  return {
+    id: c.id,
+    folio: c.folio,
+    title: c.title,
+    changeType: c.change_type || '',
+    impact: c.impact || '',
+    requestedBy: c.requested_by || '',
+    status: c.status,
+    projectName: c.project_name || '',
+    projectId: c.project_id,
+    requestDate: c.request_date || c.created_at || '',
+  };
+}
+
 export default function ChangesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -31,7 +62,11 @@ export default function ChangesPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
 
-  const uniqueProjects = [...new Set(mockChanges.map(c => c.projectName))];
+  const { data: apiChanges, loading, error, refetch } = useApi<ApiChange[]>(() => api.get('/changes'), []);
+
+  const changes: Change[] = apiChanges ? apiChanges.map(mapApiChange) : mockChanges;
+
+  const uniqueProjects = [...new Set(changes.map(c => c.projectName))];
 
   const typeBadge = (type: string) => {
     const c: Record<string, { color: string; label: string }> = { scope: { color: 'bg-purple-100 text-purple-700', label: 'Alcance' }, time: { color: 'bg-blue-100 text-blue-700', label: 'Tiempo' }, cost: { color: 'bg-green-100 text-green-700', label: 'Costo' }, resource: { color: 'bg-amber-100 text-amber-700', label: 'Recurso' } };
@@ -45,12 +80,14 @@ export default function ChangesPage() {
     return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}>{cfg.label}</span>;
   };
 
-  const filtered = mockChanges.filter(c => {
+  const filtered = changes.filter(c => {
     if (projectFilter !== 'all' && c.projectName !== projectFilter) return false;
     if (statusFilter !== 'all' && c.status !== statusFilter) return false;
     if (typeFilter !== 'all' && c.changeType !== typeFilter) return false;
     return true;
   });
+
+  if (loading) return <LoadingSpinner />;
 
   return (
     <div className="space-y-5">
@@ -60,6 +97,11 @@ export default function ChangesPage() {
       >
         <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"><Plus className="w-4 h-4" />{t('projectDetail.addChange')}</button>
       </PageHeader>
+
+      {error && !apiChanges && (
+        <ErrorMessage message={error} onRetry={refetch} />
+      )}
+
       {/* Filter Panel */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="grid grid-cols-3 gap-3">

@@ -3,11 +3,30 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Search, X } from 'lucide-react';
 import { projects as initialProjects, companies, projectTypes, priorities } from '../data/mock';
+import { api } from '../services/api';
+import { useApi, LoadingSpinner } from '../hooks/useApi';
 import ProgressBar from '../components/common/ProgressBar';
 import PhaseBadge from '../components/common/PhaseBadge';
 import PageHeader from '../components/common/PageHeader';
 
 type StatusFilter = 'Todos' | 'Planificación' | 'Ejecución' | 'Soporte' | 'Cerrado';
+
+interface ApiProject {
+  id: number;
+  folio: string;
+  name: string;
+  type: string;
+  priority: string;
+  phase: string;
+  progress: number;
+  planned_progress: number;
+  budget: number;
+  real_budget: number;
+  start_date: string;
+  end_date: string;
+  health: string;
+  organization_id?: number;
+}
 
 function formatMXN(value: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(value);
@@ -17,7 +36,8 @@ export default function ProjectsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  const [allProjects, setAllProjects] = useState(initialProjects);
+  const { data: apiProjects, loading, refetch } = useApi(() => api.get<ApiProject[]>('/projects'), []);
+
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [status, setStatus] = useState<StatusFilter>('Todos');
   const [company, setCompany] = useState('');
@@ -38,6 +58,26 @@ export default function ProjectsPage() {
     Cerrado: t('projects.closed'),
   };
 
+  const allProjects = useMemo(() => {
+    if (!apiProjects) return initialProjects;
+    return apiProjects.map(p => ({
+      id: p.id,
+      folio: p.folio,
+      name: p.name,
+      type: p.type,
+      priority: p.priority as 'Alta' | 'Media' | 'Baja',
+      company: '', // Will be enriched later
+      phase: p.phase as any,
+      progress: p.progress,
+      plannedProgress: p.planned_progress || 0,
+      budget: p.budget,
+      realBudget: p.real_budget || 0,
+      startDate: p.start_date,
+      endDate: p.end_date,
+      health: (p.health || 'green') as 'green' | 'yellow' | 'red',
+    }));
+  }, [apiProjects]);
+
   const filtered = useMemo(() => {
     return allProjects.filter((p) => {
       if (status !== 'Todos' && p.phase !== status) return false;
@@ -50,7 +90,7 @@ export default function ProjectsPage() {
       if (dateTo && p.startDate > dateTo) return false;
       return true;
     });
-  }, [status, company, folio, name, type, priority, dateFrom, dateTo]);
+  }, [allProjects, status, company, folio, name, type, priority, dateFrom, dateTo]);
 
   const clearFilters = () => {
     setStatus('Todos');
@@ -62,6 +102,10 @@ export default function ProjectsPage() {
     setDateFrom('');
     setDateTo('');
   };
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
 
   return (
     <div className="space-y-5">
@@ -238,10 +282,10 @@ export default function ProjectsPage() {
       {showCreateModal && (
         <CreateProjectModal
           onClose={() => setShowCreateModal(false)}
-          onCreate={(project) => {
-            setAllProjects([project, ...allProjects]);
+          onCreated={(projectId) => {
             setShowCreateModal(false);
-            navigate(`/projects/${project.id}`);
+            refetch();
+            navigate(`/projects/${projectId}`);
           }}
           nextId={allProjects.length + 1}
         />
@@ -250,12 +294,14 @@ export default function ProjectsPage() {
   );
 }
 
-function CreateProjectModal({ onClose, onCreate, nextId }: {
+function CreateProjectModal({ onClose, onCreated, nextId }: {
   onClose: () => void;
-  onCreate: (p: typeof initialProjects[0]) => void;
+  onCreated: (id: number) => void;
   nextId: number;
 }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     name: '',
     type: projectTypes[0],
@@ -266,25 +312,29 @@ function CreateProjectModal({ onClose, onCreate, nextId }: {
     budget: 0,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const folio = `PRJ-${new Date().getFullYear()}-${String(nextId).padStart(3, '0')}`;
-    onCreate({
-      id: nextId,
-      folio,
-      name: form.name,
-      type: form.type,
-      priority: form.priority,
-      company: form.company,
-      phase: 'Planificación',
-      progress: 0,
-      plannedProgress: 0,
-      budget: form.budget,
-      realBudget: 0,
-      startDate: form.startDate,
-      endDate: form.endDate,
-      health: 'green',
-    });
+    setSubmitting(true);
+    try {
+      const created = await api.post<ApiProject>('/projects', {
+        name: form.name,
+        type: form.type,
+        priority: form.priority,
+        start_date: form.startDate,
+        end_date: form.endDate,
+        budget: form.budget,
+      });
+      onCreated(created.id);
+    } catch {
+      // Fallback to mock behavior when API is unavailable
+      const folio = `PRJ-${new Date().getFullYear()}-${String(nextId).padStart(3, '0')}`;
+      const mockId = nextId;
+      // Navigate to the mock project
+      onClose();
+      navigate(`/projects/${mockId}`);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -342,7 +392,7 @@ function CreateProjectModal({ onClose, onCreate, nextId }: {
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">{t('common.cancel')}</button>
-            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">{t('common.save')}</button>
+            <button type="submit" disabled={submitting} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">{submitting ? '...' : t('common.save')}</button>
           </div>
         </form>
       </div>

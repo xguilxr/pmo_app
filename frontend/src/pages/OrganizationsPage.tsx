@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Building2, FolderKanban, AlertTriangle, TrendingUp, Plus, X } from 'lucide-react';
-import { projects } from '../data/mock';
+import { projects as mockProjects, Project } from '../data/mock';
+import { api } from '../services/api';
+import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';
 import PhaseBadge from '../components/common/PhaseBadge';
 import HealthBadge from '../components/common/HealthBadge';
 import ProgressBar from '../components/common/ProgressBar';
@@ -12,9 +14,29 @@ function formatMXN(value: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(value);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapApiProject(raw: any): Project {
+  return {
+    id: raw.id,
+    folio: raw.folio || '',
+    name: raw.name || '',
+    type: raw.type || '',
+    priority: raw.priority || 'Media',
+    company: raw.company || raw.organization_name || '',
+    phase: raw.phase || 'Planificación',
+    progress: raw.progress ?? 0,
+    plannedProgress: raw.planned_progress ?? 0,
+    budget: raw.budget ?? 0,
+    realBudget: raw.real_budget ?? 0,
+    startDate: raw.start_date || '',
+    endDate: raw.end_date || '',
+    health: raw.health || 'green',
+  };
+}
+
 interface OrgSummary {
   name: string;
-  projects: typeof projects;
+  projects: Project[];
   totalProjects: number;
   inExecution: number;
   delayed: number;
@@ -26,10 +48,27 @@ export default function OrganizationsPage() {
   const navigate = useNavigate();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newOrg, setNewOrg] = useState({ name: '', industry: '', country: '', contactEmail: '' });
+  const [projectsList, setProjectsList] = useState<Project[]>([]);
+
+  // Fetch projects from API with fallback to mock
+  const { data: apiProjects, loading, error, refetch } = useApi<Project[]>(async () => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const raw = await api.get<any[]>('/projects');
+      return raw.map(mapApiProject);
+    } catch {
+      console.warn('API unavailable, using mock data');
+      return mockProjects;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (apiProjects) setProjectsList(apiProjects);
+  }, [apiProjects]);
 
   const organizations = useMemo<OrgSummary[]>(() => {
-    const grouped: Record<string, typeof projects> = {};
-    for (const p of projects) {
+    const grouped: Record<string, Project[]> = {};
+    for (const p of projectsList) {
       if (!grouped[p.company]) grouped[p.company] = [];
       grouped[p.company].push(p);
     }
@@ -46,7 +85,28 @@ export default function OrganizationsPage() {
 
         return { name, projects: orgProjects, totalProjects, inExecution, delayed, avgProgress };
       });
-  }, []);
+  }, [projectsList]);
+
+  const handleCreateOrg = async () => {
+    if (!newOrg.name.trim()) return;
+    try {
+      await api.post('/organizations', {
+        name: newOrg.name,
+        industry: newOrg.industry,
+        country: newOrg.country,
+        contact_email: newOrg.contactEmail,
+        is_active: true,
+      });
+      refetch();
+    } catch {
+      console.warn('Failed to create organization via API');
+    }
+    setShowCreateModal(false);
+    setNewOrg({ name: '', industry: '', country: '', contactEmail: '' });
+  };
+
+  if (loading) return <LoadingSpinner />;
+  if (error && projectsList.length === 0) return <ErrorMessage message={error} onRetry={refetch} />;
 
   return (
     <div className="space-y-6">
@@ -184,7 +244,7 @@ export default function OrganizationsPage() {
             </div>
             <div className="flex justify-end gap-3 mt-6">
               <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
-              <button onClick={() => { setShowCreateModal(false); setNewOrg({ name: '', industry: '', country: '', contactEmail: '' }); }} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">Crear</button>
+              <button onClick={handleCreateOrg} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">Crear</button>
             </div>
           </div>
         </div>

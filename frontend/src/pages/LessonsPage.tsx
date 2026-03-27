@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, TrendingUp, AlertCircle, Plus } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
+import { api } from '../services/api';
+import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';
 
 interface Lesson { id: number; folio: string; title: string; description: string; category: string; projectPhase: string; recommendation: string; projectName: string; projectId: number; recordedBy: string; createdAt: string; }
 
@@ -12,8 +14,35 @@ const mockLessons: Lesson[] = [
   { id: 3, folio: 'LEC-2026-003', title: 'Subestimación de integración legacy', description: 'Los sistemas legacy requirieron 3x más esfuerzo del estimado para integrar', category: 'error', projectPhase: 'Ejecución', recommendation: 'Realizar POC de integración antes de estimar', projectName: 'Implementación CRM Salesforce', projectId: 6, recordedBy: 'Juan García', createdAt: '2026-03-18' },
 ];
 
-const uniqueProjects = [...new Set(mockLessons.map(l => l.projectName))];
-const uniqueCategories = [...new Set(mockLessons.map(l => l.category))];
+interface ApiLesson {
+  id: number;
+  folio: string;
+  title: string;
+  description?: string;
+  category?: string;
+  project_phase?: string;
+  recommendation?: string;
+  project_name?: string;
+  project_id: number;
+  recorded_by?: string;
+  created_at?: string;
+}
+
+function mapApiLesson(l: ApiLesson): Lesson {
+  return {
+    id: l.id,
+    folio: l.folio,
+    title: l.title,
+    description: l.description || '',
+    category: l.category || 'improvement',
+    projectPhase: l.project_phase || '',
+    recommendation: l.recommendation || '',
+    projectName: l.project_name || '',
+    projectId: l.project_id,
+    recordedBy: l.recorded_by || '',
+    createdAt: l.created_at || '',
+  };
+}
 
 export default function LessonsPage() {
   const { t } = useTranslation();
@@ -21,11 +50,26 @@ export default function LessonsPage() {
   const [projectFilter, setProjectFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
+  const { data: apiLessons, loading, error, refetch } = useApi<ApiLesson[]>(() => api.get('/lessons'), []);
+
+  const lessons: Lesson[] = apiLessons ? apiLessons.map(mapApiLesson) : mockLessons;
+
+  const uniqueProjects = [...new Set(lessons.map(l => l.projectName))];
+  const uniqueCategories = [...new Set(lessons.map(l => l.category))];
+
   const catConfig: Record<string, { icon: typeof CheckCircle2; color: string; bgColor: string; label: string }> = {
     success: { icon: CheckCircle2, color: 'text-green-600', bgColor: 'bg-green-50 border-green-200', label: 'Éxito' },
     improvement: { icon: TrendingUp, color: 'text-amber-600', bgColor: 'bg-amber-50 border-amber-200', label: 'Mejora' },
     error: { icon: AlertCircle, color: 'text-red-600', bgColor: 'bg-red-50 border-red-200', label: 'Error' },
   };
+
+  const filtered = lessons.filter(l => {
+    if (projectFilter !== 'all' && l.projectName !== projectFilter) return false;
+    if (categoryFilter !== 'all' && l.category !== categoryFilter) return false;
+    return true;
+  });
+
+  if (loading) return <LoadingSpinner />;
 
   return (
     <div className="space-y-5">
@@ -35,6 +79,10 @@ export default function LessonsPage() {
       >
         <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"><Plus className="w-4 h-4" />{t('projectDetail.addLesson')}</button>
       </PageHeader>
+
+      {error && !apiLessons && (
+        <ErrorMessage message={error} onRetry={refetch} />
+      )}
 
       {/* Filter Panel */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
@@ -57,11 +105,7 @@ export default function LessonsPage() {
       </div>
 
       <div className="space-y-4">
-        {mockLessons.filter(l => {
-          if (projectFilter !== 'all' && l.projectName !== projectFilter) return false;
-          if (categoryFilter !== 'all' && l.category !== categoryFilter) return false;
-          return true;
-        }).map(l => {
+        {filtered.map(l => {
           const cat = catConfig[l.category] || catConfig.improvement;
           const Icon = cat.icon;
           return (

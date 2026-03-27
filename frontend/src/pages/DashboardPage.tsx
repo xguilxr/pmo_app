@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   FolderKanban, FileText, AlertTriangle, RefreshCw,
@@ -12,17 +13,154 @@ import ProgressBar from '../components/common/ProgressBar';
 import {
   kpis, projects, projectsByPhase, avgProgressByPhase,
   budgetByType, portfolioHealth,
+  Project,
 } from '../data/mock';
+import { api } from '../services/api';
+import { useApi, LoadingSpinner } from '../hooks/useApi';
 import { Link } from 'react-router-dom';
 import PageHeader from '../components/common/PageHeader';
+
+interface DashboardKPIs {
+  active_projects: number;
+  requests_in_review: number;
+  open_risks: number;
+  changes_in_review: number;
+  total_budget: number;
+  avg_progress: number;
+  severe_risks: number;
+  open_aids: number;
+}
+
+interface ProjectRow {
+  id: number;
+  folio: string;
+  name: string;
+  type: string;
+  priority: string;
+  phase: string;
+  progress: number;
+  planned_progress: number;
+  budget: number;
+  real_budget: number;
+  start_date: string;
+  end_date: string;
+  health: string;
+}
 
 function formatMXN(value: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(value);
 }
 
+const PHASE_COLORS: Record<string, string> = {
+  'Planificación': '#3b82f6',
+  'Ejecución': '#f59e0b',
+  'Soporte': '#8b5cf6',
+  'Cerrado': '#6b7280',
+};
+
+const HEALTH_COLORS: Record<string, { name: string; color: string }> = {
+  green: { name: 'Sano', color: '#22c55e' },
+  yellow: { name: 'Atención', color: '#f59e0b' },
+  red: { name: 'Crítico', color: '#ef4444' },
+};
+
 export default function DashboardPage() {
   const { t } = useTranslation();
-  const activeProjects = projects.filter(p => p.phase !== 'Cerrado');
+
+  const { data: apiKpis, loading: kpisLoading } = useApi(() => api.get<DashboardKPIs>('/dashboard/kpis'), []);
+  const { data: apiProjects, loading: projectsLoading } = useApi(() => api.get<ProjectRow[]>('/projects'), []);
+
+  // Use API data when available, otherwise fall back to mock data
+  const kpiData = apiKpis
+    ? {
+        activeProjects: apiKpis.active_projects,
+        requestsInReview: apiKpis.requests_in_review,
+        openRisks: apiKpis.open_risks,
+        changesInReview: apiKpis.changes_in_review,
+        totalBudget: apiKpis.total_budget,
+        avgProgress: apiKpis.avg_progress,
+        severeRisks: apiKpis.severe_risks,
+        openAids: apiKpis.open_aids,
+      }
+    : kpis;
+
+  const projectData: Project[] = apiProjects
+    ? apiProjects.map(p => ({
+        id: p.id,
+        folio: p.folio,
+        name: p.name,
+        type: p.type,
+        priority: p.priority as 'Alta' | 'Media' | 'Baja',
+        company: '', // API doesn't return company name directly
+        phase: p.phase as Project['phase'],
+        progress: p.progress,
+        plannedProgress: p.planned_progress || 0,
+        budget: p.budget,
+        realBudget: p.real_budget || 0,
+        startDate: p.start_date,
+        endDate: p.end_date,
+        health: p.health as Project['health'],
+      }))
+    : projects;
+
+  const activeProjects = projectData.filter(p => p.phase !== 'Cerrado');
+
+  // Compute chart data from projectData
+  const computedProjectsByPhase = useMemo(() => {
+    if (!apiProjects) return projectsByPhase;
+    const phases = ['Planificación', 'Ejecución', 'Soporte', 'Cerrado'];
+    return phases.map(phase => ({
+      name: phase,
+      value: projectData.filter(p => p.phase === phase).length,
+      color: PHASE_COLORS[phase] || '#6b7280',
+    }));
+  }, [apiProjects, projectData]);
+
+  const computedAvgProgressByPhase = useMemo(() => {
+    if (!apiProjects) return avgProgressByPhase;
+    const phases = ['Planificación', 'Ejecución', 'Soporte', 'Cerrado'];
+    return phases.map(phase => {
+      const phaseProjects = projectData.filter(p => p.phase === phase);
+      const avg = phaseProjects.length > 0
+        ? Math.round(phaseProjects.reduce((s, p) => s + p.progress, 0) / phaseProjects.length)
+        : 0;
+      return { phase, progress: avg };
+    });
+  }, [apiProjects, projectData]);
+
+  const computedBudgetByType = useMemo(() => {
+    if (!apiProjects) return budgetByType;
+    const typeMap = new Map<string, number>();
+    projectData.forEach(p => {
+      typeMap.set(p.type, (typeMap.get(p.type) || 0) + p.budget);
+    });
+    return Array.from(typeMap.entries()).map(([type, budget]) => ({ type, budget }));
+  }, [apiProjects, projectData]);
+
+  const computedPortfolioHealth = useMemo(() => {
+    if (!apiProjects) return portfolioHealth;
+    const healthCounts = new Map<string, number>();
+    projectData.forEach(p => {
+      healthCounts.set(p.health, (healthCounts.get(p.health) || 0) + 1);
+    });
+    return ['green', 'yellow', 'red'].map(h => ({
+      name: HEALTH_COLORS[h].name,
+      value: healthCounts.get(h) || 0,
+      color: HEALTH_COLORS[h].color,
+    }));
+  }, [apiProjects, projectData]);
+
+  if (kpisLoading && projectsLoading) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          breadcrumb={[{ label: 'Dashboard' }]}
+          title={t('dashboard.title')}
+        />
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -33,14 +171,14 @@ export default function DashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-4 bg-gradient-to-br from-blue-50/40 to-white rounded-xl p-4 border border-blue-100/30">
-        <KpiCard title={t('dashboard.activeProjects')} value={kpis.activeProjects} icon={<FolderKanban className="w-5 h-5 text-blue-600" />} to="/projects" color="bg-blue-50" />
-        <KpiCard title={t('dashboard.requestsInReview')} value={kpis.requestsInReview} icon={<FileText className="w-5 h-5 text-amber-600" />} to="/requests" color="bg-amber-50" />
-        <KpiCard title={t('dashboard.openRisks')} value={kpis.openRisks} icon={<AlertTriangle className="w-5 h-5 text-orange-600" />} to="/risks" color="bg-orange-50" />
-        <KpiCard title={t('dashboard.changesInReview')} value={kpis.changesInReview} icon={<RefreshCw className="w-5 h-5 text-purple-600" />} to="/changes" color="bg-purple-50" />
-        <KpiCard title={t('dashboard.totalBudget')} value={formatMXN(kpis.totalBudget)} icon={<DollarSign className="w-5 h-5 text-green-600" />} to="/projects" color="bg-green-50" />
-        <KpiCard title={t('dashboard.avgProgress')} value={`${kpis.avgProgress}%`} icon={<TrendingUp className="w-5 h-5 text-blue-600" />} to="/projects" color="bg-blue-50" />
-        <KpiCard title={t('dashboard.severeRisks')} value={kpis.severeRisks} icon={<ShieldAlert className="w-5 h-5 text-red-600" />} to="/risks" color="bg-red-50" />
-        <KpiCard title={t('dashboard.openAids')} value={kpis.openAids} icon={<Bug className="w-5 h-5 text-indigo-600" />} to="/issues" color="bg-indigo-50" />
+        <KpiCard title={t('dashboard.activeProjects')} value={kpiData.activeProjects} icon={<FolderKanban className="w-5 h-5 text-blue-600" />} to="/projects" color="bg-blue-50" />
+        <KpiCard title={t('dashboard.requestsInReview')} value={kpiData.requestsInReview} icon={<FileText className="w-5 h-5 text-amber-600" />} to="/requests" color="bg-amber-50" />
+        <KpiCard title={t('dashboard.openRisks')} value={kpiData.openRisks} icon={<AlertTriangle className="w-5 h-5 text-orange-600" />} to="/risks" color="bg-orange-50" />
+        <KpiCard title={t('dashboard.changesInReview')} value={kpiData.changesInReview} icon={<RefreshCw className="w-5 h-5 text-purple-600" />} to="/changes" color="bg-purple-50" />
+        <KpiCard title={t('dashboard.totalBudget')} value={formatMXN(kpiData.totalBudget)} icon={<DollarSign className="w-5 h-5 text-green-600" />} to="/projects" color="bg-green-50" />
+        <KpiCard title={t('dashboard.avgProgress')} value={`${kpiData.avgProgress}%`} icon={<TrendingUp className="w-5 h-5 text-blue-600" />} to="/projects" color="bg-blue-50" />
+        <KpiCard title={t('dashboard.severeRisks')} value={kpiData.severeRisks} icon={<ShieldAlert className="w-5 h-5 text-red-600" />} to="/risks" color="bg-red-50" />
+        <KpiCard title={t('dashboard.openAids')} value={kpiData.openAids} icon={<Bug className="w-5 h-5 text-indigo-600" />} to="/issues" color="bg-indigo-50" />
       </div>
 
       {/* Charts */}
@@ -50,8 +188,8 @@ export default function DashboardPage() {
           <h3 className="text-sm font-semibold text-gray-700 mb-4">{t('dashboard.projectsByPhase')}</h3>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
-              <Pie data={projectsByPhase} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, value }) => `${name}: ${value}`}>
-                {projectsByPhase.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+              <Pie data={computedProjectsByPhase} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, value }) => `${name}: ${value}`}>
+                {computedProjectsByPhase.map((entry, i) => <Cell key={i} fill={entry.color} />)}
               </Pie>
               <Tooltip />
               <Legend />
@@ -63,7 +201,7 @@ export default function DashboardPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h3 className="text-sm font-semibold text-gray-700 mb-4">{t('dashboard.avgProgressByPhase')}</h3>
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={avgProgressByPhase}>
+            <BarChart data={computedAvgProgressByPhase}>
               <XAxis dataKey="phase" tick={{ fontSize: 12 }} />
               <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
               <Tooltip formatter={(value) => `${value}%`} />
@@ -76,7 +214,7 @@ export default function DashboardPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h3 className="text-sm font-semibold text-gray-700 mb-4">{t('dashboard.budgetByType')}</h3>
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={budgetByType} layout="vertical">
+            <BarChart data={computedBudgetByType} layout="vertical">
               <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => formatMXN(v)} />
               <YAxis type="category" dataKey="type" tick={{ fontSize: 12 }} width={110} />
               <Tooltip formatter={(value) => formatMXN(value as number)} />
@@ -90,8 +228,8 @@ export default function DashboardPage() {
           <h3 className="text-sm font-semibold text-gray-700 mb-4">{t('dashboard.portfolioHealth')}</h3>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
-              <Pie data={portfolioHealth} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90} label={({ name, value }) => `${name}: ${value}`}>
-                {portfolioHealth.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+              <Pie data={computedPortfolioHealth} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90} label={({ name, value }) => `${name}: ${value}`}>
+                {computedPortfolioHealth.map((entry, i) => <Cell key={i} fill={entry.color} />)}
               </Pie>
               <Tooltip />
               <Legend />

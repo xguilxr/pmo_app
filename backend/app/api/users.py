@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.models.role import Role
+from app.models.organization import Organization
 from app.schemas.user import UserCreate, UserUpdate, UserResponse
 from app.auth.security import hash_password, get_current_user
 
@@ -17,7 +18,9 @@ def list_users(db: Session = Depends(get_db), current_user: User = Depends(get_c
         UserResponse(
             id=u.id, username=u.username, email=u.email, full_name=u.full_name,
             is_active=u.is_active, last_login=u.last_login,
-            roles=[r.name for r in u.roles], created_at=u.created_at,
+            roles=[r.name for r in u.roles],
+            organizations=[o.name for o in u.organizations],
+            created_at=u.created_at,
         )
         for u in users
     ]
@@ -49,7 +52,9 @@ def create_user(data: UserCreate, db: Session = Depends(get_db), current_user: U
     return UserResponse(
         id=user.id, username=user.username, email=user.email, full_name=user.full_name,
         is_active=user.is_active, last_login=user.last_login,
-        roles=[r.name for r in user.roles], created_at=user.created_at,
+        roles=[r.name for r in user.roles],
+        organizations=[o.name for o in user.organizations],
+        created_at=user.created_at,
     )
 
 
@@ -59,5 +64,55 @@ def get_me(current_user: User = Depends(get_current_user)):
         id=current_user.id, username=current_user.username, email=current_user.email,
         full_name=current_user.full_name, is_active=current_user.is_active,
         last_login=current_user.last_login, roles=[r.name for r in current_user.roles],
+        organizations=[o.name for o in current_user.organizations],
         created_at=current_user.created_at,
     )
+
+
+@router.patch("/{user_id}", response_model=UserResponse)
+def update_user(
+    user_id: int,
+    data: UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    user = db.query(User).filter(User.id == user_id, User.deleted_at.is_(None)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    update_data = data.model_dump(exclude_unset=True)
+
+    # Handle role_ids separately
+    if "role_ids" in update_data:
+        role_ids = update_data.pop("role_ids")
+        if role_ids is not None:
+            roles = db.query(Role).filter(Role.id.in_(role_ids)).all()
+            user.roles = roles
+
+    # Handle organization_ids separately
+    if "organization_ids" in update_data:
+        org_ids = update_data.pop("organization_ids")
+        if org_ids is not None:
+            orgs = db.query(Organization).filter(Organization.id.in_(org_ids)).all()
+            user.organizations = orgs
+
+    # Handle remaining scalar fields
+    for field, value in update_data.items():
+        setattr(user, field, value)
+
+    db.commit()
+    db.refresh(user)
+
+    return UserResponse(
+        id=user.id, username=user.username, email=user.email, full_name=user.full_name,
+        is_active=user.is_active, last_login=user.last_login,
+        roles=[r.name for r in user.roles],
+        organizations=[o.name for o in user.organizations],
+        created_at=user.created_at,
+    )
+
+
+@router.get("/roles", response_model=list[dict])
+def list_roles(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    roles = db.query(Role).all()
+    return [{"id": r.id, "name": r.name, "description": r.description} for r in roles]

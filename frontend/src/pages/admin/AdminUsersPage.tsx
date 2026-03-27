@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Edit2, Trash2, X, Users, Shield, Check } from 'lucide-react';
+import { api } from '../../services/api';
+import { useApi, LoadingSpinner, ErrorMessage } from '../../hooks/useApi';
 
 interface UserItem {
   id: number;
@@ -25,13 +27,43 @@ const mockUsers: UserItem[] = [
 
 const allRoles = ['Administrador', 'PMO Manager', 'Project Manager', 'Viewer'];
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapApiUser(raw: any): UserItem {
+  return {
+    id: raw.id,
+    username: raw.username || '',
+    email: raw.email || '',
+    fullName: raw.full_name || '',
+    roles: Array.isArray(raw.roles) ? raw.roles : [],
+    organizations: Array.isArray(raw.organizations) ? raw.organizations : [],
+    isActive: raw.is_active ?? true,
+    lastLogin: raw.last_login || '-',
+  };
+}
+
 export default function AdminUsersPage() {
   const { t } = useTranslation();
-  const [users, setUsers] = useState<UserItem[]>(mockUsers);
+  const [users, setUsers] = useState<UserItem[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<UserItem | null>(null);
   const [form, setForm] = useState({ username: '', email: '', fullName: '', password: '', roles: [] as string[], organizations: [] as string[], isActive: true });
   const [search, setSearch] = useState('');
+
+  // Fetch users from API with fallback to mock
+  const { data: apiUsers, loading, error, refetch } = useApi<UserItem[]>(async () => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const raw = await api.get<any[]>('/users');
+      return raw.map(mapApiUser);
+    } catch {
+      console.warn('API unavailable, using mock data');
+      return mockUsers;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (apiUsers) setUsers(apiUsers);
+  }, [apiUsers]);
 
   const openCreate = () => {
     setEditing(null);
@@ -53,19 +85,52 @@ export default function AdminUsersPage() {
     setForm({ ...form, organizations: form.organizations.includes(org) ? form.organizations.filter(o => o !== org) : [...form.organizations, org] });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.username.trim() || !form.email.trim()) return;
-    if (editing) {
-      setUsers(users.map(u => u.id === editing.id ? { ...u, username: form.username, email: form.email, fullName: form.fullName, roles: form.roles, organizations: form.organizations, isActive: form.isActive } : u));
-    } else {
-      setUsers([...users, { id: Date.now(), username: form.username, email: form.email, fullName: form.fullName, roles: form.roles, organizations: form.organizations, isActive: form.isActive, lastLogin: '-' }]);
+    try {
+      if (editing) {
+        await api.patch(`/users/${editing.id}`, {
+          username: form.username,
+          email: form.email,
+          full_name: form.fullName,
+          is_active: form.isActive,
+          role_ids: [],
+        });
+      } else {
+        await api.post('/users', {
+          username: form.username,
+          email: form.email,
+          full_name: form.fullName,
+          password: form.password,
+          role_ids: [],
+        });
+      }
+      refetch();
+    } catch {
+      // Fallback: update local state
+      if (editing) {
+        setUsers(users.map(u => u.id === editing.id ? { ...u, username: form.username, email: form.email, fullName: form.fullName, roles: form.roles, organizations: form.organizations, isActive: form.isActive } : u));
+      } else {
+        setUsers([...users, { id: Date.now(), username: form.username, email: form.email, fullName: form.fullName, roles: form.roles, organizations: form.organizations, isActive: form.isActive, lastLogin: '-' }]);
+      }
     }
     setShowModal(false);
   };
 
-  const handleDelete = (id: number) => setUsers(users.filter(u => u.id !== id));
+  const handleDelete = async (id: number) => {
+    try {
+      await api.delete(`/users/${id}`);
+      refetch();
+    } catch {
+      // Fallback: update local state
+      setUsers(users.filter(u => u.id !== id));
+    }
+  };
 
   const filtered = search ? users.filter(u => u.fullName.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase())) : users;
+
+  if (loading) return <LoadingSpinner />;
+  if (error && users.length === 0) return <ErrorMessage message={error} onRetry={refetch} />;
 
   return (
     <div className="space-y-5">

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { FolderKanban, Globe, Eye, EyeOff } from 'lucide-react';
+import { FolderKanban, Globe, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useBranding } from '../context/BrandingContext';
+import { login } from '../services/auth';
 
 export default function LoginPage() {
   const { t, i18n } = useTranslation();
@@ -12,14 +13,24 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock login — accept anything
-    if (userOrEmail && password) {
-      navigate('/');
-    } else {
+    if (!userOrEmail || !password) {
       setError(t('login.invalidCredentials'));
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      await login(userOrEmail, password);
+      navigate('/');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error de autenticación';
+      setError(msg);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -97,9 +108,10 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className={`w-full ${colors.bg600} text-white rounded-lg py-2.5 text-sm font-medium ${colors.hover700} transition-colors focus:outline-none focus:ring-2 ${colors.ring} focus:ring-offset-2`}
+            disabled={loading}
+            className={`w-full ${colors.bg600} text-white rounded-lg py-2.5 text-sm font-medium ${colors.hover700} transition-colors focus:outline-none focus:ring-2 ${colors.ring} focus:ring-offset-2 disabled:opacity-50`}
           >
-            {t('login.login')}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : t('login.login')}
           </button>
 
           <div className="text-center">

@@ -12,6 +12,14 @@ user_roles = Table(
     Column("role_id", Integer, ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
 )
 
+# Many-to-many: users <-> organizations
+user_organizations = Table(
+    "user_organizations",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("organization_id", Integer, ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True),
+)
+
 # Many-to-many: users <-> projects
 user_projects = Table(
     "user_projects",
@@ -38,5 +46,6 @@ class User(TimestampMixin, Base):
 
     # Relationships
     roles = relationship("Role", secondary=user_roles, back_populates="users", lazy="selectin")
+    organizations = relationship("Organization", secondary=user_organizations, lazy="selectin")
     projects = relationship("Project", secondary=user_projects, back_populates="users", lazy="selectin")
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)

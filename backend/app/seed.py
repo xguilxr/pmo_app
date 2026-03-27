@@ -94,11 +94,18 @@ def seed():
         db.flush()
 
         # --- Organizations ---
+        # (user-org assignments added after org creation below)
         org1 = Organization(name="Grupo Alfa", legal_name="Grupo Alfa S.A. de C.V.", industry="Manufactura", country="México", is_active=True, created_by_id=admin.id)
         org2 = Organization(name="TechNova", legal_name="TechNova Solutions S.A.", industry="Tecnología", country="México", is_active=True, created_by_id=admin.id)
         org3 = Organization(name="Distribuidora MX", legal_name="Distribuidora MX S. de R.L.", industry="Distribución", country="México", is_active=True, created_by_id=admin.id)
         org4 = Organization(name="Servicios Global", legal_name="Servicios Global Corp.", industry="Servicios", country="México", is_active=True, created_by_id=admin.id)
         db.add_all([org1, org2, org3, org4])
+        db.flush()
+
+        # --- User-Organization assignments ---
+        admin.organizations.extend([org1, org2, org3, org4])
+        pm1.organizations.extend([org1, org3])
+        pm2.organizations.extend([org2, org4])
         db.flush()
 
         # --- Projects ---

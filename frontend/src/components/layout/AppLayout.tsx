@@ -1,8 +1,13 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
+import { isAuthenticated } from '../../services/auth';
 
 export default function AppLayout() {
+  if (!isAuthenticated()) {
+    return <Navigate to="/login" replace />;
+  }
+
   return (
     <div className="flex min-h-screen">
       <Sidebar />

@@ -7,6 +7,8 @@ import {
   Calendar, Building2, TrendingUp, ListTree, ListChecks, BarChart3
 } from 'lucide-react';
 import { projects } from '../data/mock';
+import { api } from '../services/api';
+import { useApi, LoadingSpinner } from '../hooks/useApi';
 import PhaseBadge from '../components/common/PhaseBadge';
 import HealthBadge from '../components/common/HealthBadge';
 import ProgressBar from '../components/common/ProgressBar';
@@ -22,6 +24,25 @@ import ProjectLessonsTab from '../components/project/ProjectLessonsTab';
 import ProjectMinutesTab from '../components/project/ProjectMinutesTab';
 import ProjectReportsTab from '../components/project/ProjectReportsTab';
 import PageHeader from '../components/common/PageHeader';
+
+interface ApiProject {
+  id: number;
+  folio: string;
+  name: string;
+  description?: string;
+  type: string;
+  priority: string;
+  phase: string;
+  status: string;
+  health: string;
+  start_date: string;
+  end_date: string;
+  budget: number;
+  real_budget?: number;
+  progress: number;
+  planned_progress?: number;
+  organization_id?: number;
+}
 
 const tabs = [
   { id: 'info', icon: Info, labelKey: 'projectDetail.info' },
@@ -43,7 +64,34 @@ export default function ProjectDetailPage() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('info');
 
-  const project = projects.find(p => p.id === Number(id));
+  const projectId = Number(id);
+  const { data: apiProject, loading } = useApi(
+    () => api.get<ApiProject>(`/projects/${projectId}`).catch(() => null),
+    [projectId]
+  );
+
+  const mockProject = projects.find(p => p.id === projectId);
+
+  const project = apiProject
+    ? {
+        id: apiProject.id,
+        folio: apiProject.folio,
+        name: apiProject.name,
+        type: apiProject.type,
+        priority: apiProject.priority as 'Alta' | 'Media' | 'Baja',
+        company: '',
+        phase: apiProject.phase as 'Planificación' | 'Ejecución' | 'Soporte' | 'Cerrado',
+        progress: apiProject.progress,
+        plannedProgress: apiProject.planned_progress || 0,
+        budget: apiProject.budget,
+        realBudget: apiProject.real_budget || 0,
+        startDate: apiProject.start_date,
+        endDate: apiProject.end_date,
+        health: (apiProject.health || 'green') as 'green' | 'yellow' | 'red',
+      }
+    : mockProject;
+
+  if (loading) return <LoadingSpinner />;
 
   if (!project) {
     return (
