@@ -8,16 +8,19 @@ interface UserItem {
   email: string;
   fullName: string;
   roles: string[];
+  organizations: string[];
   isActive: boolean;
   lastLogin: string;
 }
 
+const allOrganizations = ['Grupo Alfa', 'TechNova', 'Distribuidora MX', 'Servicios Global'];
+
 const mockUsers: UserItem[] = [
-  { id: 1, username: 'admin', email: 'admin@pmo-platform.com', fullName: 'Administrador PMO', roles: ['Administrador'], isActive: true, lastLogin: '2026-03-26' },
-  { id: 2, username: 'jgarcia', email: 'j.garcia@empresa.com', fullName: 'Juan García López', roles: ['Project Manager'], isActive: true, lastLogin: '2026-03-25' },
-  { id: 3, username: 'mrodriguez', email: 'm.rodriguez@empresa.com', fullName: 'María Rodríguez Sánchez', roles: ['Project Manager'], isActive: true, lastLogin: '2026-03-24' },
-  { id: 4, username: 'lmartinez', email: 'l.martinez@empresa.com', fullName: 'Laura Martínez Díaz', roles: ['PMO Manager'], isActive: true, lastLogin: '2026-03-20' },
-  { id: 5, username: 'rlopez', email: 'r.lopez@empresa.com', fullName: 'Roberto López Ruiz', roles: ['Viewer'], isActive: false, lastLogin: '2026-02-15' },
+  { id: 1, username: 'admin', email: 'admin@pmo-platform.com', fullName: 'Administrador PMO', roles: ['Administrador'], organizations: ['Grupo Alfa', 'TechNova', 'Distribuidora MX', 'Servicios Global'], isActive: true, lastLogin: '2026-03-26' },
+  { id: 2, username: 'jgarcia', email: 'j.garcia@empresa.com', fullName: 'Juan García López', roles: ['Project Manager'], organizations: ['Grupo Alfa'], isActive: true, lastLogin: '2026-03-25' },
+  { id: 3, username: 'mrodriguez', email: 'm.rodriguez@empresa.com', fullName: 'María Rodríguez Sánchez', roles: ['Project Manager'], organizations: ['TechNova', 'Distribuidora MX'], isActive: true, lastLogin: '2026-03-24' },
+  { id: 4, username: 'lmartinez', email: 'l.martinez@empresa.com', fullName: 'Laura Martínez Díaz', roles: ['PMO Manager'], organizations: ['Servicios Global'], isActive: true, lastLogin: '2026-03-20' },
+  { id: 5, username: 'rlopez', email: 'r.lopez@empresa.com', fullName: 'Roberto López Ruiz', roles: ['Viewer'], organizations: ['Grupo Alfa', 'Servicios Global'], isActive: false, lastLogin: '2026-02-15' },
 ];
 
 const allRoles = ['Administrador', 'PMO Manager', 'Project Manager', 'Viewer'];
@@ -27,18 +30,18 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserItem[]>(mockUsers);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<UserItem | null>(null);
-  const [form, setForm] = useState({ username: '', email: '', fullName: '', password: '', roles: [] as string[], isActive: true });
+  const [form, setForm] = useState({ username: '', email: '', fullName: '', password: '', roles: [] as string[], organizations: [] as string[], isActive: true });
   const [search, setSearch] = useState('');
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ username: '', email: '', fullName: '', password: '', roles: [], isActive: true });
+    setForm({ username: '', email: '', fullName: '', password: '', roles: [], organizations: [], isActive: true });
     setShowModal(true);
   };
 
   const openEdit = (u: UserItem) => {
     setEditing(u);
-    setForm({ username: u.username, email: u.email, fullName: u.fullName, password: '', roles: [...u.roles], isActive: u.isActive });
+    setForm({ username: u.username, email: u.email, fullName: u.fullName, password: '', roles: [...u.roles], organizations: [...u.organizations], isActive: u.isActive });
     setShowModal(true);
   };
 
@@ -46,12 +49,16 @@ export default function AdminUsersPage() {
     setForm({ ...form, roles: form.roles.includes(role) ? form.roles.filter(r => r !== role) : [...form.roles, role] });
   };
 
+  const toggleOrganization = (org: string) => {
+    setForm({ ...form, organizations: form.organizations.includes(org) ? form.organizations.filter(o => o !== org) : [...form.organizations, org] });
+  };
+
   const handleSave = () => {
     if (!form.username.trim() || !form.email.trim()) return;
     if (editing) {
-      setUsers(users.map(u => u.id === editing.id ? { ...u, username: form.username, email: form.email, fullName: form.fullName, roles: form.roles, isActive: form.isActive } : u));
+      setUsers(users.map(u => u.id === editing.id ? { ...u, username: form.username, email: form.email, fullName: form.fullName, roles: form.roles, organizations: form.organizations, isActive: form.isActive } : u));
     } else {
-      setUsers([...users, { id: Date.now(), username: form.username, email: form.email, fullName: form.fullName, roles: form.roles, isActive: form.isActive, lastLogin: '-' }]);
+      setUsers([...users, { id: Date.now(), username: form.username, email: form.email, fullName: form.fullName, roles: form.roles, organizations: form.organizations, isActive: form.isActive, lastLogin: '-' }]);
     }
     setShowModal(false);
   };
@@ -81,6 +88,7 @@ export default function AdminUsersPage() {
               <th className="text-left px-4 py-3 font-medium text-gray-500">{t('admin.user')}</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">{t('admin.email')}</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">{t('admin.roles')}</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">{t('admin.organizations')}</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Status</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">{t('admin.lastLogin')}</th>
               <th className="text-right px-4 py-3 font-medium text-gray-500"></th>
@@ -105,6 +113,13 @@ export default function AdminUsersPage() {
                   <div className="flex gap-1 flex-wrap">
                     {u.roles.map(r => (
                       <span key={r} className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{r}</span>
+                    ))}
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex gap-1 flex-wrap">
+                    {u.organizations.map(org => (
+                      <span key={org} className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">{org}</span>
                     ))}
                   </div>
                 </td>
@@ -163,6 +178,19 @@ export default function AdminUsersPage() {
                         {form.roles.includes(role) && <Check className="w-3 h-3 text-white" />}
                       </div>
                       {role}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('admin.organizations')}</label>
+                <div className="space-y-2">
+                  {allOrganizations.map(org => (
+                    <button key={org} type="button" onClick={() => toggleOrganization(org)} className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm border transition-colors ${form.organizations.includes(org) ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${form.organizations.includes(org) ? 'bg-green-600 border-green-600' : 'border-gray-300'}`}>
+                        {form.organizations.includes(org) && <Check className="w-3 h-3 text-white" />}
+                      </div>
+                      {org}
                     </button>
                   ))}
                 </div>

@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Edit2, Trash2, X, ClipboardList, Sparkles, FileText, Upload } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, ClipboardList, Sparkles, FileText, Upload, AlertTriangle, Target, Bug, CheckCircle2 } from 'lucide-react';
 
 interface Minute {
   id: number;
@@ -12,12 +12,18 @@ interface Minute {
   agreements: string;
   source: string;
   createdAt: string;
+  raid?: {
+    risks: string[];
+    actions: string[];
+    issues: string[];
+    decisions: string[];
+  };
 }
 
 const mockMinutes: Record<number, Minute[]> = {
   1: [
     { id: 1, folio: 'MIN-2026-001', title: 'Kickoff Migración ERP', meetingDate: '2026-01-20', participants: 'Juan García, María Rodríguez, Admin PMO', topics: 'Definición de alcance, cronograma inicial, asignación de recursos', agreements: '1. Iniciar levantamiento de requerimientos en semana 4\n2. Definir equipo técnico antes del 31 enero\n3. Reunión semanal cada lunes 10am', source: 'manual', createdAt: '2026-01-20' },
-    { id: 2, folio: 'MIN-2026-004', title: 'Revisión avance Sprint 3', meetingDate: '2026-03-15', participants: 'Juan García, Equipo Desarrollo', topics: 'Revisión de entregables, bloqueos, plan siguiente sprint', agreements: '1. Resolver integración API prioridad alta\n2. Escalar tema de licencias a dirección', source: 'ai_generated', createdAt: '2026-03-15' },
+    { id: 2, folio: 'MIN-2026-004', title: 'Revisión avance Sprint 3', meetingDate: '2026-03-15', participants: 'Juan García, Equipo Desarrollo', topics: 'Revisión de entregables, bloqueos, plan siguiente sprint', agreements: '1. Resolver integración API prioridad alta\n2. Escalar tema de licencias a dirección', source: 'ai_generated', createdAt: '2026-03-15', raid: { risks: ['Posible retraso en entrega de módulo', 'Dependencia de proveedor externo sin confirmar'], actions: ['Revisar cronograma con equipo técnico', 'Solicitar accesos a ambiente de pruebas', 'Actualizar documentación de requerimientos'], issues: ['API de integración no responde en horario pico', 'Falta de recursos para testing'], decisions: ['Se aprueba extensión de 2 semanas para Fase 2', 'Se asigna recurso adicional de QA'] } },
   ],
 };
 
@@ -99,6 +105,12 @@ export default function ProjectMinutesTab({ projectId }: { projectId: number }) 
       agreements: '1. Acuerdo generado desde transcripción\n2. Seguimiento pendiente',
       source: 'ai_generated',
       createdAt: new Date().toISOString().split('T')[0],
+      raid: {
+        risks: ['Posible retraso en entrega de módulo', 'Dependencia de proveedor externo sin confirmar'],
+        actions: ['Revisar cronograma con equipo técnico', 'Solicitar accesos a ambiente de pruebas', 'Actualizar documentación de requerimientos'],
+        issues: ['API de integración no responde en horario pico', 'Falta de recursos para testing'],
+        decisions: ['Se aprueba extensión de 2 semanas para Fase 2', 'Se asigna recurso adicional de QA'],
+      },
     };
     setMinutes(prev => [...prev, newMinute]);
     setShowTranscriptModal(false);
@@ -193,6 +205,82 @@ export default function ProjectMinutesTab({ projectId }: { projectId: number }) 
                 <p className="text-xs font-medium text-gray-500 mb-1">{t('projectDetail.agreements')}</p>
                 <p className="text-sm text-gray-900 whitespace-pre-line">{viewDetail.agreements}</p>
               </div>
+              {viewDetail.raid && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-2">RAID</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Risks */}
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <AlertTriangle className="w-4 h-4 text-red-700" />
+                        <h4 className="text-sm font-semibold text-red-700">Riesgos</h4>
+                      </div>
+                      <ul className="space-y-1">
+                        {viewDetail.raid.risks.map((item, i) => (
+                          <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5">
+                            <span className="mt-1 w-1 h-1 rounded-full bg-red-400 shrink-0" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    {/* Actions */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Target className="w-4 h-4 text-blue-700" />
+                        <h4 className="text-sm font-semibold text-blue-700">Acciones</h4>
+                      </div>
+                      <ul className="space-y-1">
+                        {viewDetail.raid.actions.map((item, i) => (
+                          <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5">
+                            <span className="mt-1 w-1 h-1 rounded-full bg-blue-400 shrink-0" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    {/* Issues */}
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Bug className="w-4 h-4 text-amber-700" />
+                        <h4 className="text-sm font-semibold text-amber-700">Problemas</h4>
+                      </div>
+                      <ul className="space-y-1">
+                        {viewDetail.raid.issues.map((item, i) => (
+                          <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5">
+                            <span className="mt-1 w-1 h-1 rounded-full bg-amber-400 shrink-0" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    {/* Decisions */}
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <CheckCircle2 className="w-4 h-4 text-green-700" />
+                        <h4 className="text-sm font-semibold text-green-700">Decisiones</h4>
+                      </div>
+                      <ul className="space-y-1">
+                        {viewDetail.raid.decisions.map((item, i) => (
+                          <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5">
+                            <span className="mt-1 w-1 h-1 rounded-full bg-green-400 shrink-0" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <button
+                      onClick={() => alert('Acciones agregadas al backlog')}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Agregar al Backlog
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

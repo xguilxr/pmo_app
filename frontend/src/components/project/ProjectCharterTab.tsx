@@ -22,6 +22,7 @@ interface ImportChange {
   field: string;
   oldValue: string;
   newValue: string;
+  action: 'modified' | 'added' | 'deleted';
 }
 
 interface ImportHistoryEntry {
@@ -144,11 +145,13 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
   const isPastDue = (task: CharterTask) => task.endDate < today && task.progress < 100;
 
   // --- Import logic ---
-  const generateMockChanges = (filename: string): ImportChange[] => [
-    { task: 'Módulo de autenticación', field: 'Fecha Fin', oldValue: '2026-03-20', newValue: '2026-03-25' },
-    { task: 'Módulo de reportes', field: 'Avance', oldValue: '30%', newValue: '45%' },
-    { task: 'Integración con ERP', field: 'Responsable', oldValue: 'Juan García', newValue: 'Carlos López' },
-    { task: 'Configuración de APIs', field: 'Fecha Inicio', oldValue: '2026-04-01', newValue: '2026-04-05' },
+  const generateMockChanges = (_filename: string): ImportChange[] => [
+    { task: 'Módulo de autenticación', field: 'Fecha Fin', oldValue: '2026-03-20', newValue: '2026-03-25', action: 'modified' },
+    { task: 'Módulo de reportes', field: 'Avance', oldValue: '30%', newValue: '45%', action: 'modified' },
+    { task: 'Integración con ERP', field: 'Responsable', oldValue: 'Juan García', newValue: 'Carlos López', action: 'modified' },
+    { task: 'Configuración de APIs', field: 'Fecha Inicio', oldValue: '2026-04-01', newValue: '2026-04-05', action: 'modified' },
+    { task: 'Pruebas de integración', field: 'Nueva tarea', oldValue: '', newValue: 'WBS 2.3.2 | 2026-05-01 → 2026-05-20 | Roberto Sánchez', action: 'added' },
+    { task: 'Capacitación usuarios', field: 'Nueva tarea', oldValue: '', newValue: 'WBS 3.2 | 2026-06-15 → 2026-07-01 | María Rodríguez', action: 'added' },
   ];
 
   const processFile = useCallback((file: File) => {
@@ -184,8 +187,105 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
     setIsDragOver(false);
   }, []);
 
+  const fieldMap: Record<string, keyof CharterTask> = {
+    'Fecha Fin': 'endDate',
+    'Fecha Inicio': 'startDate',
+    'Avance': 'progress',
+    'Responsable': 'responsible',
+    'Duración': 'duration',
+  };
+
+  const calcDuration = (start: string, end: string): number => {
+    const s = new Date(start);
+    const e = new Date(end);
+    return Math.max(0, Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)));
+  };
+
   const handleApplyChanges = () => {
     if (!pendingChanges) return;
+
+    setTasks(prevTasks => {
+      let updatedTasks = [...prevTasks];
+
+      for (const change of pendingChanges) {
+        if (change.action === 'added') {
+          // Parse new task info from newValue format: "WBS X | startDate → endDate | responsible"
+          const parts = change.newValue.split(' | ');
+          const wbs = parts[0]?.replace('WBS ', '') || '';
+          const dates = parts[1]?.split(' → ') || ['', ''];
+          const responsible = parts[2] || '';
+          const startDate = dates[0] || '';
+          const endDate = dates[1] || '';
+          const duration = calcDuration(startDate, endDate);
+          const outlineLevel = (wbs.match(/\./g) || []).length + 1;
+
+          updatedTasks.push({
+            id: Date.now() + Math.random(),
+            wbs,
+            name: change.task,
+            startDate,
+            endDate,
+            duration,
+            progress: 0,
+            responsible,
+            status: 'pending',
+            outlineLevel,
+            isMilestone: false,
+            wasDelayed: false,
+          });
+          continue;
+        }
+
+        if (change.action === 'deleted') {
+          updatedTasks = updatedTasks.filter(t => t.name !== change.task);
+          continue;
+        }
+
+        // action === 'modified'
+        const prop = fieldMap[change.field];
+        if (!prop) continue;
+
+        const taskIndex = updatedTasks.findIndex(t => t.name === change.task);
+        if (taskIndex === -1) continue;
+
+        const task = { ...updatedTasks[taskIndex] };
+
+        if (prop === 'progress') {
+          task.progress = parseInt(change.newValue.replace('%', ''), 10);
+        } else if (prop === 'endDate') {
+          const oldEnd = task.endDate;
+          task.endDate = change.newValue;
+          task.duration = calcDuration(task.startDate, task.endDate);
+          if (change.newValue > oldEnd) {
+            task.wasDelayed = true;
+            if (task.progress < 100) {
+              task.status = 'delayed';
+            }
+          }
+        } else if (prop === 'startDate') {
+          task.startDate = change.newValue;
+          task.duration = calcDuration(task.startDate, task.endDate);
+        } else if (prop === 'responsible') {
+          task.responsible = change.newValue;
+        } else if (prop === 'duration') {
+          task.duration = parseInt(change.newValue.replace('d', ''), 10);
+        }
+
+        // Recalculate status based on progress
+        if (task.progress >= 100) {
+          task.status = 'completed';
+        } else if (!task.wasDelayed && task.progress > 0) {
+          task.status = 'in_progress';
+        } else if (task.progress === 0 && !task.wasDelayed) {
+          task.status = 'pending';
+        }
+
+        updatedTasks[taskIndex] = task;
+      }
+
+      return updatedTasks;
+    });
+
     setImportHistory(prev => [
       { id: Date.now(), date: new Date().toISOString().split('T')[0], filename: pendingFilename, changesCount: pendingChanges.length },
       ...prev,
@@ -379,6 +479,7 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500">Acción</th>
                     <th className="text-left px-4 py-3 font-medium text-gray-500">{t('projectDetail.task')}</th>
                     <th className="text-left px-4 py-3 font-medium text-gray-500">Campo</th>
                     <th className="text-left px-4 py-3 font-medium text-gray-500">{t('projectDetail.oldValue')}</th>
@@ -386,14 +487,27 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {pendingChanges.map((change, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-900">{change.task}</td>
-                      <td className="px-4 py-3 text-gray-600">{change.field}</td>
-                      <td className="px-4 py-3 text-red-600 bg-red-50">{change.oldValue}</td>
-                      <td className="px-4 py-3 text-green-600 bg-green-50">{change.newValue}</td>
-                    </tr>
-                  ))}
+                  {pendingChanges.map((change, idx) => {
+                    const rowStyle = change.action === 'added'
+                      ? 'bg-green-50 hover:bg-green-100'
+                      : change.action === 'deleted'
+                        ? 'bg-red-50 hover:bg-red-100'
+                        : 'hover:bg-gray-50';
+                    const actionBadge = change.action === 'added'
+                      ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Nueva</span>
+                      : change.action === 'deleted'
+                        ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Eliminada</span>
+                        : <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Modificada</span>;
+                    return (
+                      <tr key={idx} className={rowStyle}>
+                        <td className="px-4 py-3">{actionBadge}</td>
+                        <td className="px-4 py-3 font-medium text-gray-900">{change.task}</td>
+                        <td className="px-4 py-3 text-gray-600">{change.field}</td>
+                        <td className="px-4 py-3 text-red-600 bg-red-50">{change.oldValue || '-'}</td>
+                        <td className="px-4 py-3 text-green-600 bg-green-50">{change.newValue}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
