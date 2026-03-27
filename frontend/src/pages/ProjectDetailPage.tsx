@@ -20,6 +20,7 @@ import ProjectChangesTab from '../components/project/ProjectChangesTab';
 import ProjectDocumentsTab from '../components/project/ProjectDocumentsTab';
 import ProjectLessonsTab from '../components/project/ProjectLessonsTab';
 import ProjectMinutesTab from '../components/project/ProjectMinutesTab';
+import ProjectReportsTab from '../components/project/ProjectReportsTab';
 import PageHeader from '../components/common/PageHeader';
 
 const tabs = [
@@ -33,6 +34,7 @@ const tabs = [
   { id: 'documents', icon: Files, labelKey: 'nav.documents' },
   { id: 'lessons', icon: Lightbulb, labelKey: 'nav.lessons' },
   { id: 'minutes', icon: ClipboardList, labelKey: 'nav.minutes' },
+  { id: 'reports', icon: BarChart3, labelKey: 'nav.reports' },
 ];
 
 export default function ProjectDetailPage() {
@@ -69,6 +71,7 @@ export default function ProjectDetailPage() {
       case 'documents': return <ProjectDocumentsTab projectId={project.id} />;
       case 'lessons': return <ProjectLessonsTab projectId={project.id} />;
       case 'minutes': return <ProjectMinutesTab projectId={project.id} />;
+      case 'reports': return <ProjectReportsTab projectId={project.id} />;
       default: return null;
     }
   };
