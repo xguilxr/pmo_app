@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -104,5 +104,5 @@ def delete_organization(
     org = db.query(Organization).filter(Organization.id == org_id, Organization.deleted_at.is_(None)).first()
     if not org:
         raise HTTPException(status_code=404, detail="Organización no encontrada")
-    org.deleted_at = datetime.utcnow()
+    org.deleted_at = datetime.now(timezone.utc)
     db.commit()

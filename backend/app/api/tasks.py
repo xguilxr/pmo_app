@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -163,7 +163,7 @@ def delete_task(task_id: int, db: Session = Depends(get_db), current_user: User 
     task = db.query(Task).filter(Task.id == task_id, Task.deleted_at.is_(None)).first()
     if not task:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
-    task.deleted_at = datetime.utcnow()
+    task.deleted_at = datetime.now(timezone.utc)
     db.commit()
 
 

@@ -72,7 +72,8 @@ def update_risk(risk_id: int, data: RiskUpdate, db: Session = Depends(get_db), c
     for field, value in update_data.items():
         setattr(risk, field, value)
     # Recalculate severity if probability or impact changed
-    risk.severity = risk.probability * risk.impact
+    if risk.probability is not None and risk.impact is not None:
+        risk.severity = risk.probability * risk.impact
     db.commit()
     db.refresh(risk)
     return risk
@@ -83,6 +84,6 @@ def delete_risk(risk_id: int, db: Session = Depends(get_db), current_user: User 
     risk = db.query(Risk).filter(Risk.id == risk_id, Risk.deleted_at.is_(None)).first()
     if not risk:
         raise HTTPException(status_code=404, detail="Riesgo no encontrado")
-    from datetime import datetime
-    risk.deleted_at = datetime.utcnow()
+    from datetime import datetime, timezone
+    risk.deleted_at = datetime.now(timezone.utc)
     db.commit()

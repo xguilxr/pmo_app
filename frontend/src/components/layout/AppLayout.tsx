@@ -1,45 +1,37 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
-import { isAuthenticated } from '../../services/auth';
-import { api } from '../../services/api';
+import { isAuthenticated, logout, touchActivity, isSessionExpired } from '../../services/auth';
 
 export default function AppLayout() {
-  const [checked, setChecked] = useState(false);
-  const [valid, setValid] = useState(true);
+  const [, setTick] = useState(0);
 
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      setValid(false);
-      setChecked(true);
-      return;
-    }
-    // Validate token against backend once on mount
-    api.get('/users/me').then(() => {
-      setValid(true);
-      setChecked(true);
-    }).catch(() => {
-      // Backend unreachable or token invalid — still allow access with mock data
-      // Only force logout if we get a clear 401 AND backend is reachable
-      setValid(true);
-      setChecked(true);
-    });
+  // Track user activity for session timeout
+  const handleActivity = useCallback(() => {
+    touchActivity();
   }, []);
 
-  if (!isAuthenticated()) {
-    return <Navigate to="/login" replace />;
-  }
+  useEffect(() => {
+    // Listen to user activity events
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'] as const;
+    events.forEach(e => window.addEventListener(e, handleActivity));
 
-  if (!checked) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-      </div>
-    );
-  }
+    // Check session expiry every 60 seconds
+    const interval = setInterval(() => {
+      if (isSessionExpired()) {
+        logout();
+      }
+      setTick(t => t + 1);
+    }, 60_000);
 
-  if (!valid) {
+    return () => {
+      events.forEach(e => window.removeEventListener(e, handleActivity));
+      clearInterval(interval);
+    };
+  }, [handleActivity]);
+
+  if (!isAuthenticated() || isSessionExpired()) {
     return <Navigate to="/login" replace />;
   }
 

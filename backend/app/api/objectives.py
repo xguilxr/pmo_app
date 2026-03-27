@@ -65,6 +65,6 @@ def delete_objective(project_id: int, objective_id: int, db: Session = Depends(g
     ).first()
     if not obj:
         raise HTTPException(status_code=404, detail="Objetivo no encontrado")
-    from datetime import datetime
-    obj.deleted_at = datetime.utcnow()
+    from datetime import datetime, timezone
+    obj.deleted_at = datetime.now(timezone.utc)
     db.commit()

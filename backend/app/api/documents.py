@@ -69,6 +69,6 @@ def delete_document(document_id: int, db: Session = Depends(get_db), current_use
     doc = db.query(Document).filter(Document.id == document_id, Document.deleted_at.is_(None)).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
-    from datetime import datetime
-    doc.deleted_at = datetime.utcnow()
+    from datetime import datetime, timezone
+    doc.deleted_at = datetime.now(timezone.utc)
     db.commit()

@@ -80,6 +80,6 @@ def delete_issue(issue_id: int, db: Session = Depends(get_db), current_user: Use
     issue = db.query(Issue).filter(Issue.id == issue_id, Issue.deleted_at.is_(None)).first()
     if not issue:
         raise HTTPException(status_code=404, detail="Incidencia no encontrada")
-    from datetime import datetime
-    issue.deleted_at = datetime.utcnow()
+    from datetime import datetime, timezone
+    issue.deleted_at = datetime.now(timezone.utc)
     db.commit()

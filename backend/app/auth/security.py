@@ -36,21 +36,16 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    print(f"[AUTH] get_current_user called. Token prefix: {token[:20] if token else 'NONE'}...")
     try:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
         user_id_str = payload.get("sub")
-        print(f"[AUTH] Token decoded OK. user_id={user_id_str}")
         user_id = int(user_id_str) if user_id_str is not None else None
         if user_id is None:
             raise credentials_exception
-    except JWTError as e:
-        print(f"[AUTH] JWT decode FAILED: {e}")
+    except JWTError:
         raise credentials_exception
 
     user = db.query(User).filter(User.id == user_id, User.deleted_at.is_(None)).first()
     if user is None or not user.is_active:
-        print(f"[AUTH] User not found or inactive for id={user_id}")
         raise credentials_exception
-    print(f"[AUTH] Auth OK for user {user.username}")
     return user
