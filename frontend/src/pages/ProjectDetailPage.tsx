@@ -4,13 +4,15 @@ import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, Info, Users, AlertTriangle, Bug, RefreshCw,
   Files, Lightbulb, ClipboardList, DollarSign, Target,
-  Calendar, Building2, TrendingUp
+  Calendar, Building2, TrendingUp, ListTree, ListChecks, BarChart3
 } from 'lucide-react';
 import { projects } from '../data/mock';
 import PhaseBadge from '../components/common/PhaseBadge';
 import HealthBadge from '../components/common/HealthBadge';
 import ProgressBar from '../components/common/ProgressBar';
 import ProjectInfoTab from '../components/project/ProjectInfoTab';
+import ProjectCharterTab from '../components/project/ProjectCharterTab';
+import ProjectBacklogTab from '../components/project/ProjectBacklogTab';
 import ProjectAreasTab from '../components/project/ProjectAreasTab';
 import ProjectRisksTab from '../components/project/ProjectRisksTab';
 import ProjectIssuesTab from '../components/project/ProjectIssuesTab';
@@ -21,6 +23,8 @@ import ProjectMinutesTab from '../components/project/ProjectMinutesTab';
 
 const tabs = [
   { id: 'info', icon: Info, labelKey: 'projectDetail.info' },
+  { id: 'charter', icon: ListTree, labelKey: 'projectDetail.charter' },
+  { id: 'backlog', icon: ListChecks, labelKey: 'projectDetail.backlog' },
   { id: 'areas', icon: Users, labelKey: 'projectDetail.areas' },
   { id: 'risks', icon: AlertTriangle, labelKey: 'nav.risks' },
   { id: 'issues', icon: Bug, labelKey: 'nav.issues' },
@@ -55,6 +59,8 @@ export default function ProjectDetailPage() {
   const renderTab = () => {
     switch (activeTab) {
       case 'info': return <ProjectInfoTab project={project} />;
+      case 'charter': return <ProjectCharterTab projectId={project.id} />;
+      case 'backlog': return <ProjectBacklogTab projectId={project.id} />;
       case 'areas': return <ProjectAreasTab projectId={project.id} />;
       case 'risks': return <ProjectRisksTab projectId={project.id} />;
       case 'issues': return <ProjectIssuesTab projectId={project.id} />;

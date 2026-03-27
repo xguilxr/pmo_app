@@ -12,6 +12,7 @@
     "documents": "Documentos",
     "lessons": "Lecciones",
     "minutes": "Minutas",
+    "reports": "Reportes",
     "admin": "Administración",
     "users": "Usuarios",
     "roles": "Roles",
@@ -43,7 +44,9 @@
     "realBudget": "Real (MXN)",
     "plannedProgress": "Avance Plan.",
     "progress": "Avance",
-    "health": "Salud"
+    "health": "Salud",
+    "delayed": "Retrasados",
+    "inExecution": "En Ejecución"
   },
   "projects": {
     "title": "Proyectos",
@@ -70,6 +73,8 @@
   },
   "projectDetail": {
     "info": "Información",
+    "charter": "Plan / Charter",
+    "backlog": "Backlog",
     "areas": "Áreas",
     "notFound": "Proyecto no encontrado",
     "backToProjects": "Volver a Proyectos",
@@ -125,7 +130,19 @@
     "editMinute": "Editar Minuta",
     "participants": "Participantes",
     "topics": "Temas Tratados",
-    "agreements": "Acuerdos"
+    "agreements": "Acuerdos",
+    "importPlan": "Importar Plan",
+    "addTask": "Agregar Tarea",
+    "editTask": "Editar Tarea",
+    "noTasks": "No hay tareas registradas",
+    "wbs": "WBS",
+    "duration": "Duración",
+    "task": "Tarea",
+    "addBacklog": "Agregar Actividad",
+    "editBacklog": "Editar Actividad",
+    "noBacklog": "No hay actividades en el backlog",
+    "delayFlag": "Retraso",
+    "wasDelayed": "Esta actividad fue retrasada anteriormente"
   },
   "login": {
     "title": "Iniciar Sesión",
@@ -163,6 +180,24 @@
     "noMinutes": "No hay minutas registradas",
     "viewDetail": "Ver detalle",
     "error": "Error al generar la minuta"
+  },
+  "reports": {
+    "title": "Reportes",
+    "generate": "Generar Reporte",
+    "avance": "Reporte de Avance",
+    "seguimiento": "Seguimiento de Actividades",
+    "project": "Proyecto",
+    "type": "Tipo de Reporte",
+    "period": "Periodo",
+    "recipients": "Destinatarios",
+    "generateWithAI": "Generar con IA (Qwen)",
+    "draft": "Borrador",
+    "sent": "Enviado",
+    "noReports": "No hay reportes generados",
+    "view": "Ver",
+    "send": "Enviar",
+    "delete": "Eliminar",
+    "preview": "Vista Previa del Reporte"
   },
   "requests": {
     "title": "Solicitudes de Proyecto",
@@ -228,6 +263,12 @@
     "high": "Alta",
     "medium": "Media",
     "low": "Baja",
-    "selectOption": "Seleccionar..."
+    "selectOption": "Seleccionar...",
+    "status": "Estado",
+    "area": "Área",
+    "blocked": "Bloqueado",
+    "notStarted": "Sin Iniciar",
+    "inProgress": "En Progreso",
+    "completed": "Completado"
   }
 }

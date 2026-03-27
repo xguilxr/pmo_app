@@ -48,5 +48,6 @@ class Project(TimestampMixin, Base):
     lessons = relationship("Lesson", back_populates="project", lazy="dynamic")
     minutes = relationship("Minute", back_populates="project", lazy="dynamic")
     tasks = relationship("Task", back_populates="project", lazy="dynamic")
+    backlog_items = relationship("BacklogItem", back_populates="project", lazy="dynamic")
     areas = relationship("ProjectArea", back_populates="project", lazy="dynamic")
     objectives = relationship("ProjectObjective", back_populates="project", lazy="dynamic")

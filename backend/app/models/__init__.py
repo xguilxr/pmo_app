@@ -10,5 +10,6 @@ from app.models.modules import Risk, Issue, Change, Document, Lesson, Minute  # 
 from app.models.task import Task, TaskDependency  # noqa: F401
 from app.models.audit import AuditLog  # noqa: F401
 from app.models.report import ProgressReport  # noqa: F401
+from app.models.backlog import BacklogItem  # noqa: F401
 from app.models.area import ProjectArea  # noqa: F401
 from app.models.objective import ProjectObjective  # noqa: F401
