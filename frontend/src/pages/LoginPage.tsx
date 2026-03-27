@@ -1,13 +1,18 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { FolderKanban, Globe, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useBranding } from '../context/BrandingContext';
-import { login } from '../services/auth';
+import { login, isAuthenticated } from '../services/auth';
 
 export default function LoginPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+
+  // If already authenticated, redirect to dashboard
+  if (isAuthenticated()) {
+    return <Navigate to="/" replace />;
+  }
   const { branding, colors } = useBranding();
   const [userOrEmail, setUserOrEmail] = useState('');
   const [password, setPassword] = useState('');

@@ -25,8 +25,6 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   const res = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
 
   if (res.status === 401) {
-    setToken(null);
-    window.location.href = '/login';
     throw new Error('Unauthorized');
   }
 
