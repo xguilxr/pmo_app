@@ -68,6 +68,6 @@ def delete_lesson(lesson_id: int, db: Session = Depends(get_db), current_user: U
     lesson = db.query(Lesson).filter(Lesson.id == lesson_id, Lesson.deleted_at.is_(None)).first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Lección no encontrada")
-    from datetime import datetime
-    lesson.deleted_at = datetime.utcnow()
+    from datetime import datetime, timezone
+    lesson.deleted_at = datetime.now(timezone.utc)
     db.commit()

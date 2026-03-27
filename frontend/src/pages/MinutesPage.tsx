@@ -6,8 +6,6 @@ import { projects } from '../data/mock';
 import { api } from '../services/api';
 import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';
 
-const API_URL = 'http://localhost:8080/api';
-
 // Sample minutes for display before backend is connected
 const sampleMinutes = [
   { id: 1, folio: 'MIN-2026-001', title: 'Kickoff Migración ERP', meeting_date: '2026-01-20', project: 'Migración ERP SAP', source: 'manual' },
@@ -96,27 +94,19 @@ export default function MinutesPage() {
     setGenerationInfo(null);
 
     try {
-      const response = await fetch(`${API_URL}/minutes/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer mock-token', // TODO: real auth
-        },
-        body: JSON.stringify({
-          transcript: transcript.trim(),
-          project_id: parseInt(projectId),
-          title: meetingTitle || undefined,
-          meeting_date: meetingDate || undefined,
-          language: 'es',
-        }),
+      const data = await api.post<{
+        generated_text: string;
+        model_used: string;
+        generation_time_ms: number;
+        engine: string;
+      }>('/minutes/generate', {
+        transcript: transcript.trim(),
+        project_id: parseInt(projectId),
+        title: meetingTitle || undefined,
+        meeting_date: meetingDate || undefined,
+        language: 'es',
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || 'Error al generar');
-      }
-
-      const data = await response.json();
       setGeneratedText(data.generated_text);
       setGenerationInfo({
         model: data.model_used,

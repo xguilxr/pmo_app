@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Building2, FolderKanban, AlertTriangle, TrendingUp, ArrowLeft, Activity } from 'lucide-react';
 import { projects } from '../data/mock';
+import { api } from '../services/api';
 import PhaseBadge from '../components/common/PhaseBadge';
 import HealthBadge from '../components/common/HealthBadge';
 import ProgressBar from '../components/common/ProgressBar';
@@ -11,24 +12,23 @@ function formatMXN(value: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(value);
 }
 
-const mockRisks = [
-  { id: 1, project: 'Migración ERP SAP', description: 'Retraso en entrega de servidor de producción', severity: 'Alta', status: 'Abierto', owner: 'Carlos Méndez' },
-  { id: 2, project: 'Portal Clientes B2B', description: 'Dependencia de API externa sin SLA definido', severity: 'Media', status: 'Abierto', owner: 'Laura Torres' },
-  { id: 3, project: 'Implementación CRM Salesforce', description: 'Falta de capacitación del equipo en Salesforce', severity: 'Alta', status: 'Mitigado', owner: 'Roberto Silva' },
-  { id: 4, project: 'App Móvil Ventas', description: 'Compatibilidad con dispositivos legacy', severity: 'Baja', status: 'Abierto', owner: 'Ana García' },
-  { id: 5, project: 'Automatización Nómina', description: 'Cambios regulatorios pendientes en CFDI 4.0', severity: 'Alta', status: 'Abierto', owner: 'Diego Ramírez' },
-  { id: 6, project: 'Data Warehouse Analytics', description: 'Volumen de datos mayor al estimado', severity: 'Media', status: 'Abierto', owner: 'María López' },
-];
+interface Risk {
+  id: number;
+  project: string;
+  description: string;
+  severity: string;
+  status: string;
+  owner: string;
+}
 
-const mockActivities = [
-  { id: 1, type: 'task_completed', project: 'Migración ERP SAP', detail: 'Tarea "Configuración módulo FI" completada', date: '2026-03-27', icon: '✓' },
-  { id: 2, type: 'risk_opened', project: 'Portal Clientes B2B', detail: 'Nuevo riesgo identificado: dependencia API externa', date: '2026-03-26', icon: '⚠' },
-  { id: 3, type: 'document_uploaded', project: 'App Móvil Ventas', detail: 'Documento "Manual de usuario v2" subido', date: '2026-03-25', icon: '📄' },
-  { id: 4, type: 'task_completed', project: 'Certificación ISO 27001', detail: 'Tarea "Auditoría interna fase 1" completada', date: '2026-03-25', icon: '✓' },
-  { id: 5, type: 'phase_change', project: 'Rediseño Website Corporativo', detail: 'Proyecto movido a fase "Soporte"', date: '2026-03-24', icon: '→' },
-  { id: 6, type: 'budget_update', project: 'Implementación CRM Salesforce', detail: 'Presupuesto real actualizado: $1,900,000', date: '2026-03-24', icon: '$' },
-  { id: 7, type: 'task_completed', project: 'Sistema de Facturación 4.0', detail: 'Tarea "Integración SAT" completada', date: '2026-03-23', icon: '✓' },
-];
+interface ActivityItem {
+  id: number;
+  type: string;
+  project: string;
+  detail: string;
+  date: string;
+  icon: string;
+}
 
 export default function OrganizationDetailPage() {
   const { orgName } = useParams<{ orgName: string }>();
@@ -48,14 +48,35 @@ export default function OrganizationDetailPage() {
     return { total, inExecution, avgProgress };
   }, [orgProjects]);
 
-  const orgRisks = useMemo(() => {
-    const projectNames = new Set(orgProjects.map(p => p.name));
-    return mockRisks.filter(r => projectNames.has(r.project));
-  }, [orgProjects]);
+  const [orgRisks, setOrgRisks] = useState<Risk[]>([]);
+  const [orgActivities] = useState<ActivityItem[]>([]);
 
-  const orgActivities = useMemo(() => {
-    const projectNames = new Set(orgProjects.map(p => p.name));
-    return mockActivities.filter(a => projectNames.has(a.project)).slice(0, 5);
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchRisks() {
+      try {
+        const allRisks: Risk[] = [];
+        await Promise.all(
+          orgProjects.map(async (p) => {
+            try {
+              const risks = await api.get<Risk[]>(`/risks?project_id=${p.id}`);
+              if (risks && Array.isArray(risks)) {
+                allRisks.push(...risks.map(r => ({ ...r, project: r.project || p.name })));
+              }
+            } catch {
+              // skip failed project risk fetch
+            }
+          })
+        );
+        if (!cancelled) setOrgRisks(allRisks);
+      } catch {
+        if (!cancelled) setOrgRisks([]);
+      }
+    }
+    if (orgProjects.length > 0) {
+      fetchRisks();
+    }
+    return () => { cancelled = true; };
   }, [orgProjects]);
 
   const openRisksCount = orgRisks.filter(r => r.status === 'Abierto').length;

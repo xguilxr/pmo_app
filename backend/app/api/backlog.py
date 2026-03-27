@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -139,5 +139,5 @@ def delete_backlog_item(item_id: int, db: Session = Depends(get_db), current_use
     item = db.query(BacklogItem).filter(BacklogItem.id == item_id, BacklogItem.deleted_at.is_(None)).first()
     if not item:
         raise HTTPException(status_code=404, detail="Elemento de backlog no encontrado")
-    item.deleted_at = datetime.utcnow()
+    item.deleted_at = datetime.now(timezone.utc)
     db.commit()

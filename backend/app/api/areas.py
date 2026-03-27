@@ -78,6 +78,6 @@ def delete_area(project_id: int, area_id: int, db: Session = Depends(get_db), cu
     ).first()
     if not area:
         raise HTTPException(status_code=404, detail="Área no encontrada")
-    from datetime import datetime
-    area.deleted_at = datetime.utcnow()
+    from datetime import datetime, timezone
+    area.deleted_at = datetime.now(timezone.utc)
     db.commit()

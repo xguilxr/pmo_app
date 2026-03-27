@@ -2,18 +2,19 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Globe, User, ChevronDown, Settings, LogOut } from 'lucide-react';
+import { logout, getCurrentUser } from '../../services/auth';
 
 export default function TopBar() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const user = getCurrentUser();
 
   const toggleLang = () => {
     i18n.changeLanguage(i18n.language === 'es' ? 'en' : 'es');
   };
 
-  // Close menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -49,15 +50,15 @@ export default function TopBar() {
             <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
               <User className="w-4 h-4 text-blue-600" />
             </div>
-            <span className="text-sm font-medium text-gray-700">Admin PMO</span>
+            <span className="text-sm font-medium text-gray-700">{user?.fullName || 'Usuario'}</span>
             <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {userMenuOpen && (
             <div className="absolute right-0 top-12 w-56 bg-white rounded-xl border border-gray-200 shadow-lg py-1 z-50">
               <div className="px-4 py-3 border-b border-gray-100">
-                <p className="text-sm font-medium text-gray-900">Admin PMO</p>
-                <p className="text-xs text-gray-500">admin@pmo-platform.com</p>
+                <p className="text-sm font-medium text-gray-900">{user?.fullName || 'Usuario'}</p>
+                <p className="text-xs text-gray-500">{user?.roles?.join(', ') || ''}</p>
               </div>
               <button
                 onClick={() => { setUserMenuOpen(false); navigate('/admin/users'); }}
@@ -68,7 +69,7 @@ export default function TopBar() {
               </button>
               <div className="border-t border-gray-100">
                 <button
-                  onClick={() => { setUserMenuOpen(false); navigate('/login'); }}
+                  onClick={() => { setUserMenuOpen(false); logout(); }}
                   className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
                 >
                   <LogOut className="w-4 h-4" />

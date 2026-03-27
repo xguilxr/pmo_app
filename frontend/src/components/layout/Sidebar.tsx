@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { logout } from '../../services/auth';
 import {
   LayoutDashboard,
   FolderKanban,
@@ -120,7 +121,7 @@ export default function Sidebar() {
       </nav>
 
       <div className="p-3 border-t border-gray-200">
-        <button className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-red-50 hover:text-red-600 w-full transition-colors">
+        <button onClick={() => logout()} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-red-50 hover:text-red-600 w-full transition-colors">
           <LogOut className="w-4 h-4" />
           {t('nav.logout')}
         </button>

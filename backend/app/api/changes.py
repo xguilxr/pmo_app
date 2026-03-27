@@ -68,6 +68,6 @@ def delete_change(change_id: int, db: Session = Depends(get_db), current_user: U
     change = db.query(Change).filter(Change.id == change_id, Change.deleted_at.is_(None)).first()
     if not change:
         raise HTTPException(status_code=404, detail="Cambio no encontrado")
-    from datetime import datetime
-    change.deleted_at = datetime.utcnow()
+    from datetime import datetime, timezone
+    change.deleted_at = datetime.now(timezone.utc)
     db.commit()
