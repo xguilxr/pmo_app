@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Eye, Send, Trash2, X, FileBarChart, BarChart3, Bot, Calendar } from 'lucide-react';
+import { Plus, Eye, Download, Trash2, X, FileBarChart, BarChart3, Bot, Calendar } from 'lucide-react';
 import { projects } from '../data/mock';
 import PageHeader from '../components/common/PageHeader';
 
@@ -128,6 +128,7 @@ export default function ReportsPage() {
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [sortBy, setSortBy] = useState<'project' | 'date'>('date');
 
   // Generate form state
   const [formProjectId, setFormProjectId] = useState('');
@@ -188,6 +189,16 @@ export default function ReportsPage() {
     resetForm();
   };
 
+  const handleDownload = (report: Report) => {
+    console.log('Downloading report:', report.id, report.type, report.date);
+    alert(`Descargando reporte: ${report.projectName} - ${report.type === 'avance' ? 'Avance' : 'Seguimiento'} (${report.date})`);
+  };
+
+  const sortedReports = [...reports].sort((a, b) => {
+    if (sortBy === 'project') return a.projectName.localeCompare(b.projectName);
+    return b.date.localeCompare(a.date);
+  });
+
   const handleView = (report: Report) => {
     setSelectedReport(report);
     setShowDetailModal(true);
@@ -219,15 +230,28 @@ export default function ReportsPage() {
         </button>
       </PageHeader>
 
+      {/* Sort Panel */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Ordenar por</label>
+            <select value={sortBy} onChange={e => setSortBy(e.target.value as 'project' | 'date')} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="date">Fecha</option>
+              <option value="project">Proyecto</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       {/* Reports list */}
-      {reports.length === 0 ? (
+      {sortedReports.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
           <FileBarChart className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500 text-sm">{t('reports.noReports')}</p>
         </div>
       ) : (
         <div className="grid gap-4">
-          {reports.map(report => (
+          {sortedReports.map(report => (
             <div
               key={report.id}
               className="bg-white rounded-xl border border-gray-200 p-5 flex items-center justify-between hover:shadow-sm transition-shadow"
@@ -287,11 +311,11 @@ export default function ReportsPage() {
                   <Eye className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => handleSend(report.id)}
-                  title={t('reports.send')}
+                  onClick={() => handleDownload(report)}
+                  title={t('reports.download')}
                   className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                 >
-                  <Send className="w-4 h-4" />
+                  <Download className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => handleDelete(report.id)}

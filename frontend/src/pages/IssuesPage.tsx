@@ -28,7 +28,12 @@ const mockIssues: Issue[] = [
 export default function IssuesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [projectFilter, setProjectFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+
+  const uniqueProjects = [...new Set(mockIssues.map(i => i.projectName))];
 
   const typeBadge = (type: string) => {
     const c: Record<string, { color: string; label: string }> = { action: { color: 'bg-blue-100 text-blue-700', label: 'Acción' }, issue: { color: 'bg-red-100 text-red-700', label: 'Incidencia' }, decision: { color: 'bg-purple-100 text-purple-700', label: 'Decisión' } };
@@ -42,7 +47,13 @@ export default function IssuesPage() {
     return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}>{cfg.label}</span>;
   };
 
-  const filtered = typeFilter === 'all' ? mockIssues : mockIssues.filter(i => i.type === typeFilter);
+  const filtered = mockIssues.filter(i => {
+    if (projectFilter !== 'all' && i.projectName !== projectFilter) return false;
+    if (statusFilter !== 'all' && i.status !== statusFilter) return false;
+    if (typeFilter !== 'all' && i.type !== typeFilter) return false;
+    if (priorityFilter !== 'all' && i.priority !== priorityFilter) return false;
+    return true;
+  });
 
   return (
     <div className="space-y-5">
@@ -54,12 +65,45 @@ export default function IssuesPage() {
           <Plus className="w-4 h-4" />{t('projectDetail.addIssue')}
         </button>
       </PageHeader>
-      <div className="flex gap-2">
-        {['all', 'action', 'issue', 'decision'].map(tp => (
-          <button key={tp} onClick={() => setTypeFilter(tp)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${typeFilter === tp ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
-            {tp === 'all' ? t('projects.all') : tp === 'action' ? 'Acciones' : tp === 'issue' ? 'Incidencias' : 'Decisiones'}
-          </button>
-        ))}
+      {/* Filter Panel */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="grid grid-cols-4 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t('minutes.project')}</label>
+            <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="all">{t('projects.all')}</option>
+              {uniqueProjects.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t('common.status')}</label>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="all">{t('projects.all')}</option>
+              <option value="open">Abierto</option>
+              <option value="in_progress">En Progreso</option>
+              <option value="resolved">Resuelto</option>
+              <option value="closed">Cerrado</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t('projects.type')}</label>
+            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="all">{t('projects.all')}</option>
+              <option value="action">Accion</option>
+              <option value="issue">Incidencia</option>
+              <option value="decision">Decision</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t('projects.priority')}</label>
+            <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="all">{t('projects.all')}</option>
+              <option value="Alta">Alta</option>
+              <option value="Media">Media</option>
+              <option value="Baja">Baja</option>
+            </select>
+          </div>
+        </div>
       </div>
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
@@ -86,6 +130,9 @@ export default function IssuesPage() {
                 <td className="px-4 py-3 text-gray-500">{i.commitmentDate || '-'}</td>
               </tr>
             ))}
+            {filtered.length === 0 && (
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">{t('projects.noResults')}</td></tr>
+            )}
           </tbody>
         </table>
       </div>

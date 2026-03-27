@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, TrendingUp, AlertCircle, Plus } from 'lucide-react';
@@ -11,9 +12,15 @@ const mockLessons: Lesson[] = [
   { id: 3, folio: 'LEC-2026-003', title: 'Subestimación de integración legacy', description: 'Los sistemas legacy requirieron 3x más esfuerzo del estimado para integrar', category: 'error', projectPhase: 'Ejecución', recommendation: 'Realizar POC de integración antes de estimar', projectName: 'Implementación CRM Salesforce', projectId: 6, recordedBy: 'Juan García', createdAt: '2026-03-18' },
 ];
 
+const uniqueProjects = [...new Set(mockLessons.map(l => l.projectName))];
+const uniqueCategories = [...new Set(mockLessons.map(l => l.category))];
+
 export default function LessonsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [projectFilter, setProjectFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+
   const catConfig: Record<string, { icon: typeof CheckCircle2; color: string; bgColor: string; label: string }> = {
     success: { icon: CheckCircle2, color: 'text-green-600', bgColor: 'bg-green-50 border-green-200', label: 'Éxito' },
     improvement: { icon: TrendingUp, color: 'text-amber-600', bgColor: 'bg-amber-50 border-amber-200', label: 'Mejora' },
@@ -28,8 +35,33 @@ export default function LessonsPage() {
       >
         <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"><Plus className="w-4 h-4" />{t('projectDetail.addLesson')}</button>
       </PageHeader>
+
+      {/* Filter Panel */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t('minutes.project')}</label>
+            <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="all">{t('projects.all')}</option>
+              {uniqueProjects.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t('projectDetail.category')}</label>
+            <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="all">{t('projects.all')}</option>
+              {uniqueCategories.map(c => <option key={c} value={c}>{catConfig[c]?.label || c}</option>)}
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div className="space-y-4">
-        {mockLessons.map(l => {
+        {mockLessons.filter(l => {
+          if (projectFilter !== 'all' && l.projectName !== projectFilter) return false;
+          if (categoryFilter !== 'all' && l.category !== categoryFilter) return false;
+          return true;
+        }).map(l => {
           const cat = catConfig[l.category] || catConfig.improvement;
           const Icon = cat.icon;
           return (
