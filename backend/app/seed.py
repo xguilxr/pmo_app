@@ -1,8 +1,11 @@
 """
-Seed the database with initial data: admin user, default roles, permissions, and sample data.
+Seed the database with initial data.
 
-Run with: python -m app.seed
+Usage:
+  python -m app.seed          # Minimal: roles, permissions, admin user only
+  python -m app.seed --demo   # Full demo data with sample projects, orgs, etc.
 """
+import sys
 from datetime import date
 
 from app.database import engine, SessionLocal, Base
@@ -18,179 +21,161 @@ from app.models.area import ProjectArea
 from app.models.objective import ProjectObjective
 from app.models.audit import AuditLog
 from app.models.report import ProgressReport
+from app.models.backlog import BacklogItem
 from app.auth.security import hash_password
 
 
+def seed_minimal(db):
+    """Create only roles, permissions, and admin user."""
+
+    # --- Permissions ---
+    modules = ["projects", "risks", "issues", "changes", "documents", "lessons", "minutes", "admin", "requests"]
+    actions = ["view", "create", "edit", "delete"]
+    permissions = []
+    for mod in modules:
+        for act in actions:
+            p = Permission(module=mod, action=act, description=f"{act} {mod}")
+            permissions.append(p)
+            db.add(p)
+    db.flush()
+
+    # --- Roles ---
+    admin_role = Role(name="Administrador", description="Acceso total al sistema", is_system=True)
+    admin_role.permissions = permissions
+    db.add(admin_role)
+
+    pmo_role = Role(name="PMO Manager", description="Gestión del portafolio de proyectos", is_system=True)
+    pmo_role.permissions = [p for p in permissions if p.action in ("view", "create", "edit")]
+    db.add(pmo_role)
+
+    pm_role = Role(name="Project Manager", description="Gestión de proyectos asignados", is_system=True)
+    pm_role.permissions = [p for p in permissions if p.module != "admin"]
+    db.add(pm_role)
+
+    viewer_role = Role(name="Viewer", description="Solo lectura", is_system=True)
+    viewer_role.permissions = [p for p in permissions if p.action == "view"]
+    db.add(viewer_role)
+    db.flush()
+
+    # --- Admin user ---
+    admin = User(
+        username="admin",
+        email="admin@pmo-platform.com",
+        full_name="Administrador PMO",
+        hashed_password=hash_password("Admin123!"),
+        is_active=True,
+    )
+    admin.roles.append(admin_role)
+    db.add(admin)
+    db.flush()
+
+    return admin, admin_role, pmo_role, pm_role, viewer_role
+
+
+def seed_demo(db, admin, pm_role):
+    """Create sample organizations, users, projects, and module data."""
+
+    # --- Extra users ---
+    pm1 = User(
+        username="jgarcia",
+        email="j.garcia@empresa.com",
+        full_name="Juan García López",
+        hashed_password=hash_password("Pm1234!"),
+        is_active=True,
+    )
+    pm1.roles.append(pm_role)
+    db.add(pm1)
+
+    pm2 = User(
+        username="mrodriguez",
+        email="m.rodriguez@empresa.com",
+        full_name="María Rodríguez Sánchez",
+        hashed_password=hash_password("Pm1234!"),
+        is_active=True,
+    )
+    pm2.roles.append(pm_role)
+    db.add(pm2)
+    db.flush()
+
+    # --- Organizations ---
+    org1 = Organization(name="Grupo Alfa", legal_name="Grupo Alfa S.A. de C.V.", industry="Manufactura", country="México", is_active=True, created_by_id=admin.id)
+    org2 = Organization(name="TechNova", legal_name="TechNova Solutions S.A.", industry="Tecnología", country="México", is_active=True, created_by_id=admin.id)
+    org3 = Organization(name="Distribuidora MX", legal_name="Distribuidora MX S. de R.L.", industry="Distribución", country="México", is_active=True, created_by_id=admin.id)
+    org4 = Organization(name="Servicios Global", legal_name="Servicios Global Corp.", industry="Servicios", country="México", is_active=True, created_by_id=admin.id)
+    db.add_all([org1, org2, org3, org4])
+    db.flush()
+
+    # --- User-Organization assignments ---
+    admin.organizations.extend([org1, org2, org3, org4])
+    pm1.organizations.extend([org1, org3])
+    pm2.organizations.extend([org2, org4])
+    db.flush()
+
+    # --- Projects ---
+    sample_projects = [
+        Project(folio="PRJ-2026-001", name="Migración ERP SAP", type="Tecnología", priority="Alta", phase="Ejecución", health="yellow", start_date=date(2026,1,15), end_date=date(2026,8,30), budget=2500000, real_budget=1800000, progress=65, planned_progress=70, organization_id=org1.id, pm_id=pm1.id, created_by_id=admin.id),
+        Project(folio="PRJ-2026-002", name="Portal Clientes B2B", type="Digital", priority="Alta", phase="Ejecución", health="green", start_date=date(2026,2,1), end_date=date(2026,7,15), budget=1200000, real_budget=520000, progress=45, planned_progress=40, organization_id=org2.id, pm_id=pm2.id, created_by_id=admin.id),
+        Project(folio="PRJ-2026-003", name="Automatización Nómina", type="Procesos", priority="Media", phase="Planificación", health="yellow", start_date=date(2026,3,1), end_date=date(2026,9,30), budget=800000, real_budget=120000, progress=15, planned_progress=20, organization_id=org1.id, pm_id=pm1.id, created_by_id=admin.id),
+        Project(folio="PRJ-2026-004", name="App Móvil Ventas", type="Digital", priority="Alta", phase="Ejecución", health="green", start_date=date(2025,11,1), end_date=date(2026,5,15), budget=950000, real_budget=780000, progress=80, planned_progress=75, organization_id=org3.id, pm_id=pm2.id, created_by_id=admin.id),
+        Project(folio="PRJ-2026-005", name="Rediseño Website Corporativo", type="Digital", priority="Baja", phase="Soporte", health="green", start_date=date(2025,9,1), end_date=date(2026,3,31), budget=350000, real_budget=340000, progress=95, planned_progress=100, organization_id=org2.id, pm_id=pm1.id, created_by_id=admin.id),
+        Project(folio="PRJ-2026-006", name="Implementación CRM Salesforce", type="Tecnología", priority="Alta", phase="Ejecución", health="red", start_date=date(2025,12,1), end_date=date(2026,10,31), budget=3200000, real_budget=1900000, progress=30, planned_progress=50, organization_id=org4.id, pm_id=pm2.id, created_by_id=admin.id),
+        Project(folio="PRJ-2026-007", name="Data Warehouse Analytics", type="Tecnología", priority="Media", phase="Planificación", health="green", start_date=date(2026,3,15), end_date=date(2026,12,31), budget=1800000, real_budget=95000, progress=10, planned_progress=12, organization_id=org1.id, pm_id=pm1.id, created_by_id=admin.id),
+        Project(folio="PRJ-2026-008", name="Certificación ISO 27001", type="Procesos", priority="Media", phase="Ejecución", health="yellow", start_date=date(2026,1,1), end_date=date(2026,6,30), budget=600000, real_budget=350000, progress=55, planned_progress=60, organization_id=org4.id, pm_id=pm1.id, created_by_id=admin.id),
+        Project(folio="PRJ-2025-012", name="Renovación Infraestructura Red", type="Infraestructura", priority="Alta", phase="Cerrado", health="green", start_date=date(2025,6,1), end_date=date(2026,1,31), budget=2100000, real_budget=2250000, progress=100, planned_progress=100, organization_id=org3.id, pm_id=pm2.id, created_by_id=admin.id),
+        Project(folio="PRJ-2026-009", name="Sistema de Facturación 4.0", type="Regulatorio", priority="Alta", phase="Ejecución", health="green", start_date=date(2026,1,10), end_date=date(2026,4,30), budget=450000, real_budget=310000, progress=70, planned_progress=65, organization_id=org1.id, pm_id=pm2.id, created_by_id=admin.id),
+    ]
+    db.add_all(sample_projects)
+    db.flush()
+
+    # --- Sample module data ---
+    db.add_all([
+        Risk(folio="RSK-2026-001", title="Retraso en entrega de licencias SAP", description="El proveedor puede no entregar a tiempo", category="Proveedor", probability=4, impact=5, severity=20, status="open", identification_date=date(2026,1,20), project_id=sample_projects[0].id, created_by_id=pm1.id),
+        Risk(folio="RSK-2026-002", title="Rotación de personal clave", description="Riesgo de salida del arquitecto principal", category="Recurso", probability=3, impact=4, severity=12, status="open", identification_date=date(2026,2,5), project_id=sample_projects[0].id, created_by_id=pm1.id),
+        Risk(folio="RSK-2026-003", title="Cambio en regulación fiscal", description="Posibles cambios en la normativa de facturación", category="Externo", probability=2, impact=5, severity=10, status="open", identification_date=date(2026,1,15), project_id=sample_projects[9].id, created_by_id=pm2.id),
+    ])
+    db.add_all([
+        Issue(folio="INC-2026-001", title="Integración API fallando en staging", description="Error 500 al conectar con ERP", type="issue", priority="Alta", status="open", report_date=date(2026,3,10), commitment_date=date(2026,3,20), project_id=sample_projects[0].id, created_by_id=pm1.id),
+        Issue(folio="INC-2026-002", title="Definir estándar de documentación", description="Equipo necesita alinearse en formato", type="decision", priority="Media", status="open", report_date=date(2026,3,5), project_id=sample_projects[1].id, created_by_id=pm2.id),
+    ])
+    db.add_all([
+        Change(folio="CHG-2026-001", title="Ampliar alcance módulo de reportes", description="Incluir reportes ejecutivos adicionales", change_type="scope", impact="2 semanas adicionales", requested_by="Director Comercial", request_date=date(2026,3,1), status="in_review", project_id=sample_projects[5].id, created_by_id=pm2.id),
+    ])
+    db.add_all([
+        Document(folio="DOC-2026-001", name="Project Charter - Migración ERP", description="Acta de constitución del proyecto", category="plan", file_path="/docs/prj001/charter.pdf", file_type="pdf", file_size=245000, project_id=sample_projects[0].id, uploaded_by_id=admin.id, created_by_id=admin.id),
+        Document(folio="DOC-2026-002", name="Plan de Proyecto ERP", description="Cronograma y plan detallado", category="plan", file_path="/docs/prj001/plan.xlsx", file_type="xlsx", file_size=890000, project_id=sample_projects[0].id, uploaded_by_id=pm1.id, created_by_id=pm1.id),
+    ])
+    db.add_all([
+        Lesson(folio="LEC-2026-001", title="Importancia del change management temprano", description="El equipo de usuarios no fue involucrado desde el inicio", category="improvement", project_phase="Ejecución", recommendation="Involucrar a key users desde la fase de planificación", project_id=sample_projects[0].id, recorded_by_id=pm1.id, created_by_id=pm1.id),
+    ])
+
+    print("  Demo data: 2 extra users, 4 orgs, 10 projects + module data")
+    print("  PM user 1:  jgarcia / Pm1234!")
+    print("  PM user 2:  mrodriguez / Pm1234!")
+
+
 def seed():
+    demo = "--demo" in sys.argv
+
     # Create all tables
     Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()
     try:
-        # Check if already seeded
         if db.query(User).first():
             print("Database already seeded. Skipping.")
             return
 
-        # --- Permissions ---
-        modules = ["projects", "risks", "issues", "changes", "documents", "lessons", "minutes", "admin", "requests"]
-        actions = ["view", "create", "edit", "delete"]
-        permissions = []
-        for mod in modules:
-            for act in actions:
-                p = Permission(module=mod, action=act, description=f"{act} {mod}")
-                permissions.append(p)
-                db.add(p)
-        db.flush()
+        admin, admin_role, pmo_role, pm_role, viewer_role = seed_minimal(db)
 
-        # --- Roles ---
-        admin_role = Role(name="Administrador", description="Acceso total al sistema", is_system=True)
-        admin_role.permissions = permissions
-        db.add(admin_role)
-
-        pmo_role = Role(name="PMO Manager", description="Gestión del portafolio de proyectos", is_system=True)
-        pmo_role.permissions = [p for p in permissions if p.action in ("view", "create", "edit")]
-        db.add(pmo_role)
-
-        pm_role = Role(name="Project Manager", description="Gestión de proyectos asignados", is_system=True)
-        pm_role.permissions = [p for p in permissions if p.module != "admin"]
-        db.add(pm_role)
-
-        viewer_role = Role(name="Viewer", description="Solo lectura", is_system=True)
-        viewer_role.permissions = [p for p in permissions if p.action == "view"]
-        db.add(viewer_role)
-        db.flush()
-
-        # --- Users ---
-        admin = User(
-            username="admin",
-            email="admin@pmo-platform.com",
-            full_name="Administrador PMO",
-            hashed_password=hash_password("Admin123!"),
-            is_active=True,
-        )
-        admin.roles.append(admin_role)
-        db.add(admin)
-
-        pm1 = User(
-            username="jgarcia",
-            email="j.garcia@empresa.com",
-            full_name="Juan García López",
-            hashed_password=hash_password("Pm1234!"),
-            is_active=True,
-        )
-        pm1.roles.append(pm_role)
-        db.add(pm1)
-
-        pm2 = User(
-            username="mrodriguez",
-            email="m.rodriguez@empresa.com",
-            full_name="María Rodríguez Sánchez",
-            hashed_password=hash_password("Pm1234!"),
-            is_active=True,
-        )
-        pm2.roles.append(pm_role)
-        db.add(pm2)
-        db.flush()
-
-        # --- Organizations ---
-        # (user-org assignments added after org creation below)
-        org1 = Organization(name="Grupo Alfa", legal_name="Grupo Alfa S.A. de C.V.", industry="Manufactura", country="México", is_active=True, created_by_id=admin.id)
-        org2 = Organization(name="TechNova", legal_name="TechNova Solutions S.A.", industry="Tecnología", country="México", is_active=True, created_by_id=admin.id)
-        org3 = Organization(name="Distribuidora MX", legal_name="Distribuidora MX S. de R.L.", industry="Distribución", country="México", is_active=True, created_by_id=admin.id)
-        org4 = Organization(name="Servicios Global", legal_name="Servicios Global Corp.", industry="Servicios", country="México", is_active=True, created_by_id=admin.id)
-        db.add_all([org1, org2, org3, org4])
-        db.flush()
-
-        # --- User-Organization assignments ---
-        admin.organizations.extend([org1, org2, org3, org4])
-        pm1.organizations.extend([org1, org3])
-        pm2.organizations.extend([org2, org4])
-        db.flush()
-
-        # --- Projects ---
-        sample_projects = [
-            Project(folio="PRJ-2026-001", name="Migración ERP SAP", type="Tecnología", priority="Alta", phase="Ejecución", health="yellow", start_date=date(2026,1,15), end_date=date(2026,8,30), budget=2500000, real_budget=1800000, progress=65, planned_progress=70, organization_id=org1.id, pm_id=pm1.id, created_by_id=admin.id),
-            Project(folio="PRJ-2026-002", name="Portal Clientes B2B", type="Digital", priority="Alta", phase="Ejecución", health="green", start_date=date(2026,2,1), end_date=date(2026,7,15), budget=1200000, real_budget=520000, progress=45, planned_progress=40, organization_id=org2.id, pm_id=pm2.id, created_by_id=admin.id),
-            Project(folio="PRJ-2026-003", name="Automatización Nómina", type="Procesos", priority="Media", phase="Planificación", health="yellow", start_date=date(2026,3,1), end_date=date(2026,9,30), budget=800000, real_budget=120000, progress=15, planned_progress=20, organization_id=org1.id, pm_id=pm1.id, created_by_id=admin.id),
-            Project(folio="PRJ-2026-004", name="App Móvil Ventas", type="Digital", priority="Alta", phase="Ejecución", health="green", start_date=date(2025,11,1), end_date=date(2026,5,15), budget=950000, real_budget=780000, progress=80, planned_progress=75, organization_id=org3.id, pm_id=pm2.id, created_by_id=admin.id),
-            Project(folio="PRJ-2026-005", name="Rediseño Website Corporativo", type="Digital", priority="Baja", phase="Soporte", health="green", start_date=date(2025,9,1), end_date=date(2026,3,31), budget=350000, real_budget=340000, progress=95, planned_progress=100, organization_id=org2.id, pm_id=pm1.id, created_by_id=admin.id),
-            Project(folio="PRJ-2026-006", name="Implementación CRM Salesforce", type="Tecnología", priority="Alta", phase="Ejecución", health="red", start_date=date(2025,12,1), end_date=date(2026,10,31), budget=3200000, real_budget=1900000, progress=30, planned_progress=50, organization_id=org4.id, pm_id=pm2.id, created_by_id=admin.id),
-            Project(folio="PRJ-2026-007", name="Data Warehouse Analytics", type="Tecnología", priority="Media", phase="Planificación", health="green", start_date=date(2026,3,15), end_date=date(2026,12,31), budget=1800000, real_budget=95000, progress=10, planned_progress=12, organization_id=org1.id, pm_id=pm1.id, created_by_id=admin.id),
-            Project(folio="PRJ-2026-008", name="Certificación ISO 27001", type="Procesos", priority="Media", phase="Ejecución", health="yellow", start_date=date(2026,1,1), end_date=date(2026,6,30), budget=600000, real_budget=350000, progress=55, planned_progress=60, organization_id=org4.id, pm_id=pm1.id, created_by_id=admin.id),
-            Project(folio="PRJ-2025-012", name="Renovación Infraestructura Red", type="Infraestructura", priority="Alta", phase="Cerrado", health="green", start_date=date(2025,6,1), end_date=date(2026,1,31), budget=2100000, real_budget=2250000, progress=100, planned_progress=100, organization_id=org3.id, pm_id=pm2.id, created_by_id=admin.id),
-            Project(folio="PRJ-2026-009", name="Sistema de Facturación 4.0", type="Regulatorio", priority="Alta", phase="Ejecución", health="green", start_date=date(2026,1,10), end_date=date(2026,4,30), budget=450000, real_budget=310000, progress=70, planned_progress=65, organization_id=org1.id, pm_id=pm2.id, created_by_id=admin.id),
-        ]
-        db.add_all(sample_projects)
-        db.flush()
-
-        # --- Sample Risks ---
-        db.add_all([
-            Risk(folio="RSK-2026-001", title="Retraso en entrega de licencias SAP", description="El proveedor puede no entregar a tiempo", category="Proveedor", probability=4, impact=5, severity=20, status="open", identification_date=date(2026,1,20), project_id=sample_projects[0].id, created_by_id=pm1.id),
-            Risk(folio="RSK-2026-002", title="Rotación de personal clave", description="Riesgo de salida del arquitecto principal", category="Recurso", probability=3, impact=4, severity=12, status="open", identification_date=date(2026,2,5), project_id=sample_projects[0].id, created_by_id=pm1.id),
-            Risk(folio="RSK-2026-003", title="Cambio en regulación fiscal", description="Posibles cambios en la normativa de facturación", category="Externo", probability=2, impact=5, severity=10, status="open", identification_date=date(2026,1,15), project_id=sample_projects[9].id, created_by_id=pm2.id),
-        ])
-
-        # --- Sample Issues ---
-        db.add_all([
-            Issue(folio="INC-2026-001", title="Integración API fallando en staging", description="Error 500 al conectar con ERP", type="issue", priority="Alta", status="open", report_date=date(2026,3,10), commitment_date=date(2026,3,20), project_id=sample_projects[0].id, created_by_id=pm1.id),
-            Issue(folio="INC-2026-002", title="Definir estándar de documentación", description="Equipo necesita alinearse en formato", type="decision", priority="Media", status="open", report_date=date(2026,3,5), project_id=sample_projects[1].id, created_by_id=pm2.id),
-        ])
-
-        # --- Sample Changes ---
-        db.add_all([
-            Change(folio="CHG-2026-001", title="Ampliar alcance módulo de reportes", description="Incluir reportes ejecutivos adicionales", change_type="scope", impact="2 semanas adicionales", requested_by="Director Comercial", request_date=date(2026,3,1), status="in_review", project_id=sample_projects[5].id, created_by_id=pm2.id),
-        ])
-
-        # --- Sample Project Areas ---
-        db.add_all([
-            ProjectArea(name="Dirección de Proyecto", description="Gestión y seguimiento del proyecto", role_in_project="Sponsor", project_id=sample_projects[0].id, responsible_id=admin.id),
-            ProjectArea(name="Desarrollo", description="Equipo de desarrollo técnico", role_in_project="Líder Técnico", project_id=sample_projects[0].id, responsible_id=pm1.id),
-            ProjectArea(name="QA / Pruebas", description="Control de calidad y testing", role_in_project="QA Lead", project_id=sample_projects[0].id, responsible_id=pm2.id),
-            ProjectArea(name="Infraestructura", description="Servidores, redes y ambientes", role_in_project="Arquitecto", project_id=sample_projects[0].id, responsible_id=pm1.id),
-            ProjectArea(name="Negocio", description="Análisis de requerimientos y validación", role_in_project="Analista de Negocio", project_id=sample_projects[0].id, responsible_id=pm2.id),
-            # Areas for project 2
-            ProjectArea(name="Diseño UX/UI", description="Diseño de experiencia de usuario", role_in_project="Diseñador Lead", project_id=sample_projects[1].id, responsible_id=pm2.id),
-            ProjectArea(name="Backend", description="Desarrollo de servicios y APIs", role_in_project="Desarrollador Sr.", project_id=sample_projects[1].id, responsible_id=pm1.id),
-            ProjectArea(name="Frontend", description="Desarrollo de interfaz de usuario", role_in_project="Desarrollador Frontend", project_id=sample_projects[1].id, responsible_id=pm2.id),
-            # Areas for project 6
-            ProjectArea(name="Consultoría CRM", description="Configuración y parametrización Salesforce", role_in_project="Consultor Salesforce", project_id=sample_projects[5].id, responsible_id=pm1.id),
-            ProjectArea(name="Migración de Datos", description="Migración de datos legacy al CRM", role_in_project="Ingeniero de Datos", project_id=sample_projects[5].id, responsible_id=pm2.id),
-            ProjectArea(name="Capacitación", description="Formación de usuarios finales", role_in_project="Capacitador", project_id=sample_projects[5].id, responsible_id=admin.id),
-        ])
-
-        # --- Sample Project Objectives ---
-        db.add_all([
-            ProjectObjective(description="Migrar 100% de módulos financieros a SAP S/4HANA", type="general", target_value="100%", current_value="65%", progress=65, status="in_progress", project_id=sample_projects[0].id),
-            ProjectObjective(description="Reducir tiempo de cierre contable mensual de 10 a 3 días", type="specific", target_value="3 días", current_value="6 días", progress=40, status="in_progress", project_id=sample_projects[0].id),
-            ProjectObjective(description="Capacitar al 100% del personal financiero", type="specific", target_value="45 personas", current_value="20 personas", progress=44, status="in_progress", project_id=sample_projects[0].id),
-            ProjectObjective(description="SLA de disponibilidad del portal ≥ 99.5%", type="kpi", target_value="99.5%", current_value="99.2%", progress=80, status="in_progress", project_id=sample_projects[1].id),
-            ProjectObjective(description="Incrementar ventas B2B online en 30%", type="general", target_value="30%", current_value="12%", progress=40, status="in_progress", project_id=sample_projects[1].id),
-            ProjectObjective(description="Automatizar el 80% de cálculos de nómina", type="general", target_value="80%", current_value="10%", progress=12, status="pending", project_id=sample_projects[2].id),
-            ProjectObjective(description="Adopción del CRM por 200 usuarios comerciales", type="general", target_value="200 usuarios", current_value="30 usuarios", progress=15, status="in_progress", project_id=sample_projects[5].id),
-            ProjectObjective(description="Obtener certificación ISO 27001 antes del 30 junio", type="general", target_value="Certificación", current_value="Auditoría interna completada", progress=55, status="in_progress", project_id=sample_projects[7].id),
-        ])
-
-        # --- Sample Documents ---
-        db.add_all([
-            Document(folio="DOC-2026-001", name="Project Charter - Migración ERP", description="Acta de constitución del proyecto", category="plan", file_path="/docs/prj001/charter.pdf", file_type="pdf", file_size=245000, project_id=sample_projects[0].id, uploaded_by_id=admin.id, created_by_id=admin.id),
-            Document(folio="DOC-2026-002", name="Plan de Proyecto ERP", description="Cronograma y plan detallado", category="plan", file_path="/docs/prj001/plan.xlsx", file_type="xlsx", file_size=890000, project_id=sample_projects[0].id, uploaded_by_id=pm1.id, created_by_id=pm1.id),
-            Document(folio="DOC-2026-003", name="Arquitectura Portal B2B", description="Documento de arquitectura técnica", category="report", file_path="/docs/prj002/arquitectura.pdf", file_type="pdf", file_size=1200000, project_id=sample_projects[1].id, uploaded_by_id=pm2.id, created_by_id=pm2.id),
-            Document(folio="DOC-2026-004", name="Contrato Salesforce", description="Contrato de licenciamiento CRM", category="contract", file_path="/docs/prj006/contrato_sf.pdf", file_type="pdf", file_size=520000, project_id=sample_projects[5].id, uploaded_by_id=admin.id, created_by_id=admin.id),
-        ])
-
-        # --- Sample Lessons ---
-        db.add_all([
-            Lesson(folio="LEC-2026-001", title="Importancia del change management temprano", description="El equipo de usuarios no fue involucrado desde el inicio, lo que causó resistencia al cambio", category="improvement", project_phase="Ejecución", recommendation="Involucrar a key users desde la fase de planificación", project_id=sample_projects[0].id, recorded_by_id=pm1.id, created_by_id=pm1.id),
-            Lesson(folio="LEC-2026-002", title="Automatización de pruebas acelera entregas", description="La implementación de pruebas automatizadas redujo el ciclo de QA en 40%", category="success", project_phase="Ejecución", recommendation="Incluir automatización de pruebas desde sprint 1", project_id=sample_projects[1].id, recorded_by_id=pm2.id, created_by_id=pm2.id),
-            Lesson(folio="LEC-2025-001", title="Documentación de infraestructura como código", description="La falta de documentación IaC causó retrasos en la replicación de ambientes", category="error", project_phase="Soporte", recommendation="Usar Terraform/Ansible desde el inicio del proyecto", project_id=sample_projects[8].id, recorded_by_id=pm2.id, created_by_id=pm2.id),
-        ])
+        if demo:
+            seed_demo(db, admin, pm_role)
 
         db.commit()
         print("Database seeded successfully!")
+        print(f"  Mode: {'demo' if demo else 'clean (minimal)'}")
         print("  Admin user: admin / Admin123!")
-        print("  PM user 1:  jgarcia / Pm1234!")
-        print("  PM user 2:  mrodriguez / Pm1234!")
+        if not demo:
+            print("  You can now create organizations and users from the UI.")
 
     finally:
         db.close()

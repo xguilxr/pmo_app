@@ -13,7 +13,7 @@ import ProgressBar from '../components/common/ProgressBar';
 import {
   kpis, projects, projectsByPhase, avgProgressByPhase,
   budgetByType, portfolioHealth,
-  Project,
+  type Project,
 } from '../data/mock';
 import { api } from '../services/api';
 import { useApi, LoadingSpinner } from '../hooks/useApi';
