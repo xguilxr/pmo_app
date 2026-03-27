@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Building2, FolderKanban, AlertTriangle, TrendingUp, Plus, X } from 'lucide-react';
-import { projects as mockProjects, type Project } from '../data/mock';
+import { type Project } from '../data/mock';
 import { api } from '../services/api';
 import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';
 import PhaseBadge from '../components/common/PhaseBadge';
@@ -47,18 +47,15 @@ export default function OrganizationsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newOrg, setNewOrg] = useState({ name: '', industry: '', country: '', contactEmail: '' });
+  const [newOrg, setNewOrg] = useState({ name: '', legalName: '', industry: '', country: 'México', contactEmail: '', isActive: true });
   const [projectsList, setProjectsList] = useState<Project[]>([]);
 
-  // Fetch projects from API with fallback to mock
   const { data: apiProjects, loading, error, refetch } = useApi<Project[]>(async () => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const raw = await api.get<any[]>('/projects');
       return raw.map(mapApiProject);
     } catch {
-      console.warn('API unavailable, using mock data');
-      return mockProjects;
+      return [];
     }
   }, []);
 
@@ -92,17 +89,18 @@ export default function OrganizationsPage() {
     try {
       await api.post('/organizations', {
         name: newOrg.name,
+        legal_name: newOrg.legalName,
         industry: newOrg.industry,
         country: newOrg.country,
         contact_email: newOrg.contactEmail,
-        is_active: true,
+        is_active: newOrg.isActive,
       });
       refetch();
-    } catch {
-      console.warn('Failed to create organization via API');
+    } catch (err) {
+      console.error('Failed to create organization:', err);
     }
     setShowCreateModal(false);
-    setNewOrg({ name: '', industry: '', country: '', contactEmail: '' });
+    setNewOrg({ name: '', legalName: '', industry: '', country: 'México', contactEmail: '', isActive: true });
   };
 
   if (loading) return <LoadingSpinner />;
@@ -230,16 +228,39 @@ export default function OrganizationsPage() {
                 <input value={newOrg.name} onChange={e => setNewOrg({...newOrg, name: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Industria</label>
-                <input value={newOrg.industry} onChange={e => setNewOrg({...newOrg, industry: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Razón Social</label>
+                <input value={newOrg.legalName} onChange={e => setNewOrg({...newOrg, legalName: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Pa\u00eds</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Industria</label>
+                <select value={newOrg.industry} onChange={e => setNewOrg({...newOrg, industry: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                  <option value="">Seleccionar...</option>
+                  <option value="Manufactura">Manufactura</option>
+                  <option value="Tecnología">Tecnología</option>
+                  <option value="Distribución">Distribución</option>
+                  <option value="Servicios">Servicios</option>
+                  <option value="Financiero">Financiero</option>
+                  <option value="Salud">Salud</option>
+                  <option value="Educación">Educación</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">País</label>
                 <input value={newOrg.country} onChange={e => setNewOrg({...newOrg, country: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email de contacto</label>
                 <input type="email" value={newOrg.contactEmail} onChange={e => setNewOrg({...newOrg, contactEmail: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+              </div>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-gray-700">Activa</label>
+                <button
+                  type="button"
+                  onClick={() => setNewOrg({...newOrg, isActive: !newOrg.isActive})}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${newOrg.isActive ? 'bg-blue-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newOrg.isActive ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">

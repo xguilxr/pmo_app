@@ -19,13 +19,6 @@ interface Change {
   requestDate: string;
 }
 
-const mockChanges: Change[] = [
-  { id: 1, folio: 'CHG-2026-001', title: 'Ampliar alcance módulo de reportes', changeType: 'scope', impact: '2 semanas adicionales', requestedBy: 'Director Comercial', status: 'in_review', projectName: 'Implementación CRM Salesforce', projectId: 6, requestDate: '2026-03-01' },
-  { id: 2, folio: 'CHG-2026-002', title: 'Agregar soporte multi-idioma', changeType: 'scope', impact: '1 sprint adicional', requestedBy: 'Gerente de Producto', status: 'approved', projectName: 'Portal Clientes B2B', projectId: 2, requestDate: '2026-03-10' },
-  { id: 3, folio: 'CHG-2026-003', title: 'Incremento presupuesto infraestructura', changeType: 'cost', impact: '+$200,000 MXN', requestedBy: 'Arquitecto TI', status: 'in_review', projectName: 'Migración ERP SAP', projectId: 1, requestDate: '2026-03-15' },
-  { id: 4, folio: 'CHG-2026-004', title: 'Extensión plazo Go-Live', changeType: 'time', impact: '3 semanas adicionales', requestedBy: 'PM', status: 'rejected', projectName: 'Certificación ISO 27001', projectId: 8, requestDate: '2026-03-05' },
-];
-
 interface ApiChange {
   id: number;
   folio: string;
@@ -64,7 +57,7 @@ export default function ChangesPage() {
 
   const { data: apiChanges, loading, error, refetch } = useApi<ApiChange[]>(() => api.get('/changes'), []);
 
-  const changes: Change[] = apiChanges ? apiChanges.map(mapApiChange) : mockChanges;
+  const changes: Change[] = apiChanges ? apiChanges.map(mapApiChange) : [];
 
   const uniqueProjects = [...new Set(changes.map(c => c.projectName))];
 

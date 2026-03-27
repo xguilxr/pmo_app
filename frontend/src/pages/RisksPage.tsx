@@ -20,14 +20,6 @@ interface Risk {
   identificationDate: string;
 }
 
-const mockRisks: Risk[] = [
-  { id: 1, folio: 'RSK-2026-001', title: 'Retraso en entrega de licencias SAP', category: 'Proveedor', probability: 4, impact: 5, severity: 20, status: 'open', projectName: 'Migración ERP SAP', projectId: 1, identificationDate: '2026-01-20' },
-  { id: 2, folio: 'RSK-2026-002', title: 'Rotación de personal clave', category: 'Recurso', probability: 3, impact: 4, severity: 12, status: 'open', projectName: 'Migración ERP SAP', projectId: 1, identificationDate: '2026-02-05' },
-  { id: 3, folio: 'RSK-2026-003', title: 'Cambio en regulación fiscal', category: 'Externo', probability: 2, impact: 5, severity: 10, status: 'open', projectName: 'Sistema de Facturación 4.0', projectId: 10, identificationDate: '2026-01-15' },
-  { id: 4, folio: 'RSK-2026-004', title: 'Dependencia de proveedor cloud', category: 'Técnico', probability: 3, impact: 3, severity: 9, status: 'mitigated', projectName: 'Data Warehouse Analytics', projectId: 7, identificationDate: '2026-03-18' },
-  { id: 5, folio: 'RSK-2026-005', title: 'Falta de adopción del CRM', category: 'Organizacional', probability: 4, impact: 4, severity: 16, status: 'open', projectName: 'Implementación CRM Salesforce', projectId: 6, identificationDate: '2026-02-10' },
-];
-
 interface ApiRisk {
   id: number;
   folio: string;
@@ -71,7 +63,7 @@ export default function RisksPage() {
 
   const { data: apiRisks, loading, error, refetch } = useApi<ApiRisk[]>(() => api.get('/risks'), []);
 
-  const risks: Risk[] = apiRisks ? apiRisks.map(mapApiRisk) : mockRisks;
+  const risks: Risk[] = apiRisks ? apiRisks.map(mapApiRisk) : [];
 
   const uniqueProjects = [...new Set(risks.map(r => r.projectName))];
 

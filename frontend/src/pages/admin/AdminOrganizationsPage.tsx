@@ -15,13 +15,6 @@ interface OrgItem {
   projectsCount: number;
 }
 
-const mockOrgs: OrgItem[] = [
-  { id: 1, name: 'Grupo Alfa', legalName: 'Grupo Alfa S.A. de C.V.', industry: 'Manufactura', country: 'México', contactEmail: 'contacto@grupoalfa.com', isActive: true, projectsCount: 4 },
-  { id: 2, name: 'TechNova', legalName: 'TechNova Solutions S.A.', industry: 'Tecnología', country: 'México', contactEmail: 'info@technova.com', isActive: true, projectsCount: 2 },
-  { id: 3, name: 'Distribuidora MX', legalName: 'Distribuidora MX S. de R.L.', industry: 'Distribución', country: 'México', contactEmail: 'admin@distmx.com', isActive: true, projectsCount: 2 },
-  { id: 4, name: 'Servicios Global', legalName: 'Servicios Global Corp.', industry: 'Servicios', country: 'México', contactEmail: 'contact@sglobal.com', isActive: true, projectsCount: 2 },
-];
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapApiOrg(raw: any): OrgItem {
   return {
@@ -42,17 +35,13 @@ export default function AdminOrganizationsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<OrgItem | null>(null);
   const [form, setForm] = useState({ name: '', legalName: '', industry: '', country: 'México', contactEmail: '', isActive: true });
+  const [deleteTarget, setDeleteTarget] = useState<OrgItem | null>(null);
 
-  // Fetch organizations from API with fallback to mock
+  // Fetch organizations from API
   const { data: apiOrgs, loading, error, refetch } = useApi<OrgItem[]>(async () => {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const raw = await api.get<any[]>('/organizations');
-      return raw.map(mapApiOrg);
-    } catch {
-      console.warn('API unavailable, using mock data');
-      return mockOrgs;
-    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raw = await api.get<any[]>('/organizations');
+    return raw.map(mapApiOrg);
   }, []);
 
   useEffect(() => {
@@ -73,46 +62,38 @@ export default function AdminOrganizationsPage() {
 
   const handleSave = async () => {
     if (!form.name.trim()) return;
-    try {
-      if (editing) {
-        await api.patch(`/organizations/${editing.id}`, {
-          name: form.name,
-          legal_name: form.legalName,
-          industry: form.industry,
-          country: form.country,
-          contact_email: form.contactEmail,
-          is_active: form.isActive,
-        });
-      } else {
-        await api.post('/organizations', {
-          name: form.name,
-          legal_name: form.legalName,
-          industry: form.industry,
-          country: form.country,
-          contact_email: form.contactEmail,
-          is_active: form.isActive,
-        });
-      }
-      refetch();
-    } catch {
-      // Fallback: update local state
-      if (editing) {
-        setOrgs(orgs.map(o => o.id === editing.id ? { ...o, ...form } : o));
-      } else {
-        setOrgs([...orgs, { id: Date.now(), ...form, projectsCount: 0 }]);
-      }
+    if (editing) {
+      await api.patch(`/organizations/${editing.id}`, {
+        name: form.name,
+        legal_name: form.legalName,
+        industry: form.industry,
+        country: form.country,
+        contact_email: form.contactEmail,
+        is_active: form.isActive,
+      });
+    } else {
+      await api.post('/organizations', {
+        name: form.name,
+        legal_name: form.legalName,
+        industry: form.industry,
+        country: form.country,
+        contact_email: form.contactEmail,
+        is_active: form.isActive,
+      });
     }
+    refetch();
     setShowModal(false);
   };
 
-  const handleDelete = async (id: number) => {
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await api.delete(`/organizations/${id}`);
+      await api.delete(`/organizations/${deleteTarget.id}`);
       refetch();
     } catch {
-      // Fallback: update local state
-      setOrgs(orgs.filter(o => o.id !== id));
+      setOrgs(orgs.filter(o => o.id !== deleteTarget.id));
     }
+    setDeleteTarget(null);
   };
 
   const industryColors: Record<string, string> = {
@@ -150,7 +131,7 @@ export default function AdminOrganizationsPage() {
               </div>
               <div className="flex gap-1">
                 <button onClick={() => openEdit(org)} className="p-1 hover:bg-gray-100 rounded"><Edit2 className="w-3.5 h-3.5 text-gray-400" /></button>
-                <button onClick={() => handleDelete(org.id)} className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" /></button>
+                <button onClick={() => setDeleteTarget(org)} className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" /></button>
               </div>
             </div>
             <div className="flex items-center gap-2 mb-3">
@@ -215,6 +196,19 @@ export default function AdminOrganizationsPage() {
             <div className="flex justify-end gap-3 mt-6">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">{t('common.cancel')}</button>
               <button onClick={handleSave} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">{t('common.save')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirmar eliminación</h3>
+            <p className="text-sm text-gray-600 mb-6">¿Estás seguro de que deseas eliminar <strong>{deleteTarget.name}</strong>? Esta acción no se puede deshacer.</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">{t('common.cancel')}</button>
+              <button onClick={confirmDelete} className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium">Eliminar</button>
             </div>
           </div>
         </div>

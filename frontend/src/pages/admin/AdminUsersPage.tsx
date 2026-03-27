@@ -15,18 +15,6 @@ interface UserItem {
   lastLogin: string;
 }
 
-const allOrganizations = ['Grupo Alfa', 'TechNova', 'Distribuidora MX', 'Servicios Global'];
-
-const mockUsers: UserItem[] = [
-  { id: 1, username: 'admin', email: 'admin@pmo-platform.com', fullName: 'Administrador PMO', roles: ['Administrador'], organizations: ['Grupo Alfa', 'TechNova', 'Distribuidora MX', 'Servicios Global'], isActive: true, lastLogin: '2026-03-26' },
-  { id: 2, username: 'jgarcia', email: 'j.garcia@empresa.com', fullName: 'Juan García López', roles: ['Project Manager'], organizations: ['Grupo Alfa'], isActive: true, lastLogin: '2026-03-25' },
-  { id: 3, username: 'mrodriguez', email: 'm.rodriguez@empresa.com', fullName: 'María Rodríguez Sánchez', roles: ['Project Manager'], organizations: ['TechNova', 'Distribuidora MX'], isActive: true, lastLogin: '2026-03-24' },
-  { id: 4, username: 'lmartinez', email: 'l.martinez@empresa.com', fullName: 'Laura Martínez Díaz', roles: ['PMO Manager'], organizations: ['Servicios Global'], isActive: true, lastLogin: '2026-03-20' },
-  { id: 5, username: 'rlopez', email: 'r.lopez@empresa.com', fullName: 'Roberto López Ruiz', roles: ['Viewer'], organizations: ['Grupo Alfa', 'Servicios Global'], isActive: false, lastLogin: '2026-02-15' },
-];
-
-const allRoles = ['Administrador', 'PMO Manager', 'Project Manager', 'Viewer'];
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapApiUser(raw: any): UserItem {
   return {
@@ -48,17 +36,21 @@ export default function AdminUsersPage() {
   const [editing, setEditing] = useState<UserItem | null>(null);
   const [form, setForm] = useState({ username: '', email: '', fullName: '', password: '', roles: [] as string[], organizations: [] as string[], isActive: true });
   const [search, setSearch] = useState('');
+  const [availableOrgs, setAvailableOrgs] = useState<string[]>([]);
+  const [availableRoles, setAvailableRoles] = useState<string[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<UserItem | null>(null);
 
-  // Fetch users from API with fallback to mock
+  // Fetch available orgs and roles
+  useEffect(() => {
+    api.get<any[]>('/organizations').then(orgs => setAvailableOrgs(orgs.map((o: any) => o.name))).catch(() => {});
+    api.get<Array<{id: number; name: string}>>('/users/roles').then(r => setAvailableRoles(r.map(role => role.name))).catch(() => setAvailableRoles(['Administrador', 'PMO Manager', 'Project Manager', 'Viewer']));
+  }, []);
+
+  // Fetch users from API
   const { data: apiUsers, loading, error, refetch } = useApi<UserItem[]>(async () => {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const raw = await api.get<any[]>('/users');
-      return raw.map(mapApiUser);
-    } catch {
-      console.warn('API unavailable, using mock data');
-      return mockUsers;
-    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raw = await api.get<any[]>('/users');
+    return raw.map(mapApiUser);
   }, []);
 
   useEffect(() => {
@@ -95,6 +87,7 @@ export default function AdminUsersPage() {
           full_name: form.fullName,
           is_active: form.isActive,
           role_ids: [],
+          organization_ids: [],
         });
       } else {
         await api.post('/users', {
@@ -103,28 +96,25 @@ export default function AdminUsersPage() {
           full_name: form.fullName,
           password: form.password,
           role_ids: [],
+          organization_ids: [],
         });
       }
       refetch();
-    } catch {
-      // Fallback: update local state
-      if (editing) {
-        setUsers(users.map(u => u.id === editing.id ? { ...u, username: form.username, email: form.email, fullName: form.fullName, roles: form.roles, organizations: form.organizations, isActive: form.isActive } : u));
-      } else {
-        setUsers([...users, { id: Date.now(), username: form.username, email: form.email, fullName: form.fullName, roles: form.roles, organizations: form.organizations, isActive: form.isActive, lastLogin: '-' }]);
-      }
+    } catch (err) {
+      console.error('Failed to save user:', err);
     }
     setShowModal(false);
   };
 
-  const handleDelete = async (id: number) => {
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await api.delete(`/users/${id}`);
+      await api.delete(`/users/${deleteTarget.id}`);
       refetch();
     } catch {
-      // Fallback: update local state
-      setUsers(users.filter(u => u.id !== id));
+      setUsers(users.filter(u => u.id !== deleteTarget.id));
     }
+    setDeleteTarget(null);
   };
 
   const filtered = search ? users.filter(u => u.fullName.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase())) : users;
@@ -197,7 +187,7 @@ export default function AdminUsersPage() {
                 <td className="px-4 py-3 text-right">
                   <div className="flex justify-end gap-1">
                     <button onClick={() => openEdit(u)} className="p-1 hover:bg-gray-100 rounded"><Edit2 className="w-3.5 h-3.5 text-gray-400" /></button>
-                    <button onClick={() => handleDelete(u.id)} className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" /></button>
+                    <button onClick={() => setDeleteTarget(u)} className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" /></button>
                   </div>
                 </td>
               </tr>
@@ -237,7 +227,7 @@ export default function AdminUsersPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">{t('admin.roles')}</label>
                 <div className="space-y-2">
-                  {allRoles.map(role => (
+                  {availableRoles.map(role => (
                     <button key={role} type="button" onClick={() => toggleRole(role)} className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm border transition-colors ${form.roles.includes(role) ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                       <div className={`w-4 h-4 rounded border flex items-center justify-center ${form.roles.includes(role) ? 'bg-blue-600 border-blue-600' : 'border-gray-300'}`}>
                         {form.roles.includes(role) && <Check className="w-3 h-3 text-white" />}
@@ -250,7 +240,7 @@ export default function AdminUsersPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">{t('admin.organizations')}</label>
                 <div className="space-y-2">
-                  {allOrganizations.map(org => (
+                  {availableOrgs.map(org => (
                     <button key={org} type="button" onClick={() => toggleOrganization(org)} className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm border transition-colors ${form.organizations.includes(org) ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                       <div className={`w-4 h-4 rounded border flex items-center justify-center ${form.organizations.includes(org) ? 'bg-green-600 border-green-600' : 'border-gray-300'}`}>
                         {form.organizations.includes(org) && <Check className="w-3 h-3 text-white" />}
@@ -270,6 +260,19 @@ export default function AdminUsersPage() {
             <div className="flex justify-end gap-3 mt-6">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">{t('common.cancel')}</button>
               <button onClick={handleSave} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">{t('common.save')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirmar eliminación</h3>
+            <p className="text-sm text-gray-600 mb-6">¿Estás seguro de que deseas eliminar al usuario <strong>{deleteTarget.fullName}</strong>? Esta acción no se puede deshacer.</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">{t('common.cancel')}</button>
+              <button onClick={confirmDelete} className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium">Eliminar</button>
             </div>
           </div>
         </div>

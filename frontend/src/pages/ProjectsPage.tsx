@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Search, X } from 'lucide-react';
-import { projects as initialProjects, companies, projectTypes, priorities } from '../data/mock';
+import { companies, projectTypes, priorities } from '../data/mock';
 import { api } from '../services/api';
 import { useApi, LoadingSpinner } from '../hooks/useApi';
 import ProgressBar from '../components/common/ProgressBar';
@@ -59,7 +59,7 @@ export default function ProjectsPage() {
   };
 
   const allProjects = useMemo(() => {
-    if (!apiProjects) return initialProjects;
+    if (!apiProjects) return [];
     return apiProjects.map(p => ({
       id: p.id,
       folio: p.folio,

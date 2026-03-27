@@ -8,13 +8,6 @@ import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';
 
 interface Doc { id: number; folio: string; name: string; category: string; fileType: string; fileSize: number; projectName: string; projectId: number; uploadedBy: string; createdAt: string; }
 
-const mockDocs: Doc[] = [
-  { id: 1, folio: 'DOC-2026-001', name: 'Project Charter - Migración ERP', category: 'plan', fileType: 'pdf', fileSize: 245000, projectName: 'Migración ERP SAP', projectId: 1, uploadedBy: 'Admin PMO', createdAt: '2026-01-15' },
-  { id: 2, folio: 'DOC-2026-002', name: 'Plan de Proyecto ERP', category: 'plan', fileType: 'xlsx', fileSize: 890000, projectName: 'Migración ERP SAP', projectId: 1, uploadedBy: 'Juan García', createdAt: '2026-01-20' },
-  { id: 3, folio: 'DOC-2026-003', name: 'Arquitectura Portal B2B', category: 'report', fileType: 'pdf', fileSize: 1200000, projectName: 'Portal Clientes B2B', projectId: 2, uploadedBy: 'María Rodríguez', createdAt: '2026-02-10' },
-  { id: 4, folio: 'DOC-2026-004', name: 'Contrato Salesforce', category: 'contract', fileType: 'pdf', fileSize: 520000, projectName: 'Implementación CRM Salesforce', projectId: 6, uploadedBy: 'Admin PMO', createdAt: '2026-01-25' },
-];
-
 interface ApiDoc {
   id: number;
   folio: string;
@@ -53,7 +46,7 @@ export default function DocumentsPage() {
 
   const { data: apiDocs, loading, error, refetch } = useApi<ApiDoc[]>(() => api.get('/documents'), []);
 
-  const docs: Doc[] = apiDocs ? apiDocs.map(mapApiDoc) : mockDocs;
+  const docs: Doc[] = apiDocs ? apiDocs.map(mapApiDoc) : [];
 
   const uniqueProjects = [...new Set(docs.map(d => d.projectName))];
   const uniqueCategories = [...new Set(docs.map(d => d.category))];
