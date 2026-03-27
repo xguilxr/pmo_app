@@ -42,6 +42,13 @@ app.include_router(backlog.router, prefix="/api")
 app.include_router(requests.router, prefix="/api")
 
 
+@app.on_event("startup")
+def startup_debug():
+    print(f"[CONFIG] jwt_secret prefix: {settings.jwt_secret[:10]}...")
+    print(f"[CONFIG] cors_origins: {settings.cors_origins}")
+    print(f"[CONFIG] database_url: {settings.database_url.split('@')[0]}@***")
+
+
 @app.get("/api/health")
 def health_check():
     return {"status": "ok", "version": "0.2.0"}
