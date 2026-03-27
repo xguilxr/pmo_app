@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Search, X } from 'lucide-react';
-import { companies, projectTypes, priorities } from '../data/mock';
+import { projectTypes, priorities } from '../data/mock';
 import { api } from '../services/api';
 import { useApi, LoadingSpinner } from '../hooks/useApi';
 import ProgressBar from '../components/common/ProgressBar';
@@ -25,6 +25,7 @@ interface ApiProject {
   start_date: string;
   end_date: string;
   health: string;
+  company?: string;
   organization_id?: number;
 }
 
@@ -39,6 +40,7 @@ export default function ProjectsPage() {
   const { data: apiProjects, loading, refetch } = useApi(() => api.get<ApiProject[]>('/projects'), []);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [filterOrgs, setFilterOrgs] = useState<string[]>([]);
   const [status, setStatus] = useState<StatusFilter>('Todos');
   const [company, setCompany] = useState('');
   const [folio, setFolio] = useState('');
@@ -47,6 +49,11 @@ export default function ProjectsPage() {
   const [priority, setPriority] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+
+  // Fetch organizations for filter dropdown
+  useEffect(() => {
+    api.get<Array<{id: number; name: string}>>('/organizations').then(orgs => setFilterOrgs(orgs.map(o => o.name))).catch(() => {});
+  }, []);
 
   const statuses: StatusFilter[] = ['Todos', 'Planificación', 'Ejecución', 'Soporte', 'Cerrado'];
 
@@ -66,7 +73,7 @@ export default function ProjectsPage() {
       name: p.name,
       type: p.type,
       priority: p.priority as 'Alta' | 'Media' | 'Baja',
-      company: '', // Will be enriched later
+      company: p.company || '',
       phase: p.phase as any,
       progress: p.progress,
       plannedProgress: p.planned_progress || 0,
@@ -151,7 +158,7 @@ export default function ProjectsPage() {
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
               <option value="">{t('common.selectOption')}</option>
-              {companies.map((c) => <option key={c} value={c}>{c}</option>)}
+              {filterOrgs.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div>
@@ -302,36 +309,43 @@ function CreateProjectModal({ onClose, onCreated, nextId }: {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+  const [orgs, setOrgs] = useState<Array<{id: number; name: string}>>([]);
+  const [saveError, setSaveError] = useState('');
   const [form, setForm] = useState({
     name: '',
     type: projectTypes[0],
     priority: 'Media' as 'Alta' | 'Media' | 'Baja',
-    company: companies[0],
+    organizationId: 0,
     startDate: '',
     endDate: '',
     budget: 0,
   });
 
+  useEffect(() => {
+    api.get<Array<{id: number; name: string}>>('/organizations').then(setOrgs).catch(() => {});
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.organizationId) {
+      setSaveError('Selecciona una organización');
+      return;
+    }
+    setSaveError('');
     setSubmitting(true);
     try {
       const created = await api.post<ApiProject>('/projects', {
         name: form.name,
         type: form.type,
         priority: form.priority,
+        organization_id: form.organizationId,
         start_date: form.startDate,
         end_date: form.endDate,
         budget: form.budget,
       });
       onCreated(created.id);
-    } catch {
-      // Fallback to mock behavior when API is unavailable
-      const folio = `PRJ-${new Date().getFullYear()}-${String(nextId).padStart(3, '0')}`;
-      const mockId = nextId;
-      // Navigate to the mock project
-      onClose();
-      navigate(`/projects/${mockId}`);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Error al crear proyecto');
     } finally {
       setSubmitting(false);
     }
@@ -345,6 +359,11 @@ function CreateProjectModal({ onClose, onCreated, nextId }: {
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {saveError && (
+            <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3">
+              {saveError}
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.name')}</label>
             <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -368,9 +387,10 @@ function CreateProjectModal({ onClose, onCreated, nextId }: {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.company')}</label>
-            <select value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })}
+            <select value={form.organizationId} onChange={(e) => setForm({ ...form, organizationId: Number(e.target.value) })}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-              {companies.map((c) => <option key={c} value={c}>{c}</option>)}
+              <option value={0}>Seleccionar organización...</option>
+              {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-4">

@@ -49,6 +49,7 @@ export default function OrganizationsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newOrg, setNewOrg] = useState({ name: '', legalName: '', industry: '', country: 'México', contactEmail: '', isActive: true });
   const [projectsList, setProjectsList] = useState<Project[]>([]);
+  const [saveError, setSaveError] = useState('');
 
   const { data: apiProjects, loading, error, refetch } = useApi<Project[]>(async () => {
     try {
@@ -86,6 +87,7 @@ export default function OrganizationsPage() {
 
   const handleCreateOrg = async () => {
     if (!newOrg.name.trim()) return;
+    setSaveError('');
     try {
       await api.post('/organizations', {
         name: newOrg.name,
@@ -96,11 +98,11 @@ export default function OrganizationsPage() {
         is_active: newOrg.isActive,
       });
       refetch();
+      setShowCreateModal(false);
+      setNewOrg({ name: '', legalName: '', industry: '', country: 'México', contactEmail: '', isActive: true });
     } catch (err) {
-      console.error('Failed to create organization:', err);
+      setSaveError(err instanceof Error ? err.message : 'Error al crear organización');
     }
-    setShowCreateModal(false);
-    setNewOrg({ name: '', legalName: '', industry: '', country: 'México', contactEmail: '', isActive: true });
   };
 
   if (loading) return <LoadingSpinner />;
@@ -113,7 +115,7 @@ export default function OrganizationsPage() {
         breadcrumb={[{ label: 'Inicio', href: '/' }, { label: t('nav.organizations') }]}
         title={t('nav.organizations')}
       >
-        <button onClick={() => setShowCreateModal(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+        <button onClick={() => { setSaveError(''); setShowCreateModal(true); }} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
           <Plus className="w-4 h-4" />
           {t('admin.newOrg')}
         </button>
@@ -223,6 +225,11 @@ export default function OrganizationsPage() {
               <button onClick={() => setShowCreateModal(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
             </div>
             <div className="space-y-4">
+              {saveError && (
+                <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3">
+                  {saveError}
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
                 <input value={newOrg.name} onChange={e => setNewOrg({...newOrg, name: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
