@@ -1,26 +1,24 @@
 // Base API configuration
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
-// Token management
-let accessToken: string | null = localStorage.getItem('pmo_token');
-
+// Token management — always read from localStorage to avoid stale module vars
 export function setToken(token: string | null) {
-  accessToken = token;
   if (token) localStorage.setItem('pmo_token', token);
   else localStorage.removeItem('pmo_token');
 }
 
 export function getToken(): string | null {
-  return accessToken;
+  return localStorage.getItem('pmo_token');
 }
 
 // Generic fetch wrapper with auth header
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = localStorage.getItem('pmo_token');
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
-  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+  if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const res = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
 
