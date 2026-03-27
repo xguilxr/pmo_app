@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { FileText, FileSpreadsheet, Files, Plus, Download, Search } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
+import { api } from '../services/api';
+import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';
 
 interface Doc { id: number; folio: string; name: string; category: string; fileType: string; fileSize: number; projectName: string; projectId: number; uploadedBy: string; createdAt: string; }
 
@@ -13,8 +15,34 @@ const mockDocs: Doc[] = [
   { id: 4, folio: 'DOC-2026-004', name: 'Contrato Salesforce', category: 'contract', fileType: 'pdf', fileSize: 520000, projectName: 'Implementación CRM Salesforce', projectId: 6, uploadedBy: 'Admin PMO', createdAt: '2026-01-25' },
 ];
 
-const uniqueProjects = [...new Set(mockDocs.map(d => d.projectName))];
-const uniqueCategories = [...new Set(mockDocs.map(d => d.category))];
+interface ApiDoc {
+  id: number;
+  folio: string;
+  name?: string;
+  title?: string;
+  category?: string;
+  file_type?: string;
+  file_size?: number;
+  project_name?: string;
+  project_id: number;
+  uploaded_by?: string;
+  created_at?: string;
+}
+
+function mapApiDoc(d: ApiDoc): Doc {
+  return {
+    id: d.id,
+    folio: d.folio,
+    name: d.name || d.title || '',
+    category: d.category || '',
+    fileType: d.file_type || 'pdf',
+    fileSize: d.file_size || 0,
+    projectName: d.project_name || '',
+    projectId: d.project_id,
+    uploadedBy: d.uploaded_by || '',
+    createdAt: d.created_at || '',
+  };
+}
 
 export default function DocumentsPage() {
   const { t } = useTranslation();
@@ -23,7 +51,14 @@ export default function DocumentsPage() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filtered = mockDocs.filter(d => {
+  const { data: apiDocs, loading, error, refetch } = useApi<ApiDoc[]>(() => api.get('/documents'), []);
+
+  const docs: Doc[] = apiDocs ? apiDocs.map(mapApiDoc) : mockDocs;
+
+  const uniqueProjects = [...new Set(docs.map(d => d.projectName))];
+  const uniqueCategories = [...new Set(docs.map(d => d.category))];
+
+  const filtered = docs.filter(d => {
     if (projectFilter !== 'all' && d.projectName !== projectFilter) return false;
     if (categoryFilter !== 'all' && d.category !== categoryFilter) return false;
     if (searchQuery && !d.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
@@ -38,6 +73,8 @@ export default function DocumentsPage() {
     return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}>{cfg.label}</span>;
   };
 
+  if (loading) return <LoadingSpinner />;
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -46,6 +83,10 @@ export default function DocumentsPage() {
       >
         <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"><Plus className="w-4 h-4" />{t('projectDetail.addDocument')}</button>
       </PageHeader>
+
+      {error && !apiDocs && (
+        <ErrorMessage message={error} onRetry={refetch} />
+      )}
 
       {/* Filter Panel */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">

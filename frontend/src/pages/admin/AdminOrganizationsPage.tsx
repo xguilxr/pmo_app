@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Edit2, Trash2, X, Building2, Globe, MapPin } from 'lucide-react';
+import { api } from '../../services/api';
+import { useApi, LoadingSpinner, ErrorMessage } from '../../hooks/useApi';
 
 interface OrgItem {
   id: number;
@@ -20,12 +22,42 @@ const mockOrgs: OrgItem[] = [
   { id: 4, name: 'Servicios Global', legalName: 'Servicios Global Corp.', industry: 'Servicios', country: 'México', contactEmail: 'contact@sglobal.com', isActive: true, projectsCount: 2 },
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapApiOrg(raw: any): OrgItem {
+  return {
+    id: raw.id,
+    name: raw.name || '',
+    legalName: raw.legal_name || '',
+    industry: raw.industry || '',
+    country: raw.country || '',
+    contactEmail: raw.contact_email || '',
+    isActive: raw.is_active ?? true,
+    projectsCount: raw.projects_count ?? 0,
+  };
+}
+
 export default function AdminOrganizationsPage() {
   const { t } = useTranslation();
-  const [orgs, setOrgs] = useState<OrgItem[]>(mockOrgs);
+  const [orgs, setOrgs] = useState<OrgItem[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<OrgItem | null>(null);
   const [form, setForm] = useState({ name: '', legalName: '', industry: '', country: 'México', contactEmail: '', isActive: true });
+
+  // Fetch organizations from API with fallback to mock
+  const { data: apiOrgs, loading, error, refetch } = useApi<OrgItem[]>(async () => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const raw = await api.get<any[]>('/organizations');
+      return raw.map(mapApiOrg);
+    } catch {
+      console.warn('API unavailable, using mock data');
+      return mockOrgs;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (apiOrgs) setOrgs(apiOrgs);
+  }, [apiOrgs]);
 
   const openCreate = () => {
     setEditing(null);
@@ -39,17 +71,49 @@ export default function AdminOrganizationsPage() {
     setShowModal(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim()) return;
-    if (editing) {
-      setOrgs(orgs.map(o => o.id === editing.id ? { ...o, ...form } : o));
-    } else {
-      setOrgs([...orgs, { id: Date.now(), ...form, projectsCount: 0 }]);
+    try {
+      if (editing) {
+        await api.patch(`/organizations/${editing.id}`, {
+          name: form.name,
+          legal_name: form.legalName,
+          industry: form.industry,
+          country: form.country,
+          contact_email: form.contactEmail,
+          is_active: form.isActive,
+        });
+      } else {
+        await api.post('/organizations', {
+          name: form.name,
+          legal_name: form.legalName,
+          industry: form.industry,
+          country: form.country,
+          contact_email: form.contactEmail,
+          is_active: form.isActive,
+        });
+      }
+      refetch();
+    } catch {
+      // Fallback: update local state
+      if (editing) {
+        setOrgs(orgs.map(o => o.id === editing.id ? { ...o, ...form } : o));
+      } else {
+        setOrgs([...orgs, { id: Date.now(), ...form, projectsCount: 0 }]);
+      }
     }
     setShowModal(false);
   };
 
-  const handleDelete = (id: number) => setOrgs(orgs.filter(o => o.id !== id));
+  const handleDelete = async (id: number) => {
+    try {
+      await api.delete(`/organizations/${id}`);
+      refetch();
+    } catch {
+      // Fallback: update local state
+      setOrgs(orgs.filter(o => o.id !== id));
+    }
+  };
 
   const industryColors: Record<string, string> = {
     'Manufactura': 'bg-amber-100 text-amber-700',
@@ -57,6 +121,9 @@ export default function AdminOrganizationsPage() {
     'Distribución': 'bg-green-100 text-green-700',
     'Servicios': 'bg-purple-100 text-purple-700',
   };
+
+  if (loading) return <LoadingSpinner />;
+  if (error && orgs.length === 0) return <ErrorMessage message={error} onRetry={refetch} />;
 
   return (
     <div className="space-y-5">

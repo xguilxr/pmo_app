@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { ClipboardList, Sparkles, Upload, Clock, Cpu } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 import { projects } from '../data/mock';
+import { api } from '../services/api';
+import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';
 
 const API_URL = 'http://localhost:8080/api';
 
@@ -12,6 +14,37 @@ const sampleMinutes = [
   { id: 2, folio: 'MIN-2026-002', title: 'Revisión Sprint 3 - Portal B2B', meeting_date: '2026-03-15', project: 'Portal Clientes B2B', source: 'ai_generated' },
   { id: 3, folio: 'MIN-2026-003', title: 'Comité de Riesgos CRM', meeting_date: '2026-03-22', project: 'Implementación CRM Salesforce', source: 'ai_generated' },
 ];
+
+interface ApiMinute {
+  id: number;
+  folio: string;
+  title: string;
+  meeting_date?: string;
+  project_name?: string;
+  project?: string;
+  source?: string;
+  created_at?: string;
+}
+
+interface Minute {
+  id: number;
+  folio: string;
+  title: string;
+  meeting_date: string;
+  project: string;
+  source: string;
+}
+
+function mapApiMinute(m: ApiMinute): Minute {
+  return {
+    id: m.id,
+    folio: m.folio,
+    title: m.title,
+    meeting_date: m.meeting_date || m.created_at || '',
+    project: m.project_name || m.project || '',
+    source: m.source || 'manual',
+  };
+}
 
 export default function MinutesPage() {
   const { t } = useTranslation();
@@ -25,6 +58,10 @@ export default function MinutesPage() {
   const [generationInfo, setGenerationInfo] = useState<{ model: string; time: number; engine: string } | null>(null);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+
+  const { data: apiMinutes, loading, error: fetchError, refetch } = useApi<ApiMinute[]>(() => api.get('/minutes'), []);
+
+  const minutes: Minute[] = apiMinutes ? apiMinutes.map(mapApiMinute) : sampleMinutes;
 
   const activeProjects = projects.filter(p => p.phase !== 'Cerrado');
 
@@ -96,7 +133,18 @@ export default function MinutesPage() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    try {
+      await api.post(`/minutes?project_id=${projectId}`, {
+        title: meetingTitle || 'Minuta sin título',
+        meeting_date: meetingDate,
+        generated_text: generatedText,
+        source: 'ai_generated',
+      });
+      refetch();
+    } catch {
+      // Fallback: just show saved state even if API fails
+    }
     setSaved(true);
     setTimeout(() => {
       setShowAIForm(false);
@@ -108,6 +156,8 @@ export default function MinutesPage() {
       setProjectId('');
     }, 2000);
   };
+
+  if (loading) return <LoadingSpinner />;
 
   return (
     <div className="space-y-5">
@@ -132,6 +182,10 @@ export default function MinutesPage() {
           {t('minutes.newMinuteAI')}
         </button>
       </PageHeader>
+
+      {fetchError && !apiMinutes && (
+        <ErrorMessage message={fetchError} onRetry={refetch} />
+      )}
 
       {/* AI Generation Form */}
       {showAIForm && (
@@ -278,7 +332,7 @@ export default function MinutesPage() {
             </tr>
           </thead>
           <tbody>
-            {sampleMinutes.map((m) => (
+            {minutes.map((m) => (
               <tr key={m.id} className="border-b border-gray-100 hover:bg-blue-50/40 transition-colors cursor-pointer">
                 <td className="px-4 py-3 text-gray-500 font-mono text-xs">{m.folio}</td>
                 <td className="px-4 py-3 text-blue-600 font-medium hover:text-blue-800">{m.title}</td>

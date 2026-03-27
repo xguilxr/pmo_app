@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, FileText, X, Eye, CheckCircle2, XCircle, Clock, AlertCircle, Ban } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
+import { api } from '../services/api';
+import { useApi, LoadingSpinner } from '../hooks/useApi';
 
 interface ProjectRequest {
   id: number;
@@ -28,13 +30,47 @@ const mockRequests: ProjectRequest[] = [
   { id: 6, folio: 'REQ-2026-006', projectName: 'App de Inventarios', description: 'Aplicación móvil para control de inventario en tiempo real con código de barras', businessCase: 'Reducir diferencias de inventario del 8% al 1%', requestedBy: 'Gerente de Almacén', organization: 'Distribuidora MX', estimatedBudget: 550000, priority: 'Alta', startDate: '2026-06-15', status: 'info_requested', createdAt: '2026-03-15', reviewNotes: 'Se requiere especificación técnica del hardware de escaneo' },
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapApiRequest(raw: any): ProjectRequest {
+  return {
+    id: raw.id,
+    folio: raw.folio || '',
+    projectName: raw.title || '',
+    description: raw.description || '',
+    businessCase: raw.benefits || raw.objective || '',
+    requestedBy: raw.requester_name || '',
+    organization: raw.organization_name || '',
+    estimatedBudget: raw.budget || 0,
+    priority: raw.priority || 'Media',
+    startDate: raw.expected_start || '',
+    status: raw.status || 'in_review',
+    createdAt: raw.created_at?.split('T')[0] || '',
+    reviewNotes: raw.rejection_reason || '',
+  };
+}
+
 export default function RequestsPage() {
   const { t } = useTranslation();
-  const [requests, setRequests] = useState<ProjectRequest[]>(mockRequests);
+  const [requests, setRequests] = useState<ProjectRequest[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [viewDetail, setViewDetail] = useState<ProjectRequest | null>(null);
   const [form, setForm] = useState({ projectName: '', description: '', businessCase: '', requestedBy: '', organization: '', estimatedBudget: 0, priority: 'Media', startDate: '' });
+
+  // Fetch from API with fallback to mock
+  const { data: apiRequests, loading, refetch } = useApi(async () => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const raw = await api.get<any[]>('/requests');
+      return raw.map(mapApiRequest);
+    } catch {
+      return mockRequests;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (apiRequests) setRequests(apiRequests);
+  }, [apiRequests]);
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(val);
@@ -47,31 +83,67 @@ export default function RequestsPage() {
     cancelled: { color: 'bg-gray-700 text-white', icon: Ban, label: t('requests.cancelled') },
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!form.projectName.trim()) return;
-    const newReq: ProjectRequest = {
-      id: Date.now(),
-      folio: `REQ-2026-${(requests.length + 1).toString().padStart(3, '0')}`,
-      ...form,
-      status: 'in_review',
-      createdAt: new Date().toISOString().split('T')[0],
-      reviewNotes: '',
-    };
-    setRequests([newReq, ...requests]);
+    try {
+      await api.post('/requests', {
+        title: form.projectName,
+        description: form.description,
+        objective: form.businessCase,
+        benefits: form.businessCase,
+        business_unit: form.organization,
+        department: form.organization,
+        sponsor_name: form.requestedBy,
+        sponsor_email: '',
+        strategic_alignment: '',
+        what_if_not_done: '',
+        key_stakeholders: form.requestedBy,
+        expected_deliverables: '',
+        budget: form.estimatedBudget,
+        organization_id: 1,
+      });
+      refetch();
+    } catch {
+      // Fallback to local
+      const newReq: ProjectRequest = {
+        id: Date.now(),
+        folio: `REQ-2026-${(requests.length + 1).toString().padStart(3, '0')}`,
+        ...form,
+        status: 'in_review',
+        createdAt: new Date().toISOString().split('T')[0],
+        reviewNotes: '',
+      };
+      setRequests([newReq, ...requests]);
+    }
     setShowModal(false);
     setForm({ projectName: '', description: '', businessCase: '', requestedBy: '', organization: '', estimatedBudget: 0, priority: 'Media', startDate: '' });
   };
 
-  const handleStatusChange = (id: number, newStatus: string, notes: string = '') => {
+  const handleStatusChange = async (id: number, newStatus: string, notes: string = '') => {
     if (newStatus === 'approved') {
       const req = requests.find(r => r.id === id);
       if (req && !window.confirm(`El proyecto "${req.projectName}" sera creado en la organizacion "${req.organization}". ¿Desea continuar?`)) {
         return;
       }
     }
-    setRequests(requests.map(r => r.id === id ? { ...r, status: newStatus, reviewNotes: notes || r.reviewNotes } : r));
+    try {
+      if (newStatus === 'approved') {
+        await api.post(`/requests/${id}/approve`, {});
+      } else if (newStatus === 'rejected') {
+        await api.post(`/requests/${id}/reject`, { reason: notes });
+      } else if (newStatus === 'cancelled') {
+        await api.post(`/requests/${id}/cancel`, {});
+      } else {
+        await api.patch(`/requests/${id}`, { status: newStatus });
+      }
+      refetch();
+    } catch {
+      setRequests(requests.map(r => r.id === id ? { ...r, status: newStatus, reviewNotes: notes || r.reviewNotes } : r));
+    }
     setViewDetail(null);
   };
+
+  if (loading) return <LoadingSpinner />;
 
   const filtered = statusFilter === 'all' ? requests : requests.filter(r => r.status === statusFilter);
 

@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Plus } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
+import { api } from '../services/api';
+import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';
 
 interface Risk {
   id: number;
@@ -26,6 +28,37 @@ const mockRisks: Risk[] = [
   { id: 5, folio: 'RSK-2026-005', title: 'Falta de adopción del CRM', category: 'Organizacional', probability: 4, impact: 4, severity: 16, status: 'open', projectName: 'Implementación CRM Salesforce', projectId: 6, identificationDate: '2026-02-10' },
 ];
 
+interface ApiRisk {
+  id: number;
+  folio: string;
+  title: string;
+  category: string;
+  probability: number;
+  impact: number;
+  severity: number;
+  status: string;
+  project_name?: string;
+  project_id: number;
+  identification_date?: string;
+  created_at?: string;
+}
+
+function mapApiRisk(r: ApiRisk): Risk {
+  return {
+    id: r.id,
+    folio: r.folio,
+    title: r.title,
+    category: r.category || '',
+    probability: r.probability ?? 0,
+    impact: r.impact ?? 0,
+    severity: r.severity ?? (r.probability ?? 0) * (r.impact ?? 0),
+    status: r.status,
+    projectName: r.project_name || '',
+    projectId: r.project_id,
+    identificationDate: r.identification_date || r.created_at || '',
+  };
+}
+
 export default function RisksPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -36,7 +69,11 @@ export default function RisksPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  const uniqueProjects = [...new Set(mockRisks.map(r => r.projectName))];
+  const { data: apiRisks, loading, error, refetch } = useApi<ApiRisk[]>(() => api.get('/risks'), []);
+
+  const risks: Risk[] = apiRisks ? apiRisks.map(mapApiRisk) : mockRisks;
+
+  const uniqueProjects = [...new Set(risks.map(r => r.projectName))];
 
   const severityColor = (s: number) => s >= 15 ? 'bg-red-100 text-red-700' : s >= 8 ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700';
   const statusBadge = (s: string) => {
@@ -45,7 +82,7 @@ export default function RisksPage() {
     return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${c[s] || ''}`}>{l[s] || s}</span>;
   };
 
-  const filtered = mockRisks.filter(r => {
+  const filtered = risks.filter(r => {
     if (statusFilter !== 'all' && r.status !== statusFilter) return false;
     if (projectFilter !== 'all' && r.projectName !== projectFilter) return false;
     if (severityMin && r.severity < Number(severityMin)) return false;
@@ -54,6 +91,8 @@ export default function RisksPage() {
     if (dateTo && r.identificationDate > dateTo) return false;
     return true;
   });
+
+  if (loading) return <LoadingSpinner />;
 
   return (
     <div className="space-y-5">
@@ -66,6 +105,10 @@ export default function RisksPage() {
           {t('projectDetail.addRisk')}
         </button>
       </PageHeader>
+
+      {error && !apiRisks && (
+        <ErrorMessage message={error} onRetry={refetch} />
+      )}
 
       {/* Filter Panel */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">

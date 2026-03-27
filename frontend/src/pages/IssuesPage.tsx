@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Bug, Plus } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
+import { api } from '../services/api';
+import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';
 
 interface Issue {
   id: number;
@@ -25,6 +27,35 @@ const mockIssues: Issue[] = [
   { id: 5, folio: 'INC-2026-005', title: 'Aprobar diseño de dashboard ejecutivo', type: 'decision', priority: 'Alta', status: 'open', projectName: 'Data Warehouse Analytics', projectId: 7, reportDate: '2026-03-20', commitmentDate: '2026-03-28' },
 ];
 
+interface ApiIssue {
+  id: number;
+  folio: string;
+  title: string;
+  type?: string;
+  priority?: string;
+  status: string;
+  project_name?: string;
+  project_id: number;
+  report_date?: string;
+  commitment_date?: string;
+  created_at?: string;
+}
+
+function mapApiIssue(i: ApiIssue): Issue {
+  return {
+    id: i.id,
+    folio: i.folio,
+    title: i.title,
+    type: i.type || 'issue',
+    priority: i.priority || 'Media',
+    status: i.status,
+    projectName: i.project_name || '',
+    projectId: i.project_id,
+    reportDate: i.report_date || i.created_at || '',
+    commitmentDate: i.commitment_date || '',
+  };
+}
+
 export default function IssuesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -33,7 +64,11 @@ export default function IssuesPage() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
 
-  const uniqueProjects = [...new Set(mockIssues.map(i => i.projectName))];
+  const { data: apiIssues, loading, error, refetch } = useApi<ApiIssue[]>(() => api.get('/issues'), []);
+
+  const issues: Issue[] = apiIssues ? apiIssues.map(mapApiIssue) : mockIssues;
+
+  const uniqueProjects = [...new Set(issues.map(i => i.projectName))];
 
   const typeBadge = (type: string) => {
     const c: Record<string, { color: string; label: string }> = { action: { color: 'bg-blue-100 text-blue-700', label: 'Acción' }, issue: { color: 'bg-red-100 text-red-700', label: 'Incidencia' }, decision: { color: 'bg-purple-100 text-purple-700', label: 'Decisión' } };
@@ -47,13 +82,15 @@ export default function IssuesPage() {
     return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}>{cfg.label}</span>;
   };
 
-  const filtered = mockIssues.filter(i => {
+  const filtered = issues.filter(i => {
     if (projectFilter !== 'all' && i.projectName !== projectFilter) return false;
     if (statusFilter !== 'all' && i.status !== statusFilter) return false;
     if (typeFilter !== 'all' && i.type !== typeFilter) return false;
     if (priorityFilter !== 'all' && i.priority !== priorityFilter) return false;
     return true;
   });
+
+  if (loading) return <LoadingSpinner />;
 
   return (
     <div className="space-y-5">
@@ -65,6 +102,11 @@ export default function IssuesPage() {
           <Plus className="w-4 h-4" />{t('projectDetail.addIssue')}
         </button>
       </PageHeader>
+
+      {error && !apiIssues && (
+        <ErrorMessage message={error} onRetry={refetch} />
+      )}
+
       {/* Filter Panel */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="grid grid-cols-4 gap-3">
