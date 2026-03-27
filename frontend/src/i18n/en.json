@@ -132,6 +132,11 @@
     "topics": "Topics Discussed",
     "agreements": "Agreements",
     "importPlan": "Import Plan",
+    "changeHistory": "Change History",
+    "changesDetected": "changes detected",
+    "applyChanges": "Apply Changes",
+    "oldValue": "Old Value",
+    "newValue": "New Value",
     "addTask": "Add Task",
     "editTask": "Edit Task",
     "noTasks": "No tasks recorded",
@@ -269,6 +274,8 @@
     "blocked": "Blocked",
     "notStarted": "Not Started",
     "inProgress": "In Progress",
-    "completed": "Completed"
+    "completed": "Completed",
+    "back": "Back",
+    "home": "Home"
   }
 }

@@ -5,6 +5,7 @@ import { Plus, Search, X } from 'lucide-react';
 import { projects as initialProjects, companies, projectTypes, priorities } from '../data/mock';
 import ProgressBar from '../components/common/ProgressBar';
 import PhaseBadge from '../components/common/PhaseBadge';
+import PageHeader from '../components/common/PageHeader';
 
 type StatusFilter = 'Todos' | 'Planificación' | 'Ejecución' | 'Soporte' | 'Cerrado';
 
@@ -65,8 +66,10 @@ export default function ProjectsPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">{t('projects.title')}</h2>
+      <PageHeader
+        breadcrumb={[{ label: 'Inicio', href: '/' }, { label: t('nav.projects') }]}
+        title={t('projects.title')}
+      >
         <button
           onClick={() => setShowCreateModal(true)}
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
@@ -74,7 +77,7 @@ export default function ProjectsPage() {
           <Plus className="w-4 h-4" />
           {t('projects.newProject')}
         </button>
-      </div>
+      </PageHeader>
 
       {/* Status Buttons */}
       <div className="flex gap-2">
@@ -94,7 +97,7 @@ export default function ProjectsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className="bg-gradient-to-r from-blue-50/40 to-white rounded-xl border border-blue-100/40 p-4">
         <div className="grid grid-cols-4 gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">{t('projects.company')}</label>

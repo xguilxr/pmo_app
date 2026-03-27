@@ -18,6 +18,7 @@ import {
   ChevronDown,
   ChevronRight,
   LogOut,
+  Sliders,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useBranding } from '../../context/BrandingContext';
@@ -108,8 +109,12 @@ export default function Sidebar() {
         </button>
         {adminOpen && (
           <div className="space-y-0.5">
+            <NavLink to="/admin/empresas" className={subLinkClass}><Building2 className="w-3.5 h-3.5" />{t('nav.empresas')}</NavLink>
             <NavLink to="/admin/users" className={subLinkClass}><Users className="w-3.5 h-3.5" />{t('nav.users')}</NavLink>
-            <NavLink to="/admin/roles" className={subLinkClass}><Shield className="w-3.5 h-3.5" />{t('nav.roles')}</NavLink>
+            <NavLink to="/admin/permissions" className={subLinkClass}><Shield className="w-3.5 h-3.5" />{t('nav.permissions')}</NavLink>
+            <NavLink to="/admin/project-types" className={subLinkClass}><FolderKanban className="w-3.5 h-3.5" />{t('nav.projectTypes')}</NavLink>
+            <NavLink to="/admin/variables" className={subLinkClass}><Sliders className="w-3.5 h-3.5" />{t('nav.variables')}</NavLink>
+            <NavLink to="/admin/logs" className={subLinkClass}><FileText className="w-3.5 h-3.5" />{t('nav.logs')}</NavLink>
           </div>
         )}
       </nav>

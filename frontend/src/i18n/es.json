@@ -132,6 +132,11 @@
     "topics": "Temas Tratados",
     "agreements": "Acuerdos",
     "importPlan": "Importar Plan",
+    "changeHistory": "Historial de Cambios",
+    "changesDetected": "cambios detectados",
+    "applyChanges": "Aplicar Cambios",
+    "oldValue": "Valor Anterior",
+    "newValue": "Valor Nuevo",
     "addTask": "Agregar Tarea",
     "editTask": "Editar Tarea",
     "noTasks": "No hay tareas registradas",
@@ -269,6 +274,8 @@
     "blocked": "Bloqueado",
     "notStarted": "Sin Iniciar",
     "inProgress": "En Progreso",
-    "completed": "Completado"
+    "completed": "Completado",
+    "back": "Regresar",
+    "home": "Inicio"
   }
 }

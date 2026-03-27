@@ -14,6 +14,7 @@ import {
   budgetByType, portfolioHealth,
 } from '../data/mock';
 import { Link } from 'react-router-dom';
+import PageHeader from '../components/common/PageHeader';
 
 function formatMXN(value: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(value);
@@ -25,10 +26,13 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-gray-900">{t('dashboard.title')}</h2>
+      <PageHeader
+        breadcrumb={[{ label: 'Dashboard' }]}
+        title={t('dashboard.title')}
+      />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-4 gap-4 bg-gradient-to-br from-blue-50/40 to-white rounded-xl p-4 border border-blue-100/30">
         <KpiCard title={t('dashboard.activeProjects')} value={kpis.activeProjects} icon={<FolderKanban className="w-5 h-5 text-blue-600" />} to="/projects" color="bg-blue-50" />
         <KpiCard title={t('dashboard.requestsInReview')} value={kpis.requestsInReview} icon={<FileText className="w-5 h-5 text-amber-600" />} to="/requests" color="bg-amber-50" />
         <KpiCard title={t('dashboard.openRisks')} value={kpis.openRisks} icon={<AlertTriangle className="w-5 h-5 text-orange-600" />} to="/risks" color="bg-orange-50" />

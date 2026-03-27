@@ -20,6 +20,7 @@ import ProjectChangesTab from '../components/project/ProjectChangesTab';
 import ProjectDocumentsTab from '../components/project/ProjectDocumentsTab';
 import ProjectLessonsTab from '../components/project/ProjectLessonsTab';
 import ProjectMinutesTab from '../components/project/ProjectMinutesTab';
+import PageHeader from '../components/common/PageHeader';
 
 const tabs = [
   { id: 'info', icon: Info, labelKey: 'projectDetail.info' },
@@ -75,37 +76,38 @@ export default function ProjectDetailPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <button onClick={() => navigate('/projects')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-          <ArrowLeft className="w-5 h-5 text-gray-500" />
-        </button>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-mono text-gray-500">{project.folio}</span>
-            <PhaseBadge phase={project.phase} />
-            <HealthBadge health={project.health} />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mt-1">{project.name}</h1>
+      <PageHeader
+        breadcrumb={[
+          { label: 'Inicio', href: '/' },
+          { label: t('nav.projects'), href: '/projects' },
+          { label: project.name },
+        ]}
+        title={project.name}
+        subtitle={`${project.folio}`}
+      >
+        <div className="flex items-center gap-2">
+          <PhaseBadge phase={project.phase} />
+          <HealthBadge health={project.health} />
         </div>
-      </div>
+      </PageHeader>
 
       {/* Quick stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="bg-gradient-to-br from-white to-blue-50/30 rounded-xl border border-blue-100/50 p-4">
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
             <Building2 className="w-4 h-4" />
             {t('projects.company')}
           </div>
           <p className="font-semibold text-gray-900">{project.company}</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="bg-gradient-to-br from-white to-blue-50/30 rounded-xl border border-blue-100/50 p-4">
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
             <Calendar className="w-4 h-4" />
             {t('projectDetail.timeline')}
           </div>
           <p className="font-semibold text-gray-900 text-sm">{project.startDate} → {project.endDate}</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="bg-gradient-to-br from-white to-blue-50/30 rounded-xl border border-blue-100/50 p-4">
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
             <DollarSign className="w-4 h-4" />
             {t('projects.budget')}
@@ -113,7 +115,7 @@ export default function ProjectDetailPage() {
           <p className="font-semibold text-gray-900">{formatCurrency(project.budget)}</p>
           <p className="text-xs text-gray-500">Real: {formatCurrency(project.realBudget)}</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="bg-gradient-to-br from-white to-blue-50/30 rounded-xl border border-blue-100/50 p-4">
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
             <TrendingUp className="w-4 h-4" />
             {t('projects.progress')}
