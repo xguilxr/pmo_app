@@ -170,6 +170,7 @@
     "meetingTitle": "Título de la reunión",
     "meetingDate": "Fecha de reunión",
     "generate": "Generar Minuta",
+    "generateWithAI": "Generar con IA",
     "generating": "Generando minuta con IA...",
     "generatedIn": "Generada en",
     "modelUsed": "Modelo",
@@ -202,7 +203,8 @@
     "view": "Ver",
     "send": "Enviar",
     "delete": "Eliminar",
-    "preview": "Vista Previa del Reporte"
+    "preview": "Vista Previa del Reporte",
+    "download": "Descargar"
   },
   "requests": {
     "title": "Solicitudes de Proyecto",

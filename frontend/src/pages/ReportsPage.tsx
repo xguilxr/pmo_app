@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Eye, Send, Trash2, X, FileBarChart, BarChart3, Bot, Calendar } from 'lucide-react';
 import { projects } from '../data/mock';
+import PageHeader from '../components/common/PageHeader';
 
 interface Report {
   id: number;
@@ -205,8 +206,10 @@ export default function ReportsPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">{t('reports.title')}</h2>
+      <PageHeader
+        breadcrumb={[{ label: 'Inicio', href: '/' }, { label: t('reports.title') }]}
+        title={t('reports.title')}
+      >
         <button
           onClick={() => setShowGenerateModal(true)}
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
@@ -214,7 +217,7 @@ export default function ReportsPage() {
           <Plus className="w-4 h-4" />
           {t('reports.generate')}
         </button>
-      </div>
+      </PageHeader>
 
       {/* Reports list */}
       {reports.length === 0 ? (

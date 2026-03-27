@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { FileText, FileSpreadsheet, Files, Plus, Download } from 'lucide-react';
+import PageHeader from '../components/common/PageHeader';
 
 interface Doc { id: number; folio: string; name: string; category: string; fileType: string; fileSize: number; projectName: string; projectId: number; uploadedBy: string; createdAt: string; }
 
@@ -24,10 +25,12 @@ export default function DocumentsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">{t('nav.documents')}</h2>
+      <PageHeader
+        breadcrumb={[{ label: 'Inicio', href: '/' }, { label: t('nav.documents') }]}
+        title={t('nav.documents')}
+      >
         <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"><Plus className="w-4 h-4" />{t('projectDetail.addDocument')}</button>
-      </div>
+      </PageHeader>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {mockDocs.map(d => (
           <div key={d.id} className="bg-white rounded-xl border border-gray-200 p-4 flex gap-4 hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate(`/projects/${d.projectId}`)}>

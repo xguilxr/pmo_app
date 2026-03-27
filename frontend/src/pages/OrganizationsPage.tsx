@@ -6,6 +6,7 @@ import { projects } from '../data/mock';
 import PhaseBadge from '../components/common/PhaseBadge';
 import HealthBadge from '../components/common/HealthBadge';
 import ProgressBar from '../components/common/ProgressBar';
+import PageHeader from '../components/common/PageHeader';
 
 function formatMXN(value: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(value);
@@ -50,16 +51,15 @@ export default function OrganizationsPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Building2 className="w-6 h-6 text-blue-600" />
-          <h2 className="text-xl font-bold text-gray-900">{t('nav.organizations')}</h2>
-        </div>
+      <PageHeader
+        breadcrumb={[{ label: 'Inicio', href: '/' }, { label: t('nav.organizations') }]}
+        title={t('nav.organizations')}
+      >
         <button onClick={() => setShowCreateModal(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
           <Plus className="w-4 h-4" />
           {t('admin.newOrg')}
         </button>
-      </div>
+      </PageHeader>
 
       {/* Organization Cards */}
       {organizations.map((org) => (

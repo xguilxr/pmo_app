@@ -170,6 +170,7 @@
     "meetingTitle": "Meeting title",
     "meetingDate": "Meeting date",
     "generate": "Generate Minute",
+    "generateWithAI": "Generate with AI",
     "generating": "Generating minute with AI...",
     "generatedIn": "Generated in",
     "modelUsed": "Model",
@@ -202,7 +203,8 @@
     "view": "View",
     "send": "Send",
     "delete": "Delete",
-    "preview": "Report Preview"
+    "preview": "Report Preview",
+    "download": "Download"
   },
   "requests": {
     "title": "Project Requests",

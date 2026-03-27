@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, TrendingUp, AlertCircle, Plus } from 'lucide-react';
+import PageHeader from '../components/common/PageHeader';
 
 interface Lesson { id: number; folio: string; title: string; description: string; category: string; projectPhase: string; recommendation: string; projectName: string; projectId: number; recordedBy: string; createdAt: string; }
 
@@ -21,10 +22,12 @@ export default function LessonsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">{t('nav.lessons')}</h2>
+      <PageHeader
+        breadcrumb={[{ label: 'Inicio', href: '/' }, { label: t('nav.lessons') }]}
+        title={t('nav.lessons')}
+      >
         <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"><Plus className="w-4 h-4" />{t('projectDetail.addLesson')}</button>
-      </div>
+      </PageHeader>
       <div className="space-y-4">
         {mockLessons.map(l => {
           const cat = catConfig[l.category] || catConfig.improvement;

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, FileText, X, Eye, CheckCircle2, XCircle, Clock, AlertCircle, Ban } from 'lucide-react';
+import PageHeader from '../components/common/PageHeader';
 
 interface ProjectRequest {
   id: number;
@@ -84,13 +85,15 @@ export default function RequestsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">{t('requests.title')}</h2>
+      <PageHeader
+        breadcrumb={[{ label: 'Inicio', href: '/' }, { label: t('requests.title') }]}
+        title={t('requests.title')}
+      >
         <button onClick={() => setShowModal(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
           <Plus className="w-4 h-4" />
           {t('requests.newRequest')}
         </button>
-      </div>
+      </PageHeader>
 
       {/* Status filter buttons */}
       <div className="flex gap-2">

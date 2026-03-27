@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw, Plus } from 'lucide-react';
+import PageHeader from '../components/common/PageHeader';
 
 interface Change {
   id: number;
@@ -44,10 +45,12 @@ export default function ChangesPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">{t('nav.changes')}</h2>
+      <PageHeader
+        breadcrumb={[{ label: 'Inicio', href: '/' }, { label: t('nav.changes') }]}
+        title={t('nav.changes')}
+      >
         <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"><Plus className="w-4 h-4" />{t('projectDetail.addChange')}</button>
-      </div>
+      </PageHeader>
       <div className="flex gap-2">
         {['all', 'in_review', 'approved', 'rejected'].map(s => (
           <button key={s} onClick={() => setStatusFilter(s)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${statusFilter === s ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
