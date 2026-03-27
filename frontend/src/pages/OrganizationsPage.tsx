@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Building2, FolderKanban, AlertTriangle, TrendingUp, Plus, X } from 'lucide-react';
-import { projects as mockProjects, Project } from '../data/mock';
+import { projects as mockProjects, type Project } from '../data/mock';
 import { api } from '../services/api';
 import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';
 import PhaseBadge from '../components/common/PhaseBadge';
