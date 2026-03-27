@@ -11,6 +11,8 @@ import IssuesPage from './pages/IssuesPage';
 import ChangesPage from './pages/ChangesPage';
 import DocumentsPage from './pages/DocumentsPage';
 import LessonsPage from './pages/LessonsPage';
+import OrganizationsPage from './pages/OrganizationsPage';
+import ReportsPage from './pages/ReportsPage';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
 import AdminRolesPage from './pages/admin/AdminRolesPage';
 import AdminOrganizationsPage from './pages/admin/AdminOrganizationsPage';
@@ -26,12 +28,14 @@ export default function App() {
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:id" element={<ProjectDetailPage />} />
           <Route path="/requests" element={<RequestsPage />} />
+          <Route path="/organizations" element={<OrganizationsPage />} />
           <Route path="/risks" element={<RisksPage />} />
           <Route path="/issues" element={<IssuesPage />} />
           <Route path="/changes" element={<ChangesPage />} />
           <Route path="/documents" element={<DocumentsPage />} />
           <Route path="/lessons" element={<LessonsPage />} />
           <Route path="/minutes" element={<MinutesPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
           <Route path="/admin/users" element={<AdminUsersPage />} />
           <Route path="/admin/roles" element={<AdminRolesPage />} />
           <Route path="/admin/organizations" element={<AdminOrganizationsPage />} />

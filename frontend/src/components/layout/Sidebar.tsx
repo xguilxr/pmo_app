@@ -14,6 +14,7 @@ import {
   Users,
   Shield,
   Building2,
+  BarChart3,
   ChevronDown,
   ChevronRight,
   LogOut,
@@ -60,14 +61,19 @@ export default function Sidebar() {
           {t('nav.dashboard')}
         </NavLink>
 
-        <NavLink to="/projects" className={linkClass}>
-          <FolderKanban className="w-4 h-4" />
-          {t('nav.projects')}
-        </NavLink>
-
         <NavLink to="/requests" className={linkClass}>
           <FileText className="w-4 h-4" />
           {t('nav.requests')}
+        </NavLink>
+
+        <NavLink to="/organizations" className={linkClass}>
+          <Building2 className="w-4 h-4" />
+          {t('nav.organizations')}
+        </NavLink>
+
+        <NavLink to="/projects" className={linkClass}>
+          <FolderKanban className="w-4 h-4" />
+          {t('nav.projects')}
         </NavLink>
 
         {/* Modules dropdown */}
@@ -87,6 +93,7 @@ export default function Sidebar() {
             <NavLink to="/documents" className={subLinkClass}><Files className="w-3.5 h-3.5" />{t('nav.documents')}</NavLink>
             <NavLink to="/lessons" className={subLinkClass}><Lightbulb className="w-3.5 h-3.5" />{t('nav.lessons')}</NavLink>
             <NavLink to="/minutes" className={subLinkClass}><ClipboardList className="w-3.5 h-3.5" />{t('nav.minutes')}</NavLink>
+            <NavLink to="/reports" className={subLinkClass}><BarChart3 className="w-3.5 h-3.5" />{t('nav.reports')}</NavLink>
           </div>
         )}
 
@@ -103,8 +110,6 @@ export default function Sidebar() {
           <div className="space-y-0.5">
             <NavLink to="/admin/users" className={subLinkClass}><Users className="w-3.5 h-3.5" />{t('nav.users')}</NavLink>
             <NavLink to="/admin/roles" className={subLinkClass}><Shield className="w-3.5 h-3.5" />{t('nav.roles')}</NavLink>
-            <NavLink to="/admin/organizations" className={subLinkClass}><Building2 className="w-3.5 h-3.5" />{t('nav.organizations')}</NavLink>
-            <NavLink to="/admin/projects" className={subLinkClass}><FolderKanban className="w-3.5 h-3.5" />{t('nav.projects')}</NavLink>
           </div>
         )}
       </nav>
