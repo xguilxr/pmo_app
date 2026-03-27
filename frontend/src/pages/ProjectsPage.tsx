@@ -339,8 +339,8 @@ function CreateProjectModal({ onClose, onCreated, nextId }: {
         type: form.type,
         priority: form.priority,
         organization_id: form.organizationId,
-        start_date: form.startDate,
-        end_date: form.endDate,
+        start_date: form.startDate || null,
+        end_date: form.endDate || null,
         budget: form.budget,
       });
       onCreated(created.id);

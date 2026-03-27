@@ -1,5 +1,6 @@
 from datetime import date, datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -76,7 +77,11 @@ def create_project(data: ProjectCreate, db: Session = Depends(get_db), current_u
     )
     project.users.append(current_user)
     db.add(project)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Error de integridad al crear el proyecto")
     db.refresh(project)
     return project
 
