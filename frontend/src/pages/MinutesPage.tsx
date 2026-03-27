@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ClipboardList, Sparkles, Upload, Clock, Cpu } from 'lucide-react';
+import PageHeader from '../components/common/PageHeader';
 import { projects } from '../data/mock';
 
 const API_URL = 'http://localhost:8080/api';
@@ -111,26 +112,26 @@ export default function MinutesPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">{t('minutes.title')}</h2>
-        <div className="flex gap-2">
-          <button className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
-            <ClipboardList className="w-4 h-4" />
-            {t('minutes.newMinute')}
-          </button>
-          <button
-            onClick={() => setShowAIForm(!showAIForm)}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              showAIForm
-                ? 'bg-purple-100 text-purple-700 border border-purple-200'
-                : 'bg-purple-600 text-white hover:bg-purple-700'
-            }`}
-          >
-            <Sparkles className="w-4 h-4" />
-            {t('minutes.newMinuteAI')}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        breadcrumb={[{ label: 'Inicio', href: '/' }, { label: t('minutes.title') }]}
+        title={t('minutes.title')}
+      >
+        <button className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+          <ClipboardList className="w-4 h-4" />
+          {t('minutes.newMinute')}
+        </button>
+        <button
+          onClick={() => setShowAIForm(!showAIForm)}
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            showAIForm
+              ? 'bg-purple-100 text-purple-700 border border-purple-200'
+              : 'bg-purple-600 text-white hover:bg-purple-700'
+          }`}
+        >
+          <Sparkles className="w-4 h-4" />
+          {t('minutes.newMinuteAI')}
+        </button>
+      </PageHeader>
 
       {/* AI Generation Form */}
       {showAIForm && (

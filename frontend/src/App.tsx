@@ -12,10 +12,15 @@ import ChangesPage from './pages/ChangesPage';
 import DocumentsPage from './pages/DocumentsPage';
 import LessonsPage from './pages/LessonsPage';
 import OrganizationsPage from './pages/OrganizationsPage';
+import OrganizationDetailPage from './pages/OrganizationDetailPage';
 import ReportsPage from './pages/ReportsPage';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
 import AdminRolesPage from './pages/admin/AdminRolesPage';
 import AdminOrganizationsPage from './pages/admin/AdminOrganizationsPage';
+import AdminPermissionsPage from './pages/admin/AdminPermissionsPage';
+import AdminProjectTypesPage from './pages/admin/AdminProjectTypesPage';
+import AdminVariablesPage from './pages/admin/AdminVariablesPage';
+import AdminLogsPage from './pages/admin/AdminLogsPage';
 import './i18n';
 
 export default function App() {
@@ -29,6 +34,7 @@ export default function App() {
           <Route path="/projects/:id" element={<ProjectDetailPage />} />
           <Route path="/requests" element={<RequestsPage />} />
           <Route path="/organizations" element={<OrganizationsPage />} />
+          <Route path="/organizations/:orgName" element={<OrganizationDetailPage />} />
           <Route path="/risks" element={<RisksPage />} />
           <Route path="/issues" element={<IssuesPage />} />
           <Route path="/changes" element={<ChangesPage />} />
@@ -39,6 +45,11 @@ export default function App() {
           <Route path="/admin/users" element={<AdminUsersPage />} />
           <Route path="/admin/roles" element={<AdminRolesPage />} />
           <Route path="/admin/organizations" element={<AdminOrganizationsPage />} />
+          <Route path="/admin/empresas" element={<AdminOrganizationsPage />} />
+          <Route path="/admin/permissions" element={<AdminPermissionsPage />} />
+          <Route path="/admin/project-types" element={<AdminProjectTypesPage />} />
+          <Route path="/admin/variables" element={<AdminVariablesPage />} />
+          <Route path="/admin/logs" element={<AdminLogsPage />} />
           <Route path="/admin/projects" element={<ProjectsPage />} />
         </Route>
       </Routes>

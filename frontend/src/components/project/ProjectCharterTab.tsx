@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Edit2, Trash2, X, Upload, Diamond, Clock, ListTree } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Upload, Diamond, Clock, ListTree, FileUp, History } from 'lucide-react';
 
 interface CharterTask {
   id: number;
@@ -15,6 +15,20 @@ interface CharterTask {
   outlineLevel: number;
   isMilestone: boolean;
   wasDelayed: boolean;
+}
+
+interface ImportChange {
+  task: string;
+  field: string;
+  oldValue: string;
+  newValue: string;
+}
+
+interface ImportHistoryEntry {
+  id: number;
+  date: string;
+  filename: string;
+  changesCount: number;
 }
 
 const mockTasks: Record<number, CharterTask[]> = {
@@ -34,6 +48,11 @@ const mockTasks: Record<number, CharterTask[]> = {
   ],
 };
 
+const mockImportHistory: ImportHistoryEntry[] = [
+  { id: 1, date: '2026-02-10', filename: 'Plan_ERP_v2.xlsx', changesCount: 5 },
+  { id: 2, date: '2026-03-01', filename: 'Cronograma_Sprint3.mpp', changesCount: 8 },
+];
+
 const emptyForm = {
   wbs: '',
   name: '',
@@ -51,6 +70,11 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
   const [showImport, setShowImport] = useState(false);
   const [editing, setEditing] = useState<CharterTask | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
+  const [importHistory, setImportHistory] = useState<ImportHistoryEntry[]>(mockImportHistory);
+  const [pendingChanges, setPendingChanges] = useState<ImportChange[] | null>(null);
+  const [pendingFilename, setPendingFilename] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -119,6 +143,62 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
 
   const isPastDue = (task: CharterTask) => task.endDate < today && task.progress < 100;
 
+  // --- Import logic ---
+  const generateMockChanges = (filename: string): ImportChange[] => [
+    { task: 'Módulo de autenticación', field: 'Fecha Fin', oldValue: '2026-03-20', newValue: '2026-03-25' },
+    { task: 'Módulo de reportes', field: 'Avance', oldValue: '30%', newValue: '45%' },
+    { task: 'Integración con ERP', field: 'Responsable', oldValue: 'Juan García', newValue: 'Carlos López' },
+    { task: 'Configuración de APIs', field: 'Fecha Inicio', oldValue: '2026-04-01', newValue: '2026-04-05' },
+  ];
+
+  const processFile = useCallback((file: File) => {
+    const validExtensions = ['.xlsx', '.mpp', '.csv', '.xml'];
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    if (!validExtensions.includes(ext)) return;
+
+    const changes = generateMockChanges(file.name);
+    setPendingFilename(file.name);
+    setPendingChanges(changes);
+    setShowImport(false);
+  }, []);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  }, [processFile]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setIsDragOver(false);
+  }, []);
+
+  const handleApplyChanges = () => {
+    if (!pendingChanges) return;
+    setImportHistory(prev => [
+      { id: Date.now(), date: new Date().toISOString().split('T')[0], filename: pendingFilename, changesCount: pendingChanges.length },
+      ...prev,
+    ]);
+    setPendingChanges(null);
+    setPendingFilename('');
+  };
+
+  const handleCancelChanges = () => {
+    setPendingChanges(null);
+    setPendingFilename('');
+  };
+
   const statusBadge = (s: CharterTask['status']) => {
     const config: Record<string, { color: string; label: string }> = {
       pending: { color: 'bg-gray-100 text-gray-700', label: 'Pendiente' },
@@ -157,6 +237,30 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
           </button>
         </div>
       </div>
+
+      {/* Change History Panel */}
+      {importHistory.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <History className="w-4 h-4 text-gray-500" />
+            <h4 className="text-sm font-semibold text-gray-700">{t('projectDetail.changeHistory')}</h4>
+          </div>
+          <div className="space-y-2">
+            {importHistory.map(entry => (
+              <div key={entry.id} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg text-sm">
+                <div className="flex items-center gap-3">
+                  <FileUp className="w-4 h-4 text-blue-500" />
+                  <span className="font-medium text-gray-800">{entry.filename}</span>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-gray-500">
+                  <span>{entry.changesCount} {t('projectDetail.changesDetected')}</span>
+                  <span>{entry.date}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {tasks.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
@@ -224,18 +328,78 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
               <h3 className="text-lg font-semibold text-gray-900">{t('projectDetail.importPlan')}</h3>
               <button onClick={() => setShowImport(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
             </div>
-            <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center">
+            <div
+              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+                isDragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+              }`}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onClick={() => fileInputRef.current?.click()}
+            >
               <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
-              <p className="text-sm text-gray-600 mb-1">Arrastra un archivo .mpp o .xlsx</p>
+              <p className="text-sm text-gray-600 mb-1">Arrastra un archivo .mpp, .xlsx o .csv</p>
               <p className="text-xs text-gray-400">o haz clic para seleccionar</p>
-              <input type="file" className="hidden" accept=".mpp,.xlsx,.xml" />
-              <button className="mt-4 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium transition-colors">
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept=".mpp,.xlsx,.csv,.xml"
+                onChange={handleFileSelect}
+              />
+              <button
+                onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                className="mt-4 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium transition-colors"
+              >
                 Seleccionar archivo
               </button>
             </div>
-            <p className="text-xs text-gray-400 mt-3 text-center">Formatos soportados: MS Project (.mpp), Excel (.xlsx), XML</p>
+            <p className="text-xs text-gray-400 mt-3 text-center">Formatos soportados: MS Project (.mpp), Excel (.xlsx), CSV (.csv)</p>
             <div className="flex justify-end gap-3 mt-5">
               <button onClick={() => setShowImport(false)} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">{t('common.cancel')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Changes Diff Modal */}
+      {pendingChanges && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl w-full max-w-2xl p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Se detectaron {pendingChanges.length} {t('projectDetail.changesDetected')}
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">Archivo: {pendingFilename}</p>
+              </div>
+              <button onClick={handleCancelChanges} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500">{t('projectDetail.task')}</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500">Campo</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500">{t('projectDetail.oldValue')}</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500">{t('projectDetail.newValue')}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {pendingChanges.map((change, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">{change.task}</td>
+                      <td className="px-4 py-3 text-gray-600">{change.field}</td>
+                      <td className="px-4 py-3 text-red-600 bg-red-50">{change.oldValue}</td>
+                      <td className="px-4 py-3 text-green-600 bg-green-50">{change.newValue}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex justify-end gap-3 mt-5">
+              <button onClick={handleCancelChanges} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">{t('common.cancel')}</button>
+              <button onClick={handleApplyChanges} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">{t('projectDetail.applyChanges')}</button>
             </div>
           </div>
         </div>

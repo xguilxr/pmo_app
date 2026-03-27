@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw, Plus } from 'lucide-react';
+import PageHeader from '../components/common/PageHeader';
 
 interface Change {
   id: number;
@@ -26,7 +27,11 @@ const mockChanges: Change[] = [
 export default function ChangesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [projectFilter, setProjectFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+
+  const uniqueProjects = [...new Set(mockChanges.map(c => c.projectName))];
 
   const typeBadge = (type: string) => {
     const c: Record<string, { color: string; label: string }> = { scope: { color: 'bg-purple-100 text-purple-700', label: 'Alcance' }, time: { color: 'bg-blue-100 text-blue-700', label: 'Tiempo' }, cost: { color: 'bg-green-100 text-green-700', label: 'Costo' }, resource: { color: 'bg-amber-100 text-amber-700', label: 'Recurso' } };
@@ -40,20 +45,52 @@ export default function ChangesPage() {
     return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}>{cfg.label}</span>;
   };
 
-  const filtered = statusFilter === 'all' ? mockChanges : mockChanges.filter(c => c.status === statusFilter);
+  const filtered = mockChanges.filter(c => {
+    if (projectFilter !== 'all' && c.projectName !== projectFilter) return false;
+    if (statusFilter !== 'all' && c.status !== statusFilter) return false;
+    if (typeFilter !== 'all' && c.changeType !== typeFilter) return false;
+    return true;
+  });
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">{t('nav.changes')}</h2>
+      <PageHeader
+        breadcrumb={[{ label: 'Inicio', href: '/' }, { label: t('nav.changes') }]}
+        title={t('nav.changes')}
+      >
         <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"><Plus className="w-4 h-4" />{t('projectDetail.addChange')}</button>
-      </div>
-      <div className="flex gap-2">
-        {['all', 'in_review', 'approved', 'rejected'].map(s => (
-          <button key={s} onClick={() => setStatusFilter(s)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${statusFilter === s ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
-            {s === 'all' ? t('projects.all') : s === 'in_review' ? 'En Revisión' : s === 'approved' ? 'Aprobados' : 'Rechazados'}
-          </button>
-        ))}
+      </PageHeader>
+      {/* Filter Panel */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t('minutes.project')}</label>
+            <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="all">{t('projects.all')}</option>
+              {uniqueProjects.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t('common.status')}</label>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="all">{t('projects.all')}</option>
+              <option value="in_review">En Revision</option>
+              <option value="approved">Aprobado</option>
+              <option value="rejected">Rechazado</option>
+              <option value="implemented">Implementado</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t('projects.type')}</label>
+            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="all">{t('projects.all')}</option>
+              <option value="scope">Alcance</option>
+              <option value="time">Tiempo</option>
+              <option value="cost">Costo</option>
+              <option value="resource">Recurso</option>
+            </select>
+          </div>
+        </div>
       </div>
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
@@ -80,6 +117,9 @@ export default function ChangesPage() {
                 <td className="px-4 py-3">{statusBadge(c.status)}</td>
               </tr>
             ))}
+            {filtered.length === 0 && (
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">{t('projects.noResults')}</td></tr>
+            )}
           </tbody>
         </table>
       </div>

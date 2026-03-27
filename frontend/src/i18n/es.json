@@ -20,7 +20,12 @@
     "settings": "Configuración",
     "logout": "Cerrar Sesión",
     "manageAccount": "Administrar Cuenta",
-    "projectModules": "Módulos de Proyecto"
+    "projectModules": "Módulos de Proyecto",
+    "empresas": "Empresas",
+    "permissions": "Permisos",
+    "projectTypes": "Tipos de Proyecto",
+    "variables": "Variables",
+    "logs": "Logs de Acceso"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -132,6 +137,11 @@
     "topics": "Temas Tratados",
     "agreements": "Acuerdos",
     "importPlan": "Importar Plan",
+    "changeHistory": "Historial de Cambios",
+    "changesDetected": "cambios detectados",
+    "applyChanges": "Aplicar Cambios",
+    "oldValue": "Valor Anterior",
+    "newValue": "Valor Nuevo",
     "addTask": "Agregar Tarea",
     "editTask": "Editar Tarea",
     "noTasks": "No hay tareas registradas",
@@ -165,6 +175,7 @@
     "meetingTitle": "Título de la reunión",
     "meetingDate": "Fecha de reunión",
     "generate": "Generar Minuta",
+    "generateWithAI": "Generar con IA",
     "generating": "Generando minuta con IA...",
     "generatedIn": "Generada en",
     "modelUsed": "Modelo",
@@ -197,7 +208,8 @@
     "view": "Ver",
     "send": "Enviar",
     "delete": "Eliminar",
-    "preview": "Vista Previa del Reporte"
+    "preview": "Vista Previa del Reporte",
+    "download": "Descargar"
   },
   "requests": {
     "title": "Solicitudes de Proyecto",
@@ -249,7 +261,32 @@
     "industry": "Industria",
     "country": "País",
     "contactEmail": "Correo de Contacto",
-    "activeOrg": "Organización Activa"
+    "activeOrg": "Organización Activa",
+    "empresas": "Empresas",
+    "permissionsTitle": "Permisos por Rol",
+    "selectRole": "Seleccionar Rol",
+    "view": "Ver",
+    "create": "Crear",
+    "approve": "Aprobar",
+    "projectTypesTitle": "Tipos de Proyecto",
+    "typeName": "Nombre del Tipo",
+    "typeDescription": "Descripción",
+    "typeColor": "Color",
+    "variablesTitle": "Control de Variables",
+    "variableCategory": "Categoría",
+    "variableValue": "Valor",
+    "variableSort": "Orden",
+    "logsTitle": "Logs de Acceso",
+    "logDate": "Fecha/Hora",
+    "logUser": "Usuario",
+    "logAction": "Acción",
+    "logModule": "Módulo",
+    "logRecord": "Registro",
+    "logIP": "Dirección IP",
+    "newType": "Nuevo Tipo",
+    "editType": "Editar Tipo",
+    "newValue": "Nuevo Valor",
+    "editValue": "Editar Valor"
   },
   "common": {
     "loading": "Cargando...",
@@ -269,6 +306,8 @@
     "blocked": "Bloqueado",
     "notStarted": "Sin Iniciar",
     "inProgress": "En Progreso",
-    "completed": "Completado"
+    "completed": "Completado",
+    "back": "Regresar",
+    "home": "Inicio"
   }
 }

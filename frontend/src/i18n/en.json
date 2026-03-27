@@ -20,7 +20,12 @@
     "settings": "Settings",
     "logout": "Logout",
     "manageAccount": "Manage Account",
-    "projectModules": "Project Modules"
+    "projectModules": "Project Modules",
+    "empresas": "Companies",
+    "permissions": "Permissions",
+    "projectTypes": "Project Types",
+    "variables": "Variables",
+    "logs": "Access Logs"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -132,6 +137,11 @@
     "topics": "Topics Discussed",
     "agreements": "Agreements",
     "importPlan": "Import Plan",
+    "changeHistory": "Change History",
+    "changesDetected": "changes detected",
+    "applyChanges": "Apply Changes",
+    "oldValue": "Old Value",
+    "newValue": "New Value",
     "addTask": "Add Task",
     "editTask": "Edit Task",
     "noTasks": "No tasks recorded",
@@ -165,6 +175,7 @@
     "meetingTitle": "Meeting title",
     "meetingDate": "Meeting date",
     "generate": "Generate Minute",
+    "generateWithAI": "Generate with AI",
     "generating": "Generating minute with AI...",
     "generatedIn": "Generated in",
     "modelUsed": "Model",
@@ -197,7 +208,8 @@
     "view": "View",
     "send": "Send",
     "delete": "Delete",
-    "preview": "Report Preview"
+    "preview": "Report Preview",
+    "download": "Download"
   },
   "requests": {
     "title": "Project Requests",
@@ -249,7 +261,32 @@
     "industry": "Industry",
     "country": "Country",
     "contactEmail": "Contact Email",
-    "activeOrg": "Active Organization"
+    "activeOrg": "Active Organization",
+    "empresas": "Companies",
+    "permissionsTitle": "Role Permissions",
+    "selectRole": "Select Role",
+    "view": "View",
+    "create": "Create",
+    "approve": "Approve",
+    "projectTypesTitle": "Project Types",
+    "typeName": "Type Name",
+    "typeDescription": "Description",
+    "typeColor": "Color",
+    "variablesTitle": "Variable Control",
+    "variableCategory": "Category",
+    "variableValue": "Value",
+    "variableSort": "Sort Order",
+    "logsTitle": "Access Logs",
+    "logDate": "Date/Time",
+    "logUser": "User",
+    "logAction": "Action",
+    "logModule": "Module",
+    "logRecord": "Record",
+    "logIP": "IP Address",
+    "newType": "New Type",
+    "editType": "Edit Type",
+    "newValue": "New Value",
+    "editValue": "Edit Value"
   },
   "common": {
     "loading": "Loading...",
@@ -269,6 +306,8 @@
     "blocked": "Blocked",
     "notStarted": "Not Started",
     "inProgress": "In Progress",
-    "completed": "Completed"
+    "completed": "Completed",
+    "back": "Back",
+    "home": "Home"
   }
 }

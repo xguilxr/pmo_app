@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { FileText, FileSpreadsheet, Files, Plus, Download } from 'lucide-react';
+import { FileText, FileSpreadsheet, Files, Plus, Download, Search } from 'lucide-react';
+import PageHeader from '../components/common/PageHeader';
 
 interface Doc { id: number; folio: string; name: string; category: string; fileType: string; fileSize: number; projectName: string; projectId: number; uploadedBy: string; createdAt: string; }
 
@@ -11,9 +13,23 @@ const mockDocs: Doc[] = [
   { id: 4, folio: 'DOC-2026-004', name: 'Contrato Salesforce', category: 'contract', fileType: 'pdf', fileSize: 520000, projectName: 'Implementación CRM Salesforce', projectId: 6, uploadedBy: 'Admin PMO', createdAt: '2026-01-25' },
 ];
 
+const uniqueProjects = [...new Set(mockDocs.map(d => d.projectName))];
+const uniqueCategories = [...new Set(mockDocs.map(d => d.category))];
+
 export default function DocumentsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [projectFilter, setProjectFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filtered = mockDocs.filter(d => {
+    if (projectFilter !== 'all' && d.projectName !== projectFilter) return false;
+    if (categoryFilter !== 'all' && d.category !== categoryFilter) return false;
+    if (searchQuery && !d.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    return true;
+  });
+
   const formatSize = (b: number) => b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
   const fileIcon = (type: string) => type === 'xlsx' || type === 'xls' ? <FileSpreadsheet className="w-8 h-8 text-green-500" /> : <FileText className="w-8 h-8 text-red-500" />;
   const catBadge = (c: string) => {
@@ -24,12 +40,42 @@ export default function DocumentsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">{t('nav.documents')}</h2>
+      <PageHeader
+        breadcrumb={[{ label: 'Inicio', href: '/' }, { label: t('nav.documents') }]}
+        title={t('nav.documents')}
+      >
         <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"><Plus className="w-4 h-4" />{t('projectDetail.addDocument')}</button>
+      </PageHeader>
+
+      {/* Filter Panel */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t('minutes.project')}</label>
+            <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="all">{t('projects.all')}</option>
+              {uniqueProjects.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t('projectDetail.category')}</label>
+            <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="all">{t('projects.all')}</option>
+              {uniqueCategories.map(c => <option key={c} value={c}>{c === 'plan' ? 'Plan' : c === 'report' ? 'Reporte' : c === 'contract' ? 'Contrato' : c}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t('common.search')}</label>
+            <div className="relative">
+              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Buscar por nombre..." className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+        </div>
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {mockDocs.map(d => (
+        {filtered.map(d => (
           <div key={d.id} className="bg-white rounded-xl border border-gray-200 p-4 flex gap-4 hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate(`/projects/${d.projectId}`)}>
             {fileIcon(d.fileType)}
             <div className="flex-1 min-w-0">

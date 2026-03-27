@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Edit2, Trash2, X, ClipboardList, Sparkles } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, ClipboardList, Sparkles, FileText, Upload } from 'lucide-react';
 
 interface Minute {
   id: number;
@@ -25,9 +25,18 @@ export default function ProjectMinutesTab({ projectId }: { projectId: number }) 
   const { t } = useTranslation();
   const [minutes, setMinutes] = useState<Minute[]>(mockMinutes[projectId] || []);
   const [showModal, setShowModal] = useState(false);
+  const [showTranscriptModal, setShowTranscriptModal] = useState(false);
   const [editing, setEditing] = useState<Minute | null>(null);
   const [form, setForm] = useState({ title: '', meetingDate: '', participants: '', topics: '', agreements: '' });
   const [viewDetail, setViewDetail] = useState<Minute | null>(null);
+
+  // Transcript form state
+  const [transcriptText, setTranscriptText] = useState('');
+  const [transcriptTitle, setTranscriptTitle] = useState('');
+  const [transcriptDate, setTranscriptDate] = useState(new Date().toISOString().split('T')[0]);
+  const [transcriptAI, setTranscriptAI] = useState(true);
+  const [transcriptFileName, setTranscriptFileName] = useState('');
+  const transcriptFileRef = useRef<HTMLInputElement>(null);
 
   const openCreate = () => {
     setEditing(null);
@@ -53,6 +62,48 @@ export default function ProjectMinutesTab({ projectId }: { projectId: number }) 
 
   const handleDelete = (id: number) => setMinutes(minutes.filter(m => m.id !== id));
 
+  const openTranscriptModal = () => {
+    setTranscriptText('');
+    setTranscriptTitle('');
+    setTranscriptDate(new Date().toISOString().split('T')[0]);
+    setTranscriptAI(true);
+    setTranscriptFileName('');
+    setShowTranscriptModal(true);
+  };
+
+  const handleTranscriptFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setTranscriptFileName(file.name);
+      // Mock reading the file content
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const text = ev.target?.result;
+        if (typeof text === 'string') {
+          setTranscriptText(text.substring(0, 2000));
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handleGenerateFromTranscript = () => {
+    if (!transcriptTitle.trim() || (!transcriptText.trim() && !transcriptFileName)) return;
+    const newMinute: Minute = {
+      id: Date.now(),
+      folio: `MIN-2026-${(minutes.length + 1).toString().padStart(3, '0')}`,
+      title: transcriptTitle,
+      meetingDate: transcriptDate,
+      participants: 'Participantes detectados del transcript',
+      topics: 'Temas extraídos automáticamente de la transcripción',
+      agreements: '1. Acuerdo generado desde transcripción\n2. Seguimiento pendiente',
+      source: 'ai_generated',
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    setMinutes(prev => [...prev, newMinute]);
+    setShowTranscriptModal(false);
+  };
+
   const sourceBadge = (s: string) => {
     if (s === 'ai_generated') return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700"><Sparkles className="w-3 h-3" />IA</span>;
     return <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">Manual</span>;
@@ -62,10 +113,16 @@ export default function ProjectMinutesTab({ projectId }: { projectId: number }) 
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold text-gray-900">{t('nav.minutes')}</h3>
-        <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors">
-          <Plus className="w-4 h-4" />
-          {t('projectDetail.addMinute')}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={openTranscriptModal} className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium transition-colors">
+            <FileText className="w-4 h-4" />
+            {t('minutes.generateFromTranscript')}
+          </button>
+          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors">
+            <Plus className="w-4 h-4" />
+            {t('projectDetail.addMinute')}
+          </button>
+        </div>
       </div>
 
       {minutes.length === 0 ? (
@@ -136,6 +193,78 @@ export default function ProjectMinutesTab({ projectId }: { projectId: number }) 
                 <p className="text-xs font-medium text-gray-500 mb-1">{t('projectDetail.agreements')}</p>
                 <p className="text-sm text-gray-900 whitespace-pre-line">{viewDetail.agreements}</p>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Generate from Transcript Modal */}
+      {showTranscriptModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-gray-900">{t('minutes.generateFromTranscript')}</h3>
+              <button onClick={() => setShowTranscriptModal(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('minutes.meetingTitle')}</label>
+                <input value={transcriptTitle} onChange={e => setTranscriptTitle(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('minutes.meetingDate')}</label>
+                <input type="date" value={transcriptDate} onChange={e => setTranscriptDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('minutes.transcript')}</label>
+                <textarea
+                  value={transcriptText}
+                  onChange={e => setTranscriptText(e.target.value)}
+                  rows={5}
+                  placeholder={t('minutes.transcriptPlaceholder')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-2">{t('minutes.orUploadFile')}</p>
+                <input
+                  ref={transcriptFileRef}
+                  type="file"
+                  accept=".txt,.srt,.docx"
+                  className="hidden"
+                  onChange={handleTranscriptFileSelect}
+                />
+                <button
+                  onClick={() => transcriptFileRef.current?.click()}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium transition-colors"
+                >
+                  <Upload className="w-4 h-4" />
+                  {transcriptFileName || 'Seleccionar archivo'}
+                </button>
+              </div>
+              {/* AI toggle */}
+              <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-200">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-purple-600" />
+                  <span className="text-sm font-medium text-purple-700">{t('minutes.generateWithAI')}</span>
+                </div>
+                <button
+                  onClick={() => setTranscriptAI(!transcriptAI)}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${transcriptAI ? 'bg-purple-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${transcriptAI ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setShowTranscriptModal(false)} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">{t('common.cancel')}</button>
+              <button
+                onClick={handleGenerateFromTranscript}
+                disabled={!transcriptTitle.trim() || (!transcriptText.trim() && !transcriptFileName)}
+                className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {t('minutes.generate')}
+              </button>
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, FileText, X, Eye, CheckCircle2, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { Plus, FileText, X, Eye, CheckCircle2, XCircle, Clock, AlertCircle, Ban } from 'lucide-react';
+import PageHeader from '../components/common/PageHeader';
 
 interface ProjectRequest {
   id: number;
@@ -43,6 +44,7 @@ export default function RequestsPage() {
     approved: { color: 'bg-green-100 text-green-700', icon: CheckCircle2, label: t('requests.approved') },
     rejected: { color: 'bg-red-100 text-red-700', icon: XCircle, label: t('requests.rejected') },
     info_requested: { color: 'bg-blue-100 text-blue-700', icon: AlertCircle, label: t('requests.infoRequested') },
+    cancelled: { color: 'bg-gray-700 text-white', icon: Ban, label: t('requests.cancelled') },
   };
 
   const handleCreate = () => {
@@ -61,6 +63,12 @@ export default function RequestsPage() {
   };
 
   const handleStatusChange = (id: number, newStatus: string, notes: string = '') => {
+    if (newStatus === 'approved') {
+      const req = requests.find(r => r.id === id);
+      if (req && !window.confirm(`El proyecto "${req.projectName}" sera creado en la organizacion "${req.organization}". ¿Desea continuar?`)) {
+        return;
+      }
+    }
     setRequests(requests.map(r => r.id === id ? { ...r, status: newStatus, reviewNotes: notes || r.reviewNotes } : r));
     setViewDetail(null);
   };
@@ -72,17 +80,20 @@ export default function RequestsPage() {
     in_review: requests.filter(r => r.status === 'in_review').length,
     approved: requests.filter(r => r.status === 'approved').length,
     rejected: requests.filter(r => r.status === 'rejected').length,
+    cancelled: requests.filter(r => r.status === 'cancelled').length,
   };
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">{t('requests.title')}</h2>
+      <PageHeader
+        breadcrumb={[{ label: 'Inicio', href: '/' }, { label: t('requests.title') }]}
+        title={t('requests.title')}
+      >
         <button onClick={() => setShowModal(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
           <Plus className="w-4 h-4" />
           {t('requests.newRequest')}
         </button>
-      </div>
+      </PageHeader>
 
       {/* Status filter buttons */}
       <div className="flex gap-2">
@@ -91,6 +102,7 @@ export default function RequestsPage() {
           { key: 'in_review', label: t('requests.inReview') },
           { key: 'approved', label: t('requests.approved') },
           { key: 'rejected', label: t('requests.rejected') },
+          { key: 'cancelled', label: t('requests.cancelled') },
         ].map(s => (
           <button
             key={s.key}
@@ -175,6 +187,7 @@ export default function RequestsPage() {
 
             {(viewDetail.status === 'in_review' || viewDetail.status === 'info_requested') && (
               <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+                <button onClick={() => handleStatusChange(viewDetail.id, 'cancelled', 'Solicitud cancelada')} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-medium">{t('requests.cancelRequest')}</button>
                 <button onClick={() => handleStatusChange(viewDetail.id, 'rejected', 'Solicitud rechazada')} className="px-4 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors font-medium">{t('requests.reject')}</button>
                 <button onClick={() => handleStatusChange(viewDetail.id, 'info_requested')} className="px-4 py-2 text-sm text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors font-medium">{t('requests.requestInfo')}</button>
                 <button onClick={() => handleStatusChange(viewDetail.id, 'approved', 'Solicitud aprobada')} className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium">{t('requests.approve')}</button>
