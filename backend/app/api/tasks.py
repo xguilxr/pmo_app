@@ -2,6 +2,7 @@ from datetime import date, datetime, timezone
 from typing import Optional
 import csv
 import io
+import os
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 from sqlalchemy.orm import Session
@@ -368,135 +369,137 @@ def _parse_csv(content: bytes) -> list[dict]:
     return tasks
 
 
-def _java_date_to_python(java_date) -> date | None:
-    """Convert a Java Date/LocalDateTime to a Python date."""
-    if java_date is None:
-        return None
+def _find_mpxj_jars() -> str:
+    """Find mpxj JAR files - check pip package or local lib directory."""
+    import glob
+
+    # Option 1: mpxj pip package (installed with --no-deps)
     try:
-        # Try toString() which usually gives "YYYY-MM-DD..." or similar
-        s = str(java_date)
-        # Try ISO format first (YYYY-MM-DD)
-        parsed = _parse_date(s[:10])
-        if parsed:
-            return parsed
-        # Fallback: deprecated Java Date API
-        return date(java_date.getYear() + 1900, java_date.getMonth() + 1, java_date.getDate())
-    except Exception:
-        return None
+        import mpxj as mpxj_mod
+        mpxj_dir = os.path.dirname(mpxj_mod.__file__)
+        # JARs are in mpxj/lib/ subdirectory
+        jars = glob.glob(os.path.join(mpxj_dir, "lib", "*.jar"))
+        if not jars:
+            jars = glob.glob(os.path.join(mpxj_dir, "*.jar"))
+        if jars:
+            return os.pathsep.join(jars)
+    except ImportError:
+        pass
+
+    # Option 2: local lib/ directory next to backend
+    backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    lib_dir = os.path.join(backend_dir, "lib")
+    if os.path.isdir(lib_dir):
+        jars = glob.glob(os.path.join(lib_dir, "*.jar"))
+        if jars:
+            return os.pathsep.join(jars)
+
+    return ""
+
+
+def _ensure_mpp_helper_compiled(utils_dir: str, classpath: str) -> str:
+    """Compile MppToJson.java if .class doesn't exist yet. Returns utils_dir."""
+    class_file = os.path.join(utils_dir, "MppToJson.class")
+    java_file = os.path.join(utils_dir, "MppToJson.java")
+
+    if os.path.exists(class_file):
+        return utils_dir
+
+    if not os.path.exists(java_file):
+        raise HTTPException(
+            status_code=500,
+            detail="Archivo MppToJson.java no encontrado en el servidor"
+        )
+
+    import subprocess
+    result = subprocess.run(
+        ["javac", "-cp", classpath, java_file],
+        capture_output=True, text=True, timeout=30
+    )
+    if result.returncode != 0:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al compilar MppToJson.java: {result.stderr[:500]}"
+        )
+    return utils_dir
 
 
 def _parse_mpp(content: bytes, filename: str) -> list[dict]:
-    """Parse MS Project (.mpp/.mpx/.xml) file using mpxj (requires Java)."""
+    """Parse MS Project (.mpp/.mpx/.xml) using mpxj via subprocess (requires Java)."""
     import tempfile
-    import os
+    import subprocess
+    import json
 
+    # Check Java is available
     try:
-        import mpxj
-    except ImportError:
+        subprocess.run(["java", "-version"], capture_output=True, timeout=10)
+    except FileNotFoundError:
         raise HTTPException(
             status_code=400,
-            detail="La libreria mpxj no esta instalada. Ejecute: pip install mpxj jpype1"
+            detail="Se requiere Java (JDK/JRE) instalado para leer archivos .mpp. "
+                   "Descargalo de https://adoptium.net/"
         )
 
-    # mpxj needs Java - check and start JVM
-    try:
-        if not mpxj.isJVMStarted():
-            mpxj.startJVM()
-    except Exception as e:
+    # Find mpxj JARs
+    classpath = _find_mpxj_jars()
+    if not classpath:
         raise HTTPException(
             status_code=400,
-            detail=f"Se requiere Java (JDK/JRE) instalado para leer archivos .mpp. Error: {e}"
+            detail="mpxj no encontrado. Ejecute: pip install mpxj --no-deps"
         )
 
-    from net.sf.mpxj.reader import UniversalProjectReader  # type: ignore
+    # Compile helper if needed
+    utils_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "utils")
+    _ensure_mpp_helper_compiled(utils_dir, classpath)
 
-    # Write to temp file since mpxj reads from file path
+    # Full classpath = mpxj jars + utils dir (for MppToJson.class)
+    full_cp = classpath + os.pathsep + utils_dir
+
+    # Write uploaded file to temp
     suffix = os.path.splitext(filename)[1] or ".mpp"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp.write(content)
         tmp_path = tmp.name
 
     try:
-        reader = UniversalProjectReader()
-        project = reader.read(tmp_path)
+        result = subprocess.run(
+            ["java", "-cp", full_cp, "MppToJson", tmp_path],
+            capture_output=True, text=True, timeout=60
+        )
+
+        if result.returncode != 0:
+            err_msg = result.stderr.strip()[:500] if result.stderr else "Error desconocido"
+            raise HTTPException(
+                status_code=400,
+                detail=f"Error al leer archivo MS Project: {err_msg}"
+            )
+
+        raw_tasks = json.loads(result.stdout)
 
         tasks = []
-        for ms_task in project.getTasks():
-            name = str(ms_task.getName() or "").strip()
+        for t in raw_tasks:
+            name = (t.get("name") or "").strip()
             if not name:
                 continue
-
-            # Extract WBS
-            wbs = str(ms_task.getWBS() or "").strip() or None
-
-            # Extract dates - convert Java date objects to Python dates
-            start_date = _java_date_to_python(ms_task.getStart())
-            end_date = _java_date_to_python(ms_task.getFinish())
-
-            # Duration in days
-            duration_days = None
-            duration_val = ms_task.getDuration()
-            if duration_val:
-                try:
-                    duration_days = int(duration_val.getDuration())
-                except Exception:
-                    pass
-
-            # Progress (0-100)
-            progress = 0.0
-            pct = ms_task.getPercentageComplete()
-            if pct is not None:
-                try:
-                    progress = float(str(pct))
-                except Exception:
-                    pass
-
-            # Milestone
-            is_milestone = False
-            try:
-                is_milestone = bool(ms_task.getMilestone())
-            except Exception:
-                pass
-
-            # Outline level
-            outline_level = 1
-            try:
-                ol = ms_task.getOutlineLevel()
-                if ol is not None:
-                    outline_level = max(1, int(str(ol)))
-            except Exception:
-                pass
-
-            # Resource names (responsible)
-            responsible_name = None
-            try:
-                assignments = ms_task.getResourceAssignments()
-                if assignments and assignments.size() > 0:
-                    names = []
-                    for i in range(assignments.size()):
-                        ra = assignments.get(i)
-                        res = ra.getResource()
-                        if res and res.getName():
-                            names.append(str(res.getName()))
-                    if names:
-                        responsible_name = ", ".join(names)
-            except Exception:
-                pass
-
             tasks.append({
                 "name": name,
-                "wbs": wbs,
-                "start_date": start_date,
-                "end_date": end_date,
-                "duration_days": duration_days,
-                "progress": progress,
-                "outline_level": outline_level,
-                "is_milestone": is_milestone,
-                "responsible_name": responsible_name,
+                "wbs": t.get("wbs") or None,
+                "start_date": _parse_date(t.get("start_date")) if t.get("start_date") else None,
+                "end_date": _parse_date(t.get("end_date")) if t.get("end_date") else None,
+                "duration_days": t.get("duration_days"),
+                "progress": t.get("progress", 0),
+                "outline_level": t.get("outline_level", 1),
+                "is_milestone": t.get("is_milestone", False),
+                "responsible_name": t.get("responsible_name"),
             })
 
         return tasks
 
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=400,
+            detail="Error al procesar la salida del archivo MS Project"
+        )
     finally:
         try:
             os.unlink(tmp_path)
