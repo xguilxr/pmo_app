@@ -20,6 +20,7 @@ interface Task {
   original_end_date: string | null;
   project_id: number;
   responsible_id: number | null;
+  responsible_name: string | null;
   created_at: string;
   notes: string | null;
 }
@@ -34,7 +35,7 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const emptyForm = { wbs: '', name: '', start_date: '', end_date: '', progress: 0, is_milestone: false, status: 'pending', notes: '' };
+  const emptyForm = { wbs: '', name: '', start_date: '', end_date: '', progress: 0, is_milestone: false, status: 'pending', notes: '', responsible_name: '' };
   const [form, setForm] = useState({ ...emptyForm });
 
   const today = new Date().toISOString().split('T')[0];
@@ -56,6 +57,7 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
       is_milestone: task.is_milestone,
       status: task.status,
       notes: task.notes || '',
+      responsible_name: task.responsible_name || '',
     });
     setShowModal(true);
   };
@@ -80,6 +82,7 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
         is_milestone: form.is_milestone,
         outline_level,
         notes: form.notes || null,
+        responsible_name: form.responsible_name || null,
       };
       if (editing) {
         await api.patch(`/tasks/${editing.id}`, payload);
@@ -111,11 +114,38 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
 
   const isPastDue = (task: Task) => task.end_date && task.end_date < today && task.progress < 100;
 
-  // --- Import logic (upload UI only) ---
-  const processFile = useCallback((_file: File) => {
-    toastError('Importacion de archivos MS Project aun no disponible');
-    setShowImport(false);
-  }, [toastError]);
+  // --- Import logic ---
+  const [importing, setImporting] = useState(false);
+  const processFile = useCallback(async (file: File) => {
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    if (!['.xlsx', '.csv'].includes(ext)) {
+      toastError('Solo se aceptan archivos .xlsx o .csv');
+      return;
+    }
+    setImporting(true);
+    try {
+      const token = localStorage.getItem('pmo_token');
+      const formData = new FormData();
+      formData.append('file', file);
+      const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8080/api'}/tasks/import-file?project_id=${projectId}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Error al importar' }));
+        throw new Error(err.detail || `Error ${res.status}`);
+      }
+      const imported = await res.json();
+      toastSuccess(`${imported.length} tareas importadas de ${file.name}`);
+      setShowImport(false);
+      refetch();
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Error al importar');
+    }
+    setImporting(false);
+  }, [projectId, toastSuccess, toastError, refetch]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -198,6 +228,7 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
               <tr className="bg-surface-tertiary border-b border-border">
                 <th className="text-left px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">WBS</th>
                 <th className="text-left px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Tarea</th>
+                <th className="text-left px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Responsable</th>
                 <th className="text-left px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Inicio</th>
                 <th className="text-left px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Fin</th>
                 <th className="text-center px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Dias</th>
@@ -219,6 +250,7 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
                       </span>
                     </div>
                   </td>
+                  <td className="px-4 py-3 text-text-secondary text-[12px]">{task.responsible_name || '-'}</td>
                   <td className="px-4 py-3 text-text-tertiary text-[11px]">{task.start_date || '-'}</td>
                   <td className="px-4 py-3 text-text-tertiary text-[11px]">{task.end_date || '-'}</td>
                   <td className="px-4 py-3 text-center text-text-secondary">{task.duration_days != null && task.duration_days > 0 ? `${task.duration_days}d` : '-'}</td>
@@ -256,10 +288,19 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
                 onDragLeave={handleDragLeave}
                 onClick={() => fileInputRef.current?.click()}
               >
-                <Upload className="w-10 h-10 text-text-tertiary mx-auto mb-3 opacity-40" />
-                <p className="text-[13px] text-text-secondary mb-1">Arrastra un archivo .mpp, .xlsx o .csv</p>
-                <p className="text-[11px] text-text-tertiary">o haz clic para seleccionar</p>
-                <input ref={fileInputRef} type="file" className="hidden" accept=".mpp,.xlsx,.csv,.xml" onChange={handleFileSelect} />
+                {importing ? (
+                  <div className="py-4">
+                    <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                    <p className="text-[13px] text-text-secondary">Importando tareas...</p>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="w-10 h-10 text-text-tertiary mx-auto mb-3 opacity-40" />
+                    <p className="text-[13px] text-text-secondary mb-1">Arrastra un archivo .xlsx o .csv</p>
+                    <p className="text-[11px] text-text-tertiary">o haz clic para seleccionar</p>
+                  </>
+                )}
+                <input ref={fileInputRef} type="file" className="hidden" accept=".xlsx,.csv" onChange={handleFileSelect} />
                 <button
                   onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
                   className="mt-4 inline-flex items-center gap-2 px-3 py-2 border border-border rounded-xl text-[12px] font-medium text-text-secondary hover:bg-surface-hover transition-all"
@@ -267,7 +308,7 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
                   Seleccionar archivo
                 </button>
               </div>
-              <p className="text-[11px] text-text-tertiary mt-3 text-center">Formatos soportados: MS Project (.mpp), Excel (.xlsx), CSV (.csv)</p>
+              <p className="text-[11px] text-text-tertiary mt-3 text-center">Formatos soportados: Excel (.xlsx), CSV (.csv). Columnas: WBS, Nombre, Inicio, Fin, Duración, Avance, Responsable</p>
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-border-light">
               <button onClick={() => setShowImport(false)} className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl">Cancelar</button>
@@ -289,6 +330,7 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
                 <div><label className={labelCls}>WBS</label><input value={form.wbs} onChange={e => setForm({...form, wbs: e.target.value})} placeholder="ej. 2.1.3" className={inputCls} /></div>
                 <div className="col-span-2"><label className={labelCls}>Nombre *</label><input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className={inputCls} /></div>
               </div>
+              <div><label className={labelCls}>Responsable (Área)</label><input value={form.responsible_name} onChange={e => setForm({...form, responsible_name: e.target.value})} className={inputCls} placeholder="Ej: Desarrollo, Juan García, QA..." /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className={labelCls}>Fecha Inicio</label><input type="date" value={form.start_date} onChange={e => setForm({...form, start_date: e.target.value})} className={inputCls} /></div>
                 <div><label className={labelCls}>Fecha Fin</label><input type="date" value={form.end_date} onChange={e => setForm({...form, end_date: e.target.value})} className={inputCls} /></div>

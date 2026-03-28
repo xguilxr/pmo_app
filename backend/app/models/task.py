@@ -21,6 +21,7 @@ class Task(TimestampMixin, Base):
     outline_level = Column(Integer, default=1)         # hierarchy level
     notes = Column(Text, nullable=True)
     source = Column(String(50), default="manual")      # manual, ms_project_import
+    responsible_name = Column(String(255), nullable=True)  # text fallback when no user ID
     was_delayed = Column(Boolean, default=False)        # historical delay flag — persists even if dates change
     original_end_date = Column(Date, nullable=True)     # original end date before any rescheduling
 

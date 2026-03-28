@@ -24,6 +24,7 @@ def list_projects(
     priority: str | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
+    program_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -45,6 +46,8 @@ def list_projects(
         query = query.filter(Project.start_date >= date_from)
     if date_to:
         query = query.filter(Project.start_date <= date_to)
+    if program_id:
+        query = query.filter(Project.program_id == program_id)
 
     projects = query.all()
     return [
@@ -52,7 +55,7 @@ def list_projects(
             id=p.id, folio=p.folio, name=p.name, type=p.type, priority=p.priority,
             company=p.organization.name, phase=p.phase, progress=p.progress,
             planned_progress=p.planned_progress, budget=p.budget, health=p.health,
-            start_date=p.start_date, end_date=p.end_date,
+            start_date=p.start_date, end_date=p.end_date, program_id=p.program_id,
         )
         for p in projects
     ]

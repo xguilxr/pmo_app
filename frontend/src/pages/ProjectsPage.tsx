@@ -235,14 +235,18 @@ function CreateProjectModal({ onClose, onCreated }: { onClose: () => void; onCre
   const { toastSuccess, toastError } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [orgs, setOrgs] = useState<Array<{id: number; name: string}>>([]);
+  const [programs, setPrograms] = useState<Array<{id: number; name: string; organization_id: number}>>([]);
   const [form, setForm] = useState({
     name: '', type: PROJECT_TYPES[0], priority: 'Media' as string,
-    organizationId: 0, startDate: '', endDate: '', budget: 0,
+    organizationId: 0, programId: 0 as number, startDate: '', endDate: '', budget: 0,
   });
 
   useEffect(() => {
     api.get<Array<{id: number; name: string}>>('/organizations').then(setOrgs).catch(() => {});
+    api.get<Array<{id: number; name: string; organization_id: number}>>('/programs').then(setPrograms).catch(() => {});
   }, []);
+
+  const filteredPrograms = programs.filter(p => p.organization_id === form.organizationId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -252,6 +256,7 @@ function CreateProjectModal({ onClose, onCreated }: { onClose: () => void; onCre
       const created = await api.post<ApiProject>('/projects', {
         name: form.name, type: form.type, priority: form.priority,
         organization_id: form.organizationId,
+        program_id: form.programId || null,
         start_date: form.startDate || null, end_date: form.endDate || null,
         budget: form.budget,
       });
@@ -293,13 +298,24 @@ function CreateProjectModal({ onClose, onCreated }: { onClose: () => void; onCre
               </select>
             </div>
           </div>
-          <div>
-            <label className="block text-[12px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5">{t('projects.company')} *</label>
-            <select value={form.organizationId} onChange={(e) => setForm({ ...form, organizationId: Number(e.target.value) })}
-              className="w-full border border-border bg-surface rounded-xl px-3.5 py-2.5 text-[13px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30">
-              <option value={0}>Seleccionar organización...</option>
-              {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[12px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5">{t('projects.company')} *</label>
+              <select value={form.organizationId} onChange={(e) => setForm({ ...form, organizationId: Number(e.target.value), programId: 0 })}
+                className="w-full border border-border bg-surface rounded-xl px-3.5 py-2.5 text-[13px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30">
+                <option value={0}>Seleccionar organización...</option>
+                {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[12px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Programa (opcional)</label>
+              <select value={form.programId} onChange={(e) => setForm({ ...form, programId: Number(e.target.value) })}
+                className="w-full border border-border bg-surface rounded-xl px-3.5 py-2.5 text-[13px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30"
+                disabled={!form.organizationId}>
+                <option value={0}>Sin programa</option>
+                {filteredPrograms.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>

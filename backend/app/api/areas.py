@@ -25,6 +25,8 @@ def list_areas(project_id: int, db: Session = Depends(get_db), current_user: Use
         resp = AreaResponse.model_validate(a)
         if a.responsible:
             resp.responsible_name = a.responsible.full_name
+        elif a.responsible_name_text:
+            resp.responsible_name = a.responsible_name_text
         result.append(resp)
     return result
 
@@ -38,6 +40,7 @@ def create_area(project_id: int, data: AreaCreate, db: Session = Depends(get_db)
         name=data.name,
         description=data.description,
         role_in_project=data.role_in_project,
+        responsible_name_text=data.responsible_name,
         project_id=project_id,
         responsible_id=data.responsible_id,
     )
@@ -59,13 +62,19 @@ def update_area(project_id: int, area_id: int, data: AreaUpdate, db: Session = D
     ).first()
     if not area:
         raise HTTPException(status_code=404, detail="Área no encontrada")
-    for field, value in data.model_dump(exclude_unset=True).items():
+    updates = data.model_dump(exclude_unset=True)
+    # Map responsible_name to the model column
+    if "responsible_name" in updates:
+        area.responsible_name_text = updates.pop("responsible_name")
+    for field, value in updates.items():
         setattr(area, field, value)
     db.commit()
     db.refresh(area)
     resp = AreaResponse.model_validate(area)
     if area.responsible:
         resp.responsible_name = area.responsible.full_name
+    elif area.responsible_name_text:
+        resp.responsible_name = area.responsible_name_text
     return resp
 
 

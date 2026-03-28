@@ -7,6 +7,7 @@ class AreaCreate(BaseModel):
     description: str | None = None
     role_in_project: str | None = None
     responsible_id: int | None = None
+    responsible_name: str | None = None  # text-only fallback when no user ID
 
 
 class AreaUpdate(BaseModel):
@@ -14,6 +15,7 @@ class AreaUpdate(BaseModel):
     description: str | None = None
     role_in_project: str | None = None
     responsible_id: int | None = None
+    responsible_name: str | None = None
 
 
 class AreaResponse(BaseModel):

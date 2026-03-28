@@ -1,7 +1,9 @@
 from datetime import date, datetime, timezone
 from typing import Optional
+import csv
+import io
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -28,6 +30,7 @@ class TaskCreate(BaseModel):
     notes: Optional[str] = None
     parent_task_id: Optional[int] = None
     responsible_id: Optional[int] = None
+    responsible_name: Optional[str] = None
 
 
 class TaskUpdate(BaseModel):
@@ -45,6 +48,7 @@ class TaskUpdate(BaseModel):
     notes: Optional[str] = None
     parent_task_id: Optional[int] = None
     responsible_id: Optional[int] = None
+    responsible_name: Optional[str] = None
 
 
 class TaskResponse(BaseModel):
@@ -67,6 +71,7 @@ class TaskResponse(BaseModel):
     parent_task_id: Optional[int]
     project_id: int
     responsible_id: Optional[int]
+    responsible_name: Optional[str]
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -123,6 +128,7 @@ def create_task(
         notes=data.notes,
         parent_task_id=data.parent_task_id,
         responsible_id=data.responsible_id,
+        responsible_name=data.responsible_name,
         project_id=project_id,
         source="manual",
         created_by_id=current_user.id,
@@ -197,3 +203,209 @@ def import_tasks(
     for t in created:
         db.refresh(t)
     return created
+
+
+@router.post("/import-file", response_model=list[TaskResponse], status_code=status.HTTP_201_CREATED)
+async def import_tasks_from_file(
+    project_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Import tasks from a CSV or XLSX file.
+
+    Expected columns (case-insensitive, flexible matching):
+    WBS, Nombre/Name/Task, Inicio/Start, Fin/End/Finish, Duracion/Duration,
+    Avance/Progress/%, Hito/Milestone, Nivel/Level/Outline, Responsable/Resource
+    """
+    filename = (file.filename or "").lower()
+    content = await file.read()
+
+    if filename.endswith(".xlsx"):
+        rows = _parse_xlsx(content)
+    elif filename.endswith(".csv"):
+        rows = _parse_csv(content)
+    else:
+        raise HTTPException(status_code=400, detail="Formato no soportado. Use .csv o .xlsx")
+
+    if not rows:
+        raise HTTPException(status_code=400, detail="No se encontraron tareas en el archivo")
+
+    created = []
+    for row in rows:
+        task = Task(
+            name=row["name"],
+            wbs=row.get("wbs"),
+            start_date=row.get("start_date"),
+            end_date=row.get("end_date"),
+            duration_days=row.get("duration_days"),
+            progress=row.get("progress", 0),
+            outline_level=row.get("outline_level", 1),
+            is_milestone=row.get("is_milestone", False),
+            responsible_name=row.get("responsible_name"),
+            status="pending",
+            project_id=project_id,
+            source="file_import",
+            created_by_id=current_user.id,
+        )
+        db.add(task)
+        created.append(task)
+    db.commit()
+    for t in created:
+        db.refresh(t)
+    return created
+
+
+def _normalize_header(h: str) -> str:
+    """Map various column name variations to standard keys."""
+    h = h.strip().lower().replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+    mappings = {
+        "wbs": "wbs", "edt": "wbs",
+        "nombre": "name", "name": "name", "task": "name", "tarea": "name", "task name": "name",
+        "inicio": "start_date", "start": "start_date", "start date": "start_date", "fecha inicio": "start_date",
+        "fin": "end_date", "end": "end_date", "finish": "end_date", "end date": "end_date", "fecha fin": "end_date",
+        "duracion": "duration_days", "duration": "duration_days", "dias": "duration_days",
+        "avance": "progress", "progress": "progress", "%": "progress", "% completado": "progress", "% complete": "progress",
+        "hito": "is_milestone", "milestone": "is_milestone",
+        "nivel": "outline_level", "level": "outline_level", "outline level": "outline_level", "outline_level": "outline_level",
+        "responsable": "responsible_name", "resource": "responsible_name", "resource names": "responsible_name", "recurso": "responsible_name",
+    }
+    return mappings.get(h, "")
+
+
+def _parse_date(val: str | None) -> date | None:
+    if not val or not val.strip():
+        return None
+    val = val.strip()
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y"):
+        try:
+            return datetime.strptime(val, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _parse_float(val: str | None, default: float = 0) -> float:
+    if not val:
+        return default
+    val = val.strip().replace("%", "").replace(",", ".")
+    try:
+        return float(val)
+    except ValueError:
+        return default
+
+
+def _parse_int(val: str | None, default: int = 1) -> int:
+    if not val:
+        return default
+    val = val.strip().replace("d", "").replace("D", "")
+    try:
+        return int(float(val))
+    except ValueError:
+        return default
+
+
+def _parse_bool(val: str | None) -> bool:
+    if not val:
+        return False
+    return val.strip().lower() in ("si", "sí", "yes", "true", "1", "x")
+
+
+def _row_to_task(row_dict: dict[str, str], header_map: dict[int, str]) -> dict | None:
+    """Convert a mapped row to a task dict."""
+    name = row_dict.get("name", "").strip()
+    if not name:
+        return None
+    return {
+        "name": name,
+        "wbs": row_dict.get("wbs", "").strip() or None,
+        "start_date": _parse_date(row_dict.get("start_date")),
+        "end_date": _parse_date(row_dict.get("end_date")),
+        "duration_days": _parse_int(row_dict.get("duration_days"), 0) or None,
+        "progress": _parse_float(row_dict.get("progress")),
+        "outline_level": _parse_int(row_dict.get("outline_level")),
+        "is_milestone": _parse_bool(row_dict.get("is_milestone")),
+        "responsible_name": row_dict.get("responsible_name", "").strip() or None,
+    }
+
+
+def _parse_csv(content: bytes) -> list[dict]:
+    """Parse CSV file content into task dicts."""
+    # Try UTF-8 with BOM, then latin-1
+    for encoding in ("utf-8-sig", "utf-8", "latin-1"):
+        try:
+            text = content.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    else:
+        text = content.decode("latin-1")
+
+    reader = csv.reader(io.StringIO(text))
+    rows_iter = iter(reader)
+
+    # Find header row
+    header_map: dict[int, str] = {}
+    for raw_row in rows_iter:
+        for i, cell in enumerate(raw_row):
+            key = _normalize_header(cell)
+            if key:
+                header_map[i] = key
+        if "name" in header_map.values():
+            break
+
+    if "name" not in header_map.values():
+        return []
+
+    tasks = []
+    for raw_row in rows_iter:
+        row_dict = {header_map[i]: raw_row[i] if i < len(raw_row) else "" for i in header_map}
+        task = _row_to_task(row_dict, header_map)
+        if task:
+            tasks.append(task)
+    return tasks
+
+
+def _parse_xlsx(content: bytes) -> list[dict]:
+    """Parse XLSX file content into task dicts."""
+    from openpyxl import load_workbook
+    wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+    ws = wb.active
+    if not ws:
+        return []
+
+    rows = list(ws.iter_rows(values_only=True))
+    if not rows:
+        return []
+
+    # Find header row
+    header_map: dict[int, str] = {}
+    header_row_idx = 0
+    for idx, row in enumerate(rows):
+        for i, cell in enumerate(row):
+            if cell is not None:
+                key = _normalize_header(str(cell))
+                if key:
+                    header_map[i] = key
+        if "name" in header_map.values():
+            header_row_idx = idx
+            break
+
+    if "name" not in header_map.values():
+        return []
+
+    tasks = []
+    for row in rows[header_row_idx + 1:]:
+        row_dict = {}
+        for i in header_map:
+            val = row[i] if i < len(row) else None
+            if isinstance(val, datetime):
+                row_dict[header_map[i]] = val.strftime("%Y-%m-%d")
+            elif isinstance(val, date):
+                row_dict[header_map[i]] = val.strftime("%Y-%m-%d")
+            else:
+                row_dict[header_map[i]] = str(val) if val is not None else ""
+        task = _row_to_task(row_dict, header_map)
+        if task:
+            tasks.append(task)
+    return tasks
