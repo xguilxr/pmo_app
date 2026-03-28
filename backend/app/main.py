@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.api import auth, users, projects, dashboard, minutes, risks, issues, changes, documents, lessons, areas, objectives, organizations, tasks, backlog, requests, uploads, programs, exports, reports
-import app.models  # noqa: F401 — register all models with SQLAlchemy mapper
+import app.models  # noqa: F401 - register all models with SQLAlchemy mapper
 
 settings = get_settings()
 
@@ -69,7 +69,7 @@ def sync_schema_on_startup():
     # Then, add any missing columns via raw SQL (ALTER TABLE ... ADD COLUMN IF NOT EXISTS)
     sql_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migrations", "sync_schema.sql")
     if os.path.exists(sql_path):
-        with open(sql_path) as f:
+        with open(sql_path, encoding="utf-8") as f:
             sql = f.read()
         # Execute each statement separately (skip comments and empty lines)
         with engine.begin() as conn:

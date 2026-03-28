@@ -1,37 +1,37 @@
 -- Comprehensive schema sync: run this against the PostgreSQL database
 -- to add all missing columns and tables that SQLAlchemy models define.
 
--- ══════════════════════════════════════════════════════
+-- -------------------------------------------------------
 -- tasks: add missing columns
--- ══════════════════════════════════════════════════════
+-- -------------------------------------------------------
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS notes TEXT;
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS source VARCHAR(50) DEFAULT 'manual';
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS responsible_name VARCHAR(255);
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS was_delayed BOOLEAN DEFAULT FALSE;
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS original_end_date DATE;
 
--- ══════════════════════════════════════════════════════
+-- -------------------------------------------------------
 -- project_areas: add missing columns
--- ══════════════════════════════════════════════════════
+-- -------------------------------------------------------
 ALTER TABLE project_areas ADD COLUMN IF NOT EXISTS responsible_name_text VARCHAR(255);
 
--- ══════════════════════════════════════════════════════
+-- -------------------------------------------------------
 -- backlog_items: add missing columns
--- ══════════════════════════════════════════════════════
+-- -------------------------------------------------------
 ALTER TABLE backlog_items ADD COLUMN IF NOT EXISTS was_delayed BOOLEAN DEFAULT FALSE;
 ALTER TABLE backlog_items ADD COLUMN IF NOT EXISTS original_end_date DATE;
 
--- ══════════════════════════════════════════════════════
+-- -------------------------------------------------------
 -- minutes: add missing columns
--- ══════════════════════════════════════════════════════
+-- -------------------------------------------------------
 ALTER TABLE minutes ADD COLUMN IF NOT EXISTS source VARCHAR(50) DEFAULT 'manual';
 ALTER TABLE minutes ADD COLUMN IF NOT EXISTS transcript_text TEXT;
 ALTER TABLE minutes ADD COLUMN IF NOT EXISTS ai_model_used VARCHAR(100);
 ALTER TABLE minutes ADD COLUMN IF NOT EXISTS ai_generation_time_ms INTEGER;
 
--- ══════════════════════════════════════════════════════
+-- -------------------------------------------------------
 -- progress_reports: create table if not exists
--- ══════════════════════════════════════════════════════
+-- -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS progress_reports (
     id SERIAL PRIMARY KEY,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -51,9 +51,9 @@ CREATE TABLE IF NOT EXISTS progress_reports (
     created_by_id INTEGER REFERENCES users(id)
 );
 
--- ══════════════════════════════════════════════════════
+-- -------------------------------------------------------
 -- project_objectives: create table if not exists
--- ══════════════════════════════════════════════════════
+-- -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS project_objectives (
     id SERIAL PRIMARY KEY,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -68,9 +68,9 @@ CREATE TABLE IF NOT EXISTS project_objectives (
     project_id INTEGER NOT NULL REFERENCES projects(id)
 );
 
--- ══════════════════════════════════════════════════════
+-- -------------------------------------------------------
 -- task_dependencies: create table if not exists
--- ══════════════════════════════════════════════════════
+-- -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS task_dependencies (
     id SERIAL PRIMARY KEY,
     predecessor_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
@@ -78,9 +78,9 @@ CREATE TABLE IF NOT EXISTS task_dependencies (
     dependency_type VARCHAR(10) DEFAULT 'FS'
 );
 
--- ══════════════════════════════════════════════════════
+-- -------------------------------------------------------
 -- project_requests: create table if not exists
--- ══════════════════════════════════════════════════════
+-- -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS project_requests (
     id SERIAL PRIMARY KEY,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
