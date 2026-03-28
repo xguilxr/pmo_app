@@ -221,12 +221,14 @@ async def import_tasks_from_file(
     filename = (file.filename or "").lower()
     content = await file.read()
 
-    if filename.endswith(".xlsx"):
+    if filename.endswith(".mpp") or filename.endswith(".mpx") or filename.endswith(".xml") and b"<Project" in content[:500]:
+        rows = _parse_mpp(content, filename)
+    elif filename.endswith(".xlsx"):
         rows = _parse_xlsx(content)
     elif filename.endswith(".csv"):
         rows = _parse_csv(content)
     else:
-        raise HTTPException(status_code=400, detail="Formato no soportado. Use .csv o .xlsx")
+        raise HTTPException(status_code=400, detail="Formato no soportado. Use .mpp, .xlsx o .csv")
 
     if not rows:
         raise HTTPException(status_code=400, detail="No se encontraron tareas en el archivo")
@@ -364,6 +366,142 @@ def _parse_csv(content: bytes) -> list[dict]:
         if task:
             tasks.append(task)
     return tasks
+
+
+def _java_date_to_python(java_date) -> date | None:
+    """Convert a Java Date/LocalDateTime to a Python date."""
+    if java_date is None:
+        return None
+    try:
+        # Try toString() which usually gives "YYYY-MM-DD..." or similar
+        s = str(java_date)
+        # Try ISO format first (YYYY-MM-DD)
+        parsed = _parse_date(s[:10])
+        if parsed:
+            return parsed
+        # Fallback: deprecated Java Date API
+        return date(java_date.getYear() + 1900, java_date.getMonth() + 1, java_date.getDate())
+    except Exception:
+        return None
+
+
+def _parse_mpp(content: bytes, filename: str) -> list[dict]:
+    """Parse MS Project (.mpp/.mpx/.xml) file using mpxj (requires Java)."""
+    import tempfile
+    import os
+
+    try:
+        import mpxj
+    except ImportError:
+        raise HTTPException(
+            status_code=400,
+            detail="La libreria mpxj no esta instalada. Ejecute: pip install mpxj jpype1"
+        )
+
+    # mpxj needs Java - check and start JVM
+    try:
+        if not mpxj.isJVMStarted():
+            mpxj.startJVM()
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Se requiere Java (JDK/JRE) instalado para leer archivos .mpp. Error: {e}"
+        )
+
+    from net.sf.mpxj.reader import UniversalProjectReader  # type: ignore
+
+    # Write to temp file since mpxj reads from file path
+    suffix = os.path.splitext(filename)[1] or ".mpp"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        reader = UniversalProjectReader()
+        project = reader.read(tmp_path)
+
+        tasks = []
+        for ms_task in project.getTasks():
+            name = str(ms_task.getName() or "").strip()
+            if not name:
+                continue
+
+            # Extract WBS
+            wbs = str(ms_task.getWBS() or "").strip() or None
+
+            # Extract dates - convert Java date objects to Python dates
+            start_date = _java_date_to_python(ms_task.getStart())
+            end_date = _java_date_to_python(ms_task.getFinish())
+
+            # Duration in days
+            duration_days = None
+            duration_val = ms_task.getDuration()
+            if duration_val:
+                try:
+                    duration_days = int(duration_val.getDuration())
+                except Exception:
+                    pass
+
+            # Progress (0-100)
+            progress = 0.0
+            pct = ms_task.getPercentageComplete()
+            if pct is not None:
+                try:
+                    progress = float(str(pct))
+                except Exception:
+                    pass
+
+            # Milestone
+            is_milestone = False
+            try:
+                is_milestone = bool(ms_task.getMilestone())
+            except Exception:
+                pass
+
+            # Outline level
+            outline_level = 1
+            try:
+                ol = ms_task.getOutlineLevel()
+                if ol is not None:
+                    outline_level = max(1, int(str(ol)))
+            except Exception:
+                pass
+
+            # Resource names (responsible)
+            responsible_name = None
+            try:
+                assignments = ms_task.getResourceAssignments()
+                if assignments and assignments.size() > 0:
+                    names = []
+                    for i in range(assignments.size()):
+                        ra = assignments.get(i)
+                        res = ra.getResource()
+                        if res and res.getName():
+                            names.append(str(res.getName()))
+                    if names:
+                        responsible_name = ", ".join(names)
+            except Exception:
+                pass
+
+            tasks.append({
+                "name": name,
+                "wbs": wbs,
+                "start_date": start_date,
+                "end_date": end_date,
+                "duration_days": duration_days,
+                "progress": progress,
+                "outline_level": outline_level,
+                "is_milestone": is_milestone,
+                "responsible_name": responsible_name,
+            })
+
+        return tasks
+
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
 
 
 def _parse_xlsx(content: bytes) -> list[dict]:
