@@ -36,6 +36,7 @@ export default function AdminOrganizationsPage() {
   const [editing, setEditing] = useState<OrgItem | null>(null);
   const [form, setForm] = useState({ name: '', legalName: '', industry: '', country: 'México', contactEmail: '', isActive: true });
   const [deleteTarget, setDeleteTarget] = useState<OrgItem | null>(null);
+  const [saveError, setSaveError] = useState('');
 
   // Fetch organizations from API
   const { data: apiOrgs, loading, error, refetch } = useApi<OrgItem[]>(async () => {
@@ -51,38 +52,45 @@ export default function AdminOrganizationsPage() {
   const openCreate = () => {
     setEditing(null);
     setForm({ name: '', legalName: '', industry: '', country: 'México', contactEmail: '', isActive: true });
+    setSaveError('');
     setShowModal(true);
   };
 
   const openEdit = (o: OrgItem) => {
     setEditing(o);
     setForm({ name: o.name, legalName: o.legalName, industry: o.industry, country: o.country, contactEmail: o.contactEmail, isActive: o.isActive });
+    setSaveError('');
     setShowModal(true);
   };
 
   const handleSave = async () => {
     if (!form.name.trim()) return;
-    if (editing) {
-      await api.patch(`/organizations/${editing.id}`, {
-        name: form.name,
-        legal_name: form.legalName,
-        industry: form.industry,
-        country: form.country,
-        contact_email: form.contactEmail,
-        is_active: form.isActive,
-      });
-    } else {
-      await api.post('/organizations', {
-        name: form.name,
-        legal_name: form.legalName,
-        industry: form.industry,
-        country: form.country,
-        contact_email: form.contactEmail,
-        is_active: form.isActive,
-      });
+    setSaveError('');
+    try {
+      if (editing) {
+        await api.patch(`/organizations/${editing.id}`, {
+          name: form.name,
+          legal_name: form.legalName,
+          industry: form.industry,
+          country: form.country,
+          contact_email: form.contactEmail,
+          is_active: form.isActive,
+        });
+      } else {
+        await api.post('/organizations', {
+          name: form.name,
+          legal_name: form.legalName,
+          industry: form.industry,
+          country: form.country,
+          contact_email: form.contactEmail,
+          is_active: form.isActive,
+        });
+      }
+      refetch();
+      setShowModal(false);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Error al guardar');
     }
-    refetch();
-    setShowModal(false);
   };
 
   const confirmDelete = async () => {
@@ -155,6 +163,11 @@ export default function AdminOrganizationsPage() {
               <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
             </div>
             <div className="space-y-4">
+              {saveError && (
+                <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3">
+                  {saveError}
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.orgName')}</label>
                 <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />

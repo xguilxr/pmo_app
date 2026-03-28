@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Eye, Download, Trash2, X, FileBarChart, BarChart3, Bot, Calendar } from 'lucide-react';
+import { Plus, Eye, Download, Trash2, X, FileBarChart, BarChart3, Bot, Calendar, Send } from 'lucide-react';
 import { projects } from '../data/mock';
 import PageHeader from '../components/common/PageHeader';
 

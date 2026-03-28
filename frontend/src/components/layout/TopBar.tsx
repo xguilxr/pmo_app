@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Globe, User, ChevronDown, Settings, LogOut } from 'lucide-react';
+import { Bell, Globe, User, ChevronDown, Settings, LogOut, Sun, Moon } from 'lucide-react';
 import { logout, getCurrentUser } from '../../services/auth';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function TopBar() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const { isDark, toggleTheme } = useTheme();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const user = getCurrentUser();
@@ -26,51 +28,66 @@ export default function TopBar() {
   }, []);
 
   return (
-    <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6 sticky top-0 z-10">
+    <header className="h-[56px] glass border-b border-border sticky top-0 z-10 flex items-center justify-between px-6">
       <div />
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2">
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          className="flex items-center justify-center w-9 h-9 rounded-xl text-text-secondary hover:bg-surface-hover transition-all duration-200"
+          title={isDark ? 'Light mode' : 'Dark mode'}
+        >
+          {isDark ? <Sun className="w-[18px] h-[18px]" /> : <Moon className="w-[18px] h-[18px]" />}
+        </button>
+
+        {/* Language toggle */}
         <button
           onClick={toggleLang}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition-colors"
+          className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-[13px] font-medium text-text-secondary hover:bg-surface-hover transition-all duration-200"
         >
           <Globe className="w-4 h-4" />
           {i18n.language === 'es' ? 'ES' : 'EN'}
         </button>
-        <button className="relative p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+
+        {/* Notifications */}
+        <button className="relative flex items-center justify-center w-9 h-9 rounded-xl text-text-secondary hover:bg-surface-hover transition-all duration-200">
+          <Bell className="w-[18px] h-[18px]" />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-surface" />
         </button>
 
         {/* User dropdown */}
-        <div className="relative" ref={menuRef}>
+        <div className="relative ml-1" ref={menuRef}>
           <button
             onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="flex items-center gap-2 pl-3 border-l border-gray-200 hover:bg-gray-50 rounded-lg pr-2 py-1 transition-colors"
+            className="flex items-center gap-2.5 pl-3 border-l border-border hover:bg-surface-hover rounded-xl pr-2.5 py-1.5 transition-all duration-200"
           >
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-              <User className="w-4 h-4 text-blue-600" />
+            <div className="w-8 h-8 rounded-xl bg-accent/10 flex items-center justify-center">
+              <User className="w-4 h-4 text-accent" />
             </div>
-            <span className="text-sm font-medium text-gray-700">{user?.fullName || 'Usuario'}</span>
-            <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+            <div className="text-left hidden sm:block">
+              <span className="text-[13px] font-semibold text-text-primary block leading-tight">{user?.fullName || 'Usuario'}</span>
+              <span className="text-[10px] text-text-tertiary block leading-tight">{user?.roles?.[0] || ''}</span>
+            </div>
+            <ChevronDown className={`w-3.5 h-3.5 text-text-tertiary transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {userMenuOpen && (
-            <div className="absolute right-0 top-12 w-56 bg-white rounded-xl border border-gray-200 shadow-lg py-1 z-50">
-              <div className="px-4 py-3 border-b border-gray-100">
-                <p className="text-sm font-medium text-gray-900">{user?.fullName || 'Usuario'}</p>
-                <p className="text-xs text-gray-500">{user?.roles?.join(', ') || ''}</p>
+            <div className="absolute right-0 top-[52px] w-56 bg-surface-elevated rounded-2xl border border-border shadow-xl shadow-black/8 dark:shadow-black/30 py-1 animate-fade-in">
+              <div className="px-4 py-3 border-b border-border-light">
+                <p className="text-[13px] font-semibold text-text-primary">{user?.fullName || 'Usuario'}</p>
+                <p className="text-[11px] text-text-tertiary">{user?.roles?.join(', ') || ''}</p>
               </div>
               <button
                 onClick={() => { setUserMenuOpen(false); navigate('/admin/users'); }}
-                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-[13px] text-text-secondary hover:bg-surface-hover transition-colors"
               >
-                <Settings className="w-4 h-4 text-gray-400" />
+                <Settings className="w-4 h-4 text-text-tertiary" />
                 {t('nav.manageAccount')}
               </button>
-              <div className="border-t border-gray-100">
+              <div className="border-t border-border-light">
                 <button
                   onClick={() => { setUserMenuOpen(false); logout(); }}
-                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-[13px] text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
                 >
                   <LogOut className="w-4 h-4" />
                   {t('nav.logout')}

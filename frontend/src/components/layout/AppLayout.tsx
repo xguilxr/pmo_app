@@ -7,17 +7,14 @@ import { isAuthenticated, logout, touchActivity, isSessionExpired } from '../../
 export default function AppLayout() {
   const [, setTick] = useState(0);
 
-  // Track user activity for session timeout
   const handleActivity = useCallback(() => {
     touchActivity();
   }, []);
 
   useEffect(() => {
-    // Listen to user activity events
     const events = ['mousedown', 'keydown', 'scroll', 'touchstart'] as const;
     events.forEach(e => window.addEventListener(e, handleActivity));
 
-    // Check session expiry every 60 seconds
     const interval = setInterval(() => {
       if (isSessionExpired()) {
         logout();
@@ -36,9 +33,9 @@ export default function AppLayout() {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-surface-secondary">
       <Sidebar />
-      <div className="flex-1 ml-64">
+      <div className="flex-1 ml-[260px]">
         <TopBar />
         <main className="p-6">
           <Outlet />

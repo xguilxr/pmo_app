@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Edit2, X, Sliders, GripVertical } from 'lucide-react';
+import { Plus, Edit2, X, GripVertical } from 'lucide-react';
 
 interface VariableValue {
   id: number;

@@ -1,271 +1,204 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Building2, FolderKanban, AlertTriangle, TrendingUp, Plus, X } from 'lucide-react';
-import { type Project } from '../data/mock';
+import { Building2, Plus, X, Search } from 'lucide-react';
 import { api } from '../services/api';
 import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';
-import PhaseBadge from '../components/common/PhaseBadge';
-import HealthBadge from '../components/common/HealthBadge';
-import ProgressBar from '../components/common/ProgressBar';
 import PageHeader from '../components/common/PageHeader';
+import { useToast } from '../context/ToastContext';
 
-function formatMXN(value: number) {
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(value);
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapApiProject(raw: any): Project {
-  return {
-    id: raw.id,
-    folio: raw.folio || '',
-    name: raw.name || '',
-    type: raw.type || '',
-    priority: raw.priority || 'Media',
-    company: raw.company || raw.organization_name || '',
-    phase: raw.phase || 'Planificación',
-    progress: raw.progress ?? 0,
-    plannedProgress: raw.planned_progress ?? 0,
-    budget: raw.budget ?? 0,
-    realBudget: raw.real_budget ?? 0,
-    startDate: raw.start_date || '',
-    endDate: raw.end_date || '',
-    health: raw.health || 'green',
-  };
-}
-
-interface OrgSummary {
+interface ApiOrg {
+  id: number;
   name: string;
-  projects: Project[];
-  totalProjects: number;
-  inExecution: number;
-  delayed: number;
-  avgProgress: number;
+  legal_name: string | null;
+  industry: string | null;
+  country: string | null;
+  contact_email: string | null;
+  is_active: boolean;
+  created_at: string;
 }
 
 export default function OrganizationsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { toastSuccess, toastError } = useToast();
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [search, setSearch] = useState('');
   const [newOrg, setNewOrg] = useState({ name: '', legalName: '', industry: '', country: 'México', contactEmail: '', isActive: true });
-  const [projectsList, setProjectsList] = useState<Project[]>([]);
+  const [saving, setSaving] = useState(false);
 
-  const { data: apiProjects, loading, error, refetch } = useApi<Project[]>(async () => {
-    try {
-      const raw = await api.get<any[]>('/projects');
-      return raw.map(mapApiProject);
-    } catch {
-      return [];
-    }
-  }, []);
+  const { data: organizations, loading, error, refetch } = useApi<ApiOrg[]>(() => api.get<ApiOrg[]>('/organizations'), []);
 
-  useEffect(() => {
-    if (apiProjects) setProjectsList(apiProjects);
-  }, [apiProjects]);
-
-  const organizations = useMemo<OrgSummary[]>(() => {
-    const grouped: Record<string, Project[]> = {};
-    for (const p of projectsList) {
-      if (!grouped[p.company]) grouped[p.company] = [];
-      grouped[p.company].push(p);
-    }
-
-    return Object.entries(grouped)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([name, orgProjects]) => {
-        const totalProjects = orgProjects.length;
-        const inExecution = orgProjects.filter((p) => p.phase === 'Ejecución').length;
-        const delayed = orgProjects.filter((p) => p.health === 'red').length;
-        const avgProgress = totalProjects > 0
-          ? Math.round(orgProjects.reduce((sum, p) => sum + p.progress, 0) / totalProjects)
-          : 0;
-
-        return { name, projects: orgProjects, totalProjects, inExecution, delayed, avgProgress };
-      });
-  }, [projectsList]);
+  const filtered = (organizations || []).filter(org =>
+    org.name.toLowerCase().includes(search.toLowerCase()) ||
+    (org.industry || '').toLowerCase().includes(search.toLowerCase()) ||
+    (org.country || '').toLowerCase().includes(search.toLowerCase())
+  );
 
   const handleCreateOrg = async () => {
-    if (!newOrg.name.trim()) return;
+    if (!newOrg.name.trim()) { toastError('El nombre es requerido'); return; }
+    setSaving(true);
     try {
       await api.post('/organizations', {
         name: newOrg.name,
-        legal_name: newOrg.legalName,
-        industry: newOrg.industry,
-        country: newOrg.country,
-        contact_email: newOrg.contactEmail,
+        legal_name: newOrg.legalName || null,
+        industry: newOrg.industry || null,
+        country: newOrg.country || null,
+        contact_email: newOrg.contactEmail || null,
         is_active: newOrg.isActive,
       });
+      toastSuccess(`Organización "${newOrg.name}" creada exitosamente`);
       refetch();
+      setShowCreateModal(false);
+      setNewOrg({ name: '', legalName: '', industry: '', country: 'México', contactEmail: '', isActive: true });
     } catch (err) {
-      console.error('Failed to create organization:', err);
+      toastError(err instanceof Error ? err.message : 'Error al crear organización');
+    } finally {
+      setSaving(false);
     }
-    setShowCreateModal(false);
-    setNewOrg({ name: '', legalName: '', industry: '', country: 'México', contactEmail: '', isActive: true });
   };
 
   if (loading) return <LoadingSpinner />;
-  if (error && projectsList.length === 0) return <ErrorMessage message={error} onRetry={refetch} />;
+  if (error && !organizations?.length) return <ErrorMessage message={error} onRetry={refetch} />;
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
       <PageHeader
         breadcrumb={[{ label: 'Inicio', href: '/' }, { label: t('nav.organizations') }]}
         title={t('nav.organizations')}
       >
-        <button onClick={() => setShowCreateModal(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+        <button onClick={() => setShowCreateModal(true)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-accent text-white rounded-xl text-[13px] font-semibold hover:bg-accent-hover transition-all duration-200 shadow-sm shadow-accent/25">
           <Plus className="w-4 h-4" />
           {t('admin.newOrg')}
         </button>
       </PageHeader>
 
-      {/* Organization Cards */}
-      {organizations.map((org) => (
-        <div key={org.name} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          {/* Org Header */}
-          <div
-            onClick={() => navigate(`/organizations/${encodeURIComponent(org.name)}`)}
-            className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 cursor-pointer hover:bg-gray-100/50 transition-colors"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                  <Building2 className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{org.name}</h3>
-                  <p className="text-sm text-gray-500">
-                    {org.totalProjects} {org.totalProjects === 1 ? 'proyecto' : 'proyectos'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+      {/* Search */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" />
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Buscar organizaciones..."
+          className="w-full pl-10 pr-4 py-2.5 bg-surface border border-border rounded-xl text-[13px] text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+        />
+      </div>
 
-          {/* KPI Summary Row */}
-          <div className="grid grid-cols-4 gap-4 px-6 py-4 border-b border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
-                <FolderKanban className="w-4.5 h-4.5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">{t('dashboard.activeProjects')}</p>
-                <p className="text-lg font-bold text-gray-900">{org.totalProjects}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center">
-                <FolderKanban className="w-4.5 h-4.5 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">{t('projects.execution')}</p>
-                <p className="text-lg font-bold text-gray-900">{org.inExecution}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center">
-                <AlertTriangle className="w-4.5 h-4.5 text-red-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">{t('projects.delayed', 'Retrasados')}</p>
-                <p className="text-lg font-bold text-gray-900">{org.delayed}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center">
-                <TrendingUp className="w-4.5 h-4.5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">{t('projects.progress')}</p>
-                <p className="text-lg font-bold text-gray-900">{org.avgProgress}%</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Projects Table */}
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('projects.folio')}</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('projects.name')}</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('projects.phase')}</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('projects.health', 'Salud')}</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600 w-44">{t('projects.progress')}</th>
-                <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('projects.budget')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {org.projects.map((p) => (
-                <tr
-                  key={p.id}
-                  onClick={() => navigate(`/projects/${p.id}`)}
-                  className="border-b border-gray-100 hover:bg-blue-50/40 transition-colors cursor-pointer"
-                >
-                  <td className="px-4 py-3 text-gray-500 font-mono text-xs">{p.folio}</td>
-                  <td className="px-4 py-3 text-blue-600 font-medium">{p.name}</td>
-                  <td className="px-4 py-3"><PhaseBadge phase={p.phase} /></td>
-                  <td className="px-4 py-3"><HealthBadge health={p.health} /></td>
-                  <td className="px-4 py-3"><ProgressBar value={p.progress} planned={p.plannedProgress} /></td>
-                  <td className="px-4 py-3 text-right text-gray-700 font-medium">{formatMXN(p.budget)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Organization Grid */}
+      {filtered.length === 0 ? (
+        <div className="bg-surface border border-border rounded-2xl p-12 text-center">
+          <Building2 className="w-12 h-12 text-text-tertiary mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-text-primary mb-1">Sin organizaciones</h3>
+          <p className="text-[13px] text-text-secondary">Crea tu primera organización para comenzar</p>
         </div>
-      ))}
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filtered.map(org => (
+            <div
+              key={org.id}
+              onClick={() => navigate(`/organizations/${encodeURIComponent(org.name)}`)}
+              className="group bg-surface border border-border rounded-2xl p-5 hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/20 hover:border-accent/30 transition-all duration-300 cursor-pointer"
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-11 h-11 rounded-xl bg-accent/10 flex items-center justify-center shrink-0 group-hover:bg-accent/20 transition-colors">
+                  <Building2 className="w-5 h-5 text-accent" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-[15px] font-semibold text-text-primary truncate group-hover:text-accent transition-colors">
+                    {org.name}
+                  </h3>
+                  {org.legal_name && (
+                    <p className="text-[12px] text-text-tertiary truncate mt-0.5">{org.legal_name}</p>
+                  )}
+                </div>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${org.is_active ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>
+                  {org.is_active ? 'Activa' : 'Inactiva'}
+                </span>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-border-light grid grid-cols-2 gap-3">
+                {org.industry && (
+                  <div>
+                    <p className="text-[10px] text-text-tertiary uppercase tracking-wider font-medium">Industria</p>
+                    <p className="text-[13px] text-text-secondary font-medium mt-0.5">{org.industry}</p>
+                  </div>
+                )}
+                {org.country && (
+                  <div>
+                    <p className="text-[10px] text-text-tertiary uppercase tracking-wider font-medium">País</p>
+                    <p className="text-[13px] text-text-secondary font-medium mt-0.5">{org.country}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Create Organization Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-xl">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-semibold text-gray-900">{t('admin.newOrg')}</h3>
-              <button onClick={() => setShowCreateModal(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-elevated rounded-2xl w-full max-w-lg border border-border shadow-2xl shadow-black/10 dark:shadow-black/40 animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
+              <h3 className="text-[15px] font-bold text-text-primary">{t('admin.newOrg')}</h3>
+              <button onClick={() => setShowCreateModal(false)} className="p-1.5 hover:bg-surface-hover rounded-xl transition-colors">
+                <X className="w-4 h-4 text-text-tertiary" />
+              </button>
             </div>
-            <div className="space-y-4">
+            <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                <input value={newOrg.name} onChange={e => setNewOrg({...newOrg, name: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                <label className="block text-[12px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Nombre *</label>
+                <input value={newOrg.name} onChange={e => setNewOrg({...newOrg, name: e.target.value})}
+                  className="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-[13px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Razón Social</label>
-                <input value={newOrg.legalName} onChange={e => setNewOrg({...newOrg, legalName: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                <label className="block text-[12px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Razón Social</label>
+                <input value={newOrg.legalName} onChange={e => setNewOrg({...newOrg, legalName: e.target.value})}
+                  className="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-[13px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[12px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Industria</label>
+                  <select value={newOrg.industry} onChange={e => setNewOrg({...newOrg, industry: e.target.value})}
+                    className="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-[13px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all">
+                    <option value="">Seleccionar...</option>
+                    <option value="Manufactura">Manufactura</option>
+                    <option value="Tecnología">Tecnología</option>
+                    <option value="Distribución">Distribución</option>
+                    <option value="Servicios">Servicios</option>
+                    <option value="Financiero">Financiero</option>
+                    <option value="Salud">Salud</option>
+                    <option value="Educación">Educación</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[12px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5">País</label>
+                  <input value={newOrg.country} onChange={e => setNewOrg({...newOrg, country: e.target.value})}
+                    className="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-[13px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all" />
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Industria</label>
-                <select value={newOrg.industry} onChange={e => setNewOrg({...newOrg, industry: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                  <option value="">Seleccionar...</option>
-                  <option value="Manufactura">Manufactura</option>
-                  <option value="Tecnología">Tecnología</option>
-                  <option value="Distribución">Distribución</option>
-                  <option value="Servicios">Servicios</option>
-                  <option value="Financiero">Financiero</option>
-                  <option value="Salud">Salud</option>
-                  <option value="Educación">Educación</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">País</label>
-                <input value={newOrg.country} onChange={e => setNewOrg({...newOrg, country: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email de contacto</label>
-                <input type="email" value={newOrg.contactEmail} onChange={e => setNewOrg({...newOrg, contactEmail: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                <label className="block text-[12px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Email de contacto</label>
+                <input type="email" value={newOrg.contactEmail} onChange={e => setNewOrg({...newOrg, contactEmail: e.target.value})}
+                  className="w-full px-3.5 py-2.5 bg-surface border border-border rounded-xl text-[13px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all" />
               </div>
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-gray-700">Activa</label>
+                <label className="text-[12px] font-semibold text-text-secondary uppercase tracking-wider">Activa</label>
                 <button
                   type="button"
                   onClick={() => setNewOrg({...newOrg, isActive: !newOrg.isActive})}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${newOrg.isActive ? 'bg-blue-600' : 'bg-gray-300'}`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${newOrg.isActive ? 'bg-accent' : 'bg-gray-300 dark:bg-gray-600'}`}
                 >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${newOrg.isActive ? 'translate-x-6' : 'translate-x-1'}`} />
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${newOrg.isActive ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
             </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
-              <button onClick={handleCreateOrg} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">Crear</button>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border-light">
+              <button onClick={() => setShowCreateModal(false)} className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl transition-all">Cancelar</button>
+              <button onClick={handleCreateOrg} disabled={saving}
+                className="px-5 py-2.5 text-[13px] font-semibold bg-accent text-white rounded-xl hover:bg-accent-hover transition-all shadow-sm shadow-accent/25 disabled:opacity-50">
+                {saving ? 'Creando...' : 'Crear'}
+              </button>
             </div>
           </div>
         </div>

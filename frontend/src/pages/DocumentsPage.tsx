@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { FileText, FileSpreadsheet, Files, Plus, Download, Search } from 'lucide-react';
+import { FileText, FileSpreadsheet, Plus, Download, Search } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 import { api } from '../services/api';
 import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';

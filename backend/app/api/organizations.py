@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
@@ -73,7 +74,11 @@ def create_organization(
         created_by_id=current_user.id,
     )
     db.add(org)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Ya existe una organización con ese nombre")
     db.refresh(org)
     return org
 
@@ -90,7 +95,11 @@ def update_organization(
         raise HTTPException(status_code=404, detail="Organización no encontrada")
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(org, field, value)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Ya existe una organización con ese nombre")
     db.refresh(org)
     return org
 

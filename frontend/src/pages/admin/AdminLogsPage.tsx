@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileText, Search, Filter } from 'lucide-react';
+import { Filter } from 'lucide-react';
 
 interface LogEntry {
   id: number;
