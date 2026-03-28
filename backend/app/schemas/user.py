@@ -8,6 +8,7 @@ class UserCreate(BaseModel):
     full_name: str
     password: str
     role_ids: list[int] = []
+    organization_ids: list[int] = []
 
 
 class UserUpdate(BaseModel):

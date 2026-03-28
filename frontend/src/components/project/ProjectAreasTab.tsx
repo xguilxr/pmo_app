@@ -48,6 +48,7 @@ export default function ProjectAreasTab({ projectId }: { projectId: number }) {
         name: form.name,
         description: form.description || null,
         role_in_project: form.role_in_project || null,
+        responsible_name: form.responsible_name || null,
       };
       if (editing) {
         await api.patch(`/projects/${projectId}/areas/${editing.id}`, payload);
@@ -143,7 +144,7 @@ export default function ProjectAreasTab({ projectId }: { projectId: number }) {
               <div><label className={labelCls}>Nombre *</label><input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className={inputCls} placeholder="Ej: Desarrollo, QA, Infraestructura..." /></div>
               <div><label className={labelCls}>Descripcion</label><textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={2} className={inputCls} /></div>
               <div><label className={labelCls}>Rol en el Proyecto</label><input value={form.role_in_project} onChange={e => setForm({...form, role_in_project: e.target.value})} className={inputCls} placeholder="Ej: Líder Técnico, Sponsor, QA Lead..." /></div>
-              <div><label className={labelCls}>Responsable</label><input value={form.responsible_name} onChange={e => setForm({...form, responsible_name: e.target.value})} className={inputCls} placeholder="Nombre del responsable" disabled title="Se asigna desde el backend" /></div>
+              <div><label className={labelCls}>Responsable</label><input value={form.responsible_name} onChange={e => setForm({...form, responsible_name: e.target.value})} className={inputCls} placeholder="Nombre del responsable" /></div>
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-border-light">
               <button onClick={() => setShowModal(false)} className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl">Cancelar</button>

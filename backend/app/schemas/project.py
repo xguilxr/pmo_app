@@ -67,6 +67,7 @@ class ProjectListResponse(BaseModel):
     health: str
     start_date: date | None = None
     end_date: date | None = None
+    program_id: int | None = None
 
 
 class DashboardKPIs(BaseModel):

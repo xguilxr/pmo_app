@@ -52,6 +52,37 @@ uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads"
 os.makedirs(uploads_dir, exist_ok=True)
 
 
+@app.on_event("startup")
+def sync_schema_on_startup():
+    """Ensure all model columns/tables exist in the database.
+
+    Uses IF NOT EXISTS so this is safe to run on every startup.
+    """
+    from app.database import engine, Base
+    import app.models  # noqa: ensure all models are registered
+    from sqlalchemy import text
+    import os
+
+    # First, create any missing tables (does NOT add columns to existing tables)
+    Base.metadata.create_all(bind=engine)
+
+    # Then, add any missing columns via raw SQL (ALTER TABLE ... ADD COLUMN IF NOT EXISTS)
+    sql_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migrations", "sync_schema.sql")
+    if os.path.exists(sql_path):
+        with open(sql_path) as f:
+            sql = f.read()
+        # Execute each statement separately (skip comments and empty lines)
+        with engine.begin() as conn:
+            for stmt in sql.split(";"):
+                stmt = stmt.strip()
+                if stmt and not stmt.startswith("--"):
+                    # Remove leading comment lines from each statement
+                    lines = [l for l in stmt.split("\n") if not l.strip().startswith("--")]
+                    clean = "\n".join(lines).strip()
+                    if clean:
+                        conn.execute(text(clean))
+
+
 @app.get("/api/health")
 def health_check():
     return {"status": "ok", "version": "0.2.0"}

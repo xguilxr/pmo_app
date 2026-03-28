@@ -45,6 +45,10 @@ def create_user(data: UserCreate, db: Session = Depends(get_db), current_user: U
         roles = db.query(Role).filter(Role.id.in_(data.role_ids)).all()
         user.roles = roles
 
+    if data.organization_ids:
+        orgs = db.query(Organization).filter(Organization.id.in_(data.organization_ids)).all()
+        user.organizations = orgs
+
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -110,6 +114,20 @@ def update_user(
         organizations=[o.name for o in user.organizations],
         created_at=user.created_at,
     )
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from datetime import datetime, timezone
+    user = db.query(User).filter(User.id == user_id, User.deleted_at.is_(None)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    user.deleted_at = datetime.now(timezone.utc)
+    db.commit()
 
 
 @router.get("/roles", response_model=list[dict])

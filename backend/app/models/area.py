@@ -11,6 +11,7 @@ class ProjectArea(TimestampMixin, Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     role_in_project = Column(String(100), nullable=True)  # Sponsor, Líder Técnico, Analista, etc.
+    responsible_name_text = Column(String(255), nullable=True)  # text fallback when no user ID
 
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
     responsible_id = Column(Integer, ForeignKey("users.id"), nullable=True)
