@@ -1,136 +1,131 @@
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Plus, Edit2, Trash2, X, AlertTriangle } from 'lucide-react';
+import { Plus, X, Download, Edit2, Trash2 } from 'lucide-react';
+import { api } from '../../services/api';
+import { useApi, LoadingSpinner } from '../../hooks/useApi';
+import { useToast } from '../../context/ToastContext';
 
 interface Risk {
-  id: number;
-  folio: string;
-  title: string;
-  description: string;
-  category: string;
-  probability: number;
-  impact: number;
-  severity: number;
-  mitigationStrategy: string;
-  status: string;
-  identificationDate: string;
-  responsibleName: string;
+  id: number; folio: string; title: string; description: string | null;
+  category: string | null; probability: number; impact: number; severity: number;
+  mitigation_strategy: string | null; status: string;
+  identification_date: string | null; deadline: string | null;
 }
 
-const mockRisks: Record<number, Risk[]> = {
-  1: [
-    { id: 1, folio: 'RSK-2026-001', title: 'Retraso en entrega de licencias SAP', description: 'El proveedor puede no entregar a tiempo', category: 'Proveedor', probability: 4, impact: 5, severity: 20, mitigationStrategy: 'Contrato con penalización por retraso', status: 'open', identificationDate: '2026-01-20', responsibleName: 'Juan García' },
-    { id: 2, folio: 'RSK-2026-002', title: 'Rotación de personal clave', description: 'Riesgo de salida del arquitecto principal', category: 'Recurso', probability: 3, impact: 4, severity: 12, mitigationStrategy: 'Plan de retención y documentación', status: 'open', identificationDate: '2026-02-05', responsibleName: 'Juan García' },
-  ],
-  10: [
-    { id: 3, folio: 'RSK-2026-003', title: 'Cambio en regulación fiscal', description: 'Posibles cambios en la normativa de facturación', category: 'Externo', probability: 2, impact: 5, severity: 10, mitigationStrategy: 'Monitoreo constante del SAT', status: 'open', identificationDate: '2026-01-15', responsibleName: 'María Rodríguez' },
-  ],
-};
-
 export default function ProjectRisksTab({ projectId }: { projectId: number }) {
-  const { t } = useTranslation();
-  const [risks, setRisks] = useState<Risk[]>(mockRisks[projectId] || []);
+  const { toastSuccess, toastError } = useToast();
+  const { data: risks, loading, refetch } = useApi(() => api.get<Risk[]>(`/risks?project_id=${projectId}`), [projectId]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Risk | null>(null);
-  const [form, setForm] = useState({ title: '', description: '', category: '', probability: 3, impact: 3, mitigationStrategy: '', status: 'open' });
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [filter, setFilter] = useState('all');
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ title: '', description: '', category: 'Técnico', probability: 3, impact: 3, mitigation_strategy: '', status: 'Abierto', identification_date: '', deadline: '' });
+
+  const filtered = (risks || []).filter(r => filter === 'all' || r.status === filter);
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ title: '', description: '', category: '', probability: 3, impact: 3, mitigationStrategy: '', status: 'open' });
+    setForm({ title: '', description: '', category: 'Técnico', probability: 3, impact: 3, mitigation_strategy: '', status: 'Abierto', identification_date: new Date().toISOString().slice(0,10), deadline: '' });
     setShowModal(true);
   };
 
   const openEdit = (r: Risk) => {
     setEditing(r);
-    setForm({ title: r.title, description: r.description, category: r.category, probability: r.probability, impact: r.impact, mitigationStrategy: r.mitigationStrategy, status: r.status });
+    setForm({ title: r.title, description: r.description || '', category: r.category || 'Técnico', probability: r.probability, impact: r.impact, mitigation_strategy: r.mitigation_strategy || '', status: r.status, identification_date: r.identification_date || '', deadline: r.deadline || '' });
     setShowModal(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.title.trim()) return;
-    const severity = form.probability * form.impact;
-    if (editing) {
-      setRisks(risks.map(r => r.id === editing.id ? { ...r, ...form, severity } : r));
-    } else {
-      setRisks([...risks, { id: Date.now(), folio: `RSK-2026-${(risks.length + 1).toString().padStart(3, '0')}`, ...form, severity, identificationDate: new Date().toISOString().split('T')[0], responsibleName: 'Sin asignar' }]);
-    }
-    setShowModal(false);
+    setSaving(true);
+    try {
+      const payload = { ...form, identification_date: form.identification_date || null, deadline: form.deadline || null, project_id: projectId };
+      if (editing) {
+        await api.patch(`/risks/${editing.id}`, payload);
+        toastSuccess('Riesgo actualizado');
+      } else {
+        await api.post(`/risks?project_id=${projectId}`, payload);
+        toastSuccess('Riesgo creado');
+      }
+      setShowModal(false);
+      refetch();
+    } catch (err) { toastError(err instanceof Error ? err.message : 'Error'); }
+    setSaving(false);
   };
 
-  const handleDelete = (id: number) => setRisks(risks.filter(r => r.id !== id));
-
-  const severityColor = (s: number) => {
-    if (s >= 15) return 'bg-red-100 text-red-700';
-    if (s >= 8) return 'bg-amber-100 text-amber-700';
-    return 'bg-green-100 text-green-700';
+  const handleDelete = async (id: number) => {
+    if (!confirm('¿Eliminar este riesgo?')) return;
+    try { await api.delete(`/risks/${id}`); toastSuccess('Riesgo eliminado'); refetch(); }
+    catch (err) { toastError(err instanceof Error ? err.message : 'Error'); }
   };
 
-  const statusBadge = (s: string) => {
-    const colors: Record<string, string> = { open: 'bg-red-100 text-red-700', mitigated: 'bg-blue-100 text-blue-700', closed: 'bg-gray-100 text-gray-700' };
-    const labels: Record<string, string> = { open: 'Abierto', mitigated: 'Mitigado', closed: 'Cerrado' };
-    return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors[s] || 'bg-gray-100 text-gray-700'}`}>{labels[s] || s}</span>;
+  const handleExport = () => {
+    const token = localStorage.getItem('pmo_token');
+    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8080/api'}/exports/risks?project_id=${projectId}`;
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.blob())
+      .then(blob => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `riesgos_${projectId}.csv`; a.click(); })
+      .catch(() => toastError('Error al exportar'));
   };
 
-  const filtered = statusFilter === 'all' ? risks : risks.filter(r => r.status === statusFilter);
+  const severityColor = (s: number) => s >= 15 ? 'bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400' : s >= 8 ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400' : 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400';
+
+  if (loading) return <LoadingSpinner />;
+
+  const inputCls = "w-full border border-border bg-surface rounded-xl px-3.5 py-2.5 text-[13px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all";
+  const labelCls = "block text-[12px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5";
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <h3 className="text-lg font-semibold text-gray-900">{t('nav.risks')}</h3>
-          <div className="flex gap-1">
-            {['all', 'open', 'mitigated', 'closed'].map(s => (
-              <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${statusFilter === s ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                {s === 'all' ? t('projects.all') : s === 'open' ? 'Abiertos' : s === 'mitigated' ? 'Mitigados' : 'Cerrados'}
-              </button>
-            ))}
-          </div>
+      <div className="flex items-center justify-between">
+        <div className="flex gap-1.5 bg-surface-tertiary p-1 rounded-xl">
+          {['all', 'Abierto', 'Mitigado', 'Cerrado'].map(s => (
+            <button key={s} onClick={() => setFilter(s)} className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${filter === s ? 'bg-accent text-white shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}>
+              {s === 'all' ? 'Todos' : s} {s !== 'all' ? `(${(risks||[]).filter(r=>r.status===s).length})` : `(${(risks||[]).length})`}
+            </button>
+          ))}
         </div>
-        <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors">
-          <Plus className="w-4 h-4" />
-          {t('projectDetail.addRisk')}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleExport} className="inline-flex items-center gap-2 px-3 py-2 border border-border rounded-xl text-[12px] font-medium text-text-secondary hover:bg-surface-hover transition-all">
+            <Download className="w-3.5 h-3.5" /> Exportar CSV
+          </button>
+          <button onClick={openCreate} className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl text-[12px] font-semibold hover:bg-accent-hover shadow-sm shadow-accent/25">
+            <Plus className="w-3.5 h-3.5" /> Nuevo Riesgo
+          </button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-          <AlertTriangle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">{t('projectDetail.noRisks')}</p>
+        <div className="text-center py-12 bg-surface rounded-2xl border border-border">
+          <p className="text-[13px] text-text-tertiary">Sin riesgos registrados</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Folio</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">{t('projectDetail.riskTitle')}</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">{t('projectDetail.category')}</th>
-                <th className="text-center px-4 py-3 font-medium text-gray-500">P</th>
-                <th className="text-center px-4 py-3 font-medium text-gray-500">I</th>
-                <th className="text-center px-4 py-3 font-medium text-gray-500">{t('projectDetail.severity')}</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Status</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-500"></th>
+        <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+          <table className="w-full text-[13px]">
+            <thead>
+              <tr className="bg-surface-tertiary border-b border-border">
+                <th className="text-left px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Folio</th>
+                <th className="text-left px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Título</th>
+                <th className="text-left px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Categoría</th>
+                <th className="text-center px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">P</th>
+                <th className="text-center px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">I</th>
+                <th className="text-center px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Severidad</th>
+                <th className="text-left px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Estado</th>
+                <th className="text-right px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {filtered.map(r => (
-                <tr key={r.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-mono text-xs text-gray-500">{r.folio}</td>
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-gray-900">{r.title}</p>
-                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{r.description}</p>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{r.category}</td>
-                  <td className="px-4 py-3 text-center">{r.probability}</td>
-                  <td className="px-4 py-3 text-center">{r.impact}</td>
-                  <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-bold ${severityColor(r.severity)}`}>{r.severity}</span></td>
-                  <td className="px-4 py-3">{statusBadge(r.status)}</td>
+                <tr key={r.id} className="border-b border-border-light hover:bg-surface-hover transition-colors">
+                  <td className="px-4 py-3 text-text-tertiary font-mono text-[11px]">{r.folio}</td>
+                  <td className="px-4 py-3 text-text-primary font-medium">{r.title}</td>
+                  <td className="px-4 py-3 text-text-secondary">{r.category || '-'}</td>
+                  <td className="px-4 py-3 text-center text-text-secondary">{r.probability}</td>
+                  <td className="px-4 py-3 text-center text-text-secondary">{r.impact}</td>
+                  <td className="px-4 py-3 text-center"><span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold ${severityColor(r.severity)}`}>{r.severity}</span></td>
+                  <td className="px-4 py-3"><span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold ${r.status==='Abierto'?'bg-red-100 dark:bg-red-950/50 text-red-600':r.status==='Mitigado'?'bg-amber-100 dark:bg-amber-950/50 text-amber-600':'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600'}`}>{r.status}</span></td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-1">
-                      <button onClick={() => openEdit(r)} className="p-1 hover:bg-gray-100 rounded"><Edit2 className="w-3.5 h-3.5 text-gray-400" /></button>
-                      <button onClick={() => handleDelete(r.id)} className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" /></button>
-                    </div>
+                    <button onClick={() => openEdit(r)} className="p-1.5 hover:bg-surface-tertiary rounded-lg transition-colors"><Edit2 className="w-3.5 h-3.5 text-text-tertiary" /></button>
+                    <button onClick={() => handleDelete(r.id)} className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors ml-1"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
                   </td>
                 </tr>
               ))}
@@ -140,67 +135,38 @@ export default function ProjectRisksTab({ projectId }: { projectId: number }) {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-xl">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-semibold text-gray-900">{editing ? t('projectDetail.editRisk') : t('projectDetail.addRisk')}</h3>
-              <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-elevated rounded-2xl w-full max-w-lg border border-border shadow-2xl animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
+              <h3 className="text-[15px] font-bold text-text-primary">{editing ? 'Editar Riesgo' : 'Nuevo Riesgo'}</h3>
+              <button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-surface-hover rounded-xl"><X className="w-4 h-4 text-text-tertiary" /></button>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectDetail.riskTitle')}</label>
-                <input value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectDetail.description')}</label>
-                <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectDetail.category')}</label>
-                  <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">Seleccionar...</option>
-                    <option value="Técnico">Técnico</option>
-                    <option value="Recurso">Recurso</option>
-                    <option value="Proveedor">Proveedor</option>
-                    <option value="Externo">Externo</option>
-                    <option value="Financiero">Financiero</option>
-                    <option value="Organizacional">Organizacional</option>
+            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+              <div><label className={labelCls}>Título *</label><input value={form.title} onChange={e => setForm({...form, title: e.target.value})} className={inputCls} /></div>
+              <div><label className={labelCls}>Descripción</label><textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={2} className={inputCls} /></div>
+              <div className="grid grid-cols-3 gap-4">
+                <div><label className={labelCls}>Categoría</label>
+                  <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} className={inputCls}>
+                    {['Técnico', 'Financiero', 'Organizacional', 'Externo', 'Legal'].map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
-                {editing && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select value={form.status} onChange={e => setForm({...form, status: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                      <option value="open">Abierto</option>
-                      <option value="mitigated">Mitigado</option>
-                      <option value="closed">Cerrado</option>
-                    </select>
-                  </div>
-                )}
+                <div><label className={labelCls}>Probabilidad (1-5)</label><input type="number" min={1} max={5} value={form.probability} onChange={e => setForm({...form, probability: Number(e.target.value)})} className={inputCls} /></div>
+                <div><label className={labelCls}>Impacto (1-5)</label><input type="number" min={1} max={5} value={form.impact} onChange={e => setForm({...form, impact: Number(e.target.value)})} className={inputCls} /></div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectDetail.probability')} (1-5)</label>
-                  <input type="number" min={1} max={5} value={form.probability} onChange={e => setForm({...form, probability: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+              <div><label className={labelCls}>Estrategia de Mitigación</label><textarea value={form.mitigation_strategy} onChange={e => setForm({...form, mitigation_strategy: e.target.value})} rows={2} className={inputCls} /></div>
+              <div className="grid grid-cols-3 gap-4">
+                <div><label className={labelCls}>Estado</label>
+                  <select value={form.status} onChange={e => setForm({...form, status: e.target.value})} className={inputCls}>
+                    {['Abierto', 'Mitigado', 'Cerrado'].map(s => <option key={s}>{s}</option>)}
+                  </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectDetail.impact')} (1-5)</label>
-                  <input type="number" min={1} max={5} value={form.impact} onChange={e => setForm({...form, impact: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-                </div>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-3 text-center">
-                <span className="text-sm text-gray-500">{t('projectDetail.severity')}: </span>
-                <span className={`text-lg font-bold ${severityColor(form.probability * form.impact).replace('bg-', 'text-').replace('-100', '-700')}`}>{form.probability * form.impact}</span>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectDetail.mitigation')}</label>
-                <textarea value={form.mitigationStrategy} onChange={e => setForm({...form, mitigationStrategy: e.target.value})} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                <div><label className={labelCls}>F. Identificación</label><input type="date" value={form.identification_date} onChange={e => setForm({...form, identification_date: e.target.value})} className={inputCls} /></div>
+                <div><label className={labelCls}>F. Límite</label><input type="date" value={form.deadline} onChange={e => setForm({...form, deadline: e.target.value})} className={inputCls} /></div>
               </div>
             </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">{t('common.cancel')}</button>
-              <button onClick={handleSave} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">{t('common.save')}</button>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border-light">
+              <button onClick={() => setShowModal(false)} className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl">Cancelar</button>
+              <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 text-[13px] font-semibold bg-accent text-white rounded-xl hover:bg-accent-hover shadow-sm shadow-accent/25 disabled:opacity-50">{saving ? 'Guardando...' : 'Guardar'}</button>
             </div>
           </div>
         </div>

@@ -1,191 +1,125 @@
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Plus, Edit2, Trash2, X, Clock, ListTree } from 'lucide-react';
+import { Plus, X, Download, Edit2, Trash2 } from 'lucide-react';
+import { api } from '../../services/api';
+import { useApi, LoadingSpinner } from '../../hooks/useApi';
+import { useToast } from '../../context/ToastContext';
 
 interface BacklogItem {
-  id: number;
-  code: string;
-  title: string;
-  description: string;
-  area: string;
-  responsible: string;
-  startDate: string;
-  endDate: string;
-  status: 'not_started' | 'in_progress' | 'completed' | 'blocked';
-  priority: 'Alta' | 'Media' | 'Baja';
-  progress: number;
-  wasDelayed: boolean;
+  id: number; folio: string; title: string; description: string | null;
+  area: string | null; priority: string | null; status: string; progress: number;
+  start_date: string | null; end_date: string | null; was_delayed: boolean;
 }
 
-const mockBacklog: Record<number, BacklogItem[]> = {
-  1: [
-    { id: 1, code: 'BLG-001', title: 'Configuración de ambientes de prueba', description: 'Preparar entornos QA y staging', area: 'Infraestructura', responsible: 'Carlos López', startDate: '2026-02-01', endDate: '2026-02-28', status: 'completed', priority: 'Alta', progress: 100, wasDelayed: true },
-    { id: 2, code: 'BLG-002', title: 'Documentación de APIs internas', description: 'Swagger/OpenAPI para microservicios', area: 'Desarrollo', responsible: 'Ana Torres', startDate: '2026-02-15', endDate: '2026-03-15', status: 'in_progress', priority: 'Media', progress: 60, wasDelayed: false },
-    { id: 3, code: 'BLG-003', title: 'Migración de datos legacy', description: 'Exportar y transformar datos del sistema anterior', area: 'Datos', responsible: 'Juan García', startDate: '2026-03-01', endDate: '2026-03-20', status: 'in_progress', priority: 'Alta', progress: 30, wasDelayed: true },
-    { id: 4, code: 'BLG-004', title: 'Capacitación usuarios finales', description: 'Preparar material y sesiones de entrenamiento', area: 'Change Management', responsible: 'María Rodríguez', startDate: '2026-04-01', endDate: '2026-04-30', status: 'not_started', priority: 'Media', progress: 0, wasDelayed: false },
-    { id: 5, code: 'BLG-005', title: 'Auditoría de seguridad', description: 'Pen testing y revisión de vulnerabilidades', area: 'Seguridad', responsible: 'Roberto Sánchez', startDate: '2026-03-10', endDate: '2026-03-25', status: 'blocked', priority: 'Alta', progress: 15, wasDelayed: true },
-    { id: 6, code: 'BLG-006', title: 'Integración con sistema contable', description: 'Conectar módulo de facturación con ERP', area: 'Desarrollo', responsible: 'Ana Torres', startDate: '2026-03-15', endDate: '2026-04-10', status: 'not_started', priority: 'Media', progress: 0, wasDelayed: false },
-    { id: 7, code: 'BLG-007', title: 'Optimización de consultas BD', description: 'Mejorar performance de queries críticas', area: 'Datos', responsible: 'Juan García', startDate: '2026-02-20', endDate: '2026-03-10', status: 'completed', priority: 'Baja', progress: 100, wasDelayed: false },
-    { id: 8, code: 'BLG-008', title: 'Diseño de dashboard ejecutivo', description: 'Mockups y prototipo del panel gerencial', area: 'UX/UI', responsible: 'Laura Méndez', startDate: '2026-03-01', endDate: '2026-03-18', status: 'in_progress', priority: 'Baja', progress: 45, wasDelayed: true },
-  ],
-};
-
-const emptyForm = {
-  title: '',
-  description: '',
-  area: '',
-  responsible: '',
-  startDate: '',
-  endDate: '',
-  status: 'not_started' as BacklogItem['status'],
-  priority: 'Media' as BacklogItem['priority'],
-  progress: 0,
-  wasDelayed: false,
-};
-
 export default function ProjectBacklogTab({ projectId }: { projectId: number }) {
-  const { t } = useTranslation();
-  const [items, setItems] = useState<BacklogItem[]>(mockBacklog[projectId] || []);
+  const { toastSuccess, toastError } = useToast();
+  const { data: items, loading, refetch } = useApi(() => api.get<BacklogItem[]>(`/backlog?project_id=${projectId}`), [projectId]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<BacklogItem | null>(null);
-  const [form, setForm] = useState({ ...emptyForm });
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [filter, setFilter] = useState('all');
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ title: '', description: '', area: '', priority: 'Media', status: 'Pendiente', progress: 0, start_date: '', end_date: '' });
 
-  const today = new Date().toISOString().split('T')[0];
+  const filtered = (items || []).filter(i => filter === 'all' || i.status === filter);
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ ...emptyForm });
+    setForm({ title: '', description: '', area: '', priority: 'Media', status: 'Pendiente', progress: 0, start_date: '', end_date: '' });
     setShowModal(true);
   };
 
   const openEdit = (item: BacklogItem) => {
     setEditing(item);
-    setForm({
-      title: item.title,
-      description: item.description,
-      area: item.area,
-      responsible: item.responsible,
-      startDate: item.startDate,
-      endDate: item.endDate,
-      status: item.status,
-      priority: item.priority,
-      progress: item.progress,
-      wasDelayed: item.wasDelayed,
-    });
+    setForm({ title: item.title, description: item.description || '', area: item.area || '', priority: item.priority || 'Media', status: item.status, progress: item.progress, start_date: item.start_date || '', end_date: item.end_date || '' });
     setShowModal(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.title.trim()) return;
-    if (editing) {
-      setItems(items.map(i => i.id === editing.id ? { ...i, ...form } : i));
-    } else {
-      const nextCode = `BLG-${(items.length + 1).toString().padStart(3, '0')}`;
-      setItems([...items, { id: Date.now(), code: nextCode, ...form }]);
-    }
-    setShowModal(false);
+    setSaving(true);
+    try {
+      const payload = { ...form, start_date: form.start_date || null, end_date: form.end_date || null, area: form.area || null, description: form.description || null, project_id: projectId };
+      if (editing) {
+        await api.patch(`/backlog/${editing.id}`, payload);
+        toastSuccess('Elemento actualizado');
+      } else {
+        await api.post(`/backlog?project_id=${projectId}`, payload);
+        toastSuccess('Elemento creado');
+      }
+      setShowModal(false);
+      refetch();
+    } catch (err) { toastError(err instanceof Error ? err.message : 'Error'); }
+    setSaving(false);
   };
 
-  const handleDelete = (id: number) => setItems(items.filter(i => i.id !== id));
-
-  const isOverdue = (item: BacklogItem) => item.endDate < today && item.status !== 'completed';
-
-  const statusBadge = (s: BacklogItem['status']) => {
-    const config: Record<string, { color: string; label: string }> = {
-      not_started: { color: 'bg-gray-100 text-gray-700', label: 'Sin Iniciar' },
-      in_progress: { color: 'bg-blue-100 text-blue-700', label: 'En Progreso' },
-      completed: { color: 'bg-green-100 text-green-700', label: 'Completado' },
-      blocked: { color: 'bg-red-100 text-red-700', label: 'Bloqueado' },
-    };
-    const c = config[s] || { color: 'bg-gray-100 text-gray-700', label: s };
-    return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${c.color}`}>{c.label}</span>;
+  const handleDelete = async (id: number) => {
+    if (!confirm('¿Eliminar este elemento?')) return;
+    try { await api.delete(`/backlog/${id}`); toastSuccess('Eliminado'); refetch(); }
+    catch (err) { toastError(err instanceof Error ? err.message : 'Error'); }
   };
 
-  const priorityBadge = (p: BacklogItem['priority']) => {
-    const colors: Record<string, string> = { Alta: 'bg-red-100 text-red-700', Media: 'bg-amber-100 text-amber-700', Baja: 'bg-gray-100 text-gray-600' };
-    return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors[p] || 'bg-gray-100 text-gray-600'}`}>{p}</span>;
+  const handleExport = () => {
+    const token = localStorage.getItem('pmo_token');
+    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8080/api'}/exports/backlog?project_id=${projectId}`;
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.blob())
+      .then(blob => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `backlog_${projectId}.csv`; a.click(); })
+      .catch(() => toastError('Error al exportar'));
   };
 
-  const progressBar = (value: number) => {
-    const color = value >= 100 ? 'bg-green-500' : value >= 50 ? 'bg-blue-500' : value > 0 ? 'bg-amber-500' : 'bg-gray-300';
-    return (
-      <div className="flex items-center gap-2">
-        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden w-20">
-          <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${Math.min(value, 100)}%` }} />
-        </div>
-        <span className="text-xs font-medium text-gray-600 w-10 text-right">{value}%</span>
-      </div>
-    );
-  };
+  if (loading) return <LoadingSpinner />;
 
-  const filtered = statusFilter === 'all' ? items : items.filter(i => i.status === statusFilter);
+  const inputCls = "w-full border border-border bg-surface rounded-xl px-3.5 py-2.5 text-[13px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all";
+  const labelCls = "block text-[12px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5";
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <h3 className="text-lg font-semibold text-gray-900">Backlog</h3>
-          <div className="flex gap-1">
-            {(['all', 'not_started', 'in_progress', 'completed', 'blocked'] as const).map(s => (
-              <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${statusFilter === s ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                {s === 'all' ? t('projects.all') : s === 'not_started' ? 'Sin Iniciar' : s === 'in_progress' ? 'En Progreso' : s === 'completed' ? 'Completado' : 'Bloqueado'}
-              </button>
-            ))}
-          </div>
+      <div className="flex items-center justify-between">
+        <div className="flex gap-1.5 bg-surface-tertiary p-1 rounded-xl">
+          {['all', 'Pendiente', 'En Progreso', 'Completado', 'Bloqueado'].map(s => (
+            <button key={s} onClick={() => setFilter(s)} className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${filter === s ? 'bg-accent text-white shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}>
+              {s === 'all' ? 'Todos' : s}
+            </button>
+          ))}
         </div>
-        <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors">
-          <Plus className="w-4 h-4" />
-          {t('projectDetail.addBacklog')}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleExport} className="inline-flex items-center gap-2 px-3 py-2 border border-border rounded-xl text-[12px] font-medium text-text-secondary hover:bg-surface-hover transition-all"><Download className="w-3.5 h-3.5" /> CSV</button>
+          <button onClick={openCreate} className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl text-[12px] font-semibold hover:bg-accent-hover shadow-sm shadow-accent/25"><Plus className="w-3.5 h-3.5" /> Nuevo</button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-          <ListTree className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">{t('projectDetail.noBacklog')}</p>
-        </div>
+        <div className="text-center py-12 bg-surface rounded-2xl border border-border"><p className="text-[13px] text-text-tertiary">Sin elementos en el backlog</p></div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">ID</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">{t('projectDetail.riskTitle')}</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Area</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">{t('projectDetail.responsible')}</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">{t('projects.startDate')}</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">{t('projects.endDate')}</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 w-32">{t('projects.progress')}</th>
-                <th className="text-center px-4 py-3 font-medium text-gray-500">{t('projects.priority')}</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Estado</th>
-                <th className="text-center px-4 py-3 font-medium text-gray-500">Delay</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-500"></th>
+        <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+          <table className="w-full text-[13px]">
+            <thead>
+              <tr className="bg-surface-tertiary border-b border-border">
+                <th className="text-left px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Folio</th>
+                <th className="text-left px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Título</th>
+                <th className="text-left px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Área</th>
+                <th className="text-left px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Prioridad</th>
+                <th className="text-left px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Estado</th>
+                <th className="text-left px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider w-32">Avance</th>
+                <th className="text-right px-4 py-3 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {filtered.map(item => (
-                <tr key={item.id} className={`hover:bg-gray-50 ${isOverdue(item) ? 'bg-red-50' : ''}`}>
-                  <td className="px-4 py-3 font-mono text-xs text-gray-500">{item.code}</td>
+                <tr key={item.id} className="border-b border-border-light hover:bg-surface-hover transition-colors">
+                  <td className="px-4 py-3 text-text-tertiary font-mono text-[11px]">{item.folio}</td>
+                  <td className="px-4 py-3 text-text-primary font-medium">{item.title}</td>
+                  <td className="px-4 py-3 text-text-secondary">{item.area || '-'}</td>
+                  <td className="px-4 py-3"><span className={`text-[11px] font-semibold ${item.priority==='Alta'?'text-red-600':item.priority==='Media'?'text-amber-600':'text-text-tertiary'}`}>{item.priority || '-'}</span></td>
+                  <td className="px-4 py-3"><span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold ${item.status==='Completado'?'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600':item.status==='Bloqueado'?'bg-red-100 dark:bg-red-950/50 text-red-600':item.status==='En Progreso'?'bg-blue-100 dark:bg-blue-950/50 text-blue-600':'bg-gray-100 dark:bg-gray-800 text-text-secondary'}`}>{item.status}</span></td>
                   <td className="px-4 py-3">
-                    <p className="font-medium text-gray-900">{item.title}</p>
-                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{item.description}</p>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{item.area}</td>
-                  <td className="px-4 py-3 text-gray-600">{item.responsible}</td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">{item.startDate}</td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">{item.endDate}</td>
-                  <td className="px-4 py-3">{progressBar(item.progress)}</td>
-                  <td className="px-4 py-3 text-center">{priorityBadge(item.priority)}</td>
-                  <td className="px-4 py-3">{statusBadge(item.status)}</td>
-                  <td className="px-4 py-3 text-center">
-                    {item.wasDelayed && <Clock className="w-4 h-4 text-red-500 mx-auto" />}
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-surface-tertiary rounded-full overflow-hidden"><div className="h-full bg-accent rounded-full" style={{width:`${item.progress}%`}} /></div>
+                      <span className="text-[11px] font-semibold text-text-secondary w-8 text-right">{item.progress}%</span>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-1">
-                      <button onClick={() => openEdit(item)} className="p-1 hover:bg-gray-100 rounded"><Edit2 className="w-3.5 h-3.5 text-gray-400" /></button>
-                      <button onClick={() => handleDelete(item.id)} className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" /></button>
-                    </div>
+                    <button onClick={() => openEdit(item)} className="p-1.5 hover:bg-surface-tertiary rounded-lg"><Edit2 className="w-3.5 h-3.5 text-text-tertiary" /></button>
+                    <button onClick={() => handleDelete(item.id)} className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg ml-1"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
                   </td>
                 </tr>
               ))}
@@ -195,74 +129,29 @@ export default function ProjectBacklogTab({ projectId }: { projectId: number }) 
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-xl">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-semibold text-gray-900">{editing ? t('projectDetail.editBacklog') : t('projectDetail.addBacklog')}</h3>
-              <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-elevated rounded-2xl w-full max-w-lg border border-border shadow-2xl animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
+              <h3 className="text-[15px] font-bold text-text-primary">{editing ? 'Editar Elemento' : 'Nuevo Elemento'}</h3>
+              <button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-surface-hover rounded-xl"><X className="w-4 h-4 text-text-tertiary" /></button>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectDetail.riskTitle')}</label>
-                <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectDetail.description')}</label>
-                <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Area</label>
-                  <input value={form.area} onChange={e => setForm({ ...form, area: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectDetail.responsible')}</label>
-                  <input value={form.responsible} onChange={e => setForm({ ...form, responsible: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.startDate')}</label>
-                  <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.endDate')}</label>
-                  <input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-                </div>
+            <div className="p-6 space-y-4">
+              <div><label className={labelCls}>Título *</label><input value={form.title} onChange={e => setForm({...form, title: e.target.value})} className={inputCls} /></div>
+              <div><label className={labelCls}>Descripción</label><textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={2} className={inputCls} /></div>
+              <div className="grid grid-cols-3 gap-4">
+                <div><label className={labelCls}>Área</label><input value={form.area} onChange={e => setForm({...form, area: e.target.value})} className={inputCls} /></div>
+                <div><label className={labelCls}>Prioridad</label><select value={form.priority} onChange={e => setForm({...form, priority: e.target.value})} className={inputCls}>{['Alta','Media','Baja'].map(p=><option key={p}>{p}</option>)}</select></div>
+                <div><label className={labelCls}>Estado</label><select value={form.status} onChange={e => setForm({...form, status: e.target.value})} className={inputCls}>{['Pendiente','En Progreso','Completado','Bloqueado'].map(s=><option key={s}>{s}</option>)}</select></div>
               </div>
               <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.priority')}</label>
-                  <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value as BacklogItem['priority'] })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="Alta">Alta</option>
-                    <option value="Media">Media</option>
-                    <option value="Baja">Baja</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                  <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as BacklogItem['status'] })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="not_started">Sin Iniciar</option>
-                    <option value="in_progress">En Progreso</option>
-                    <option value="completed">Completado</option>
-                    <option value="blocked">Bloqueado</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.progress')}</label>
-                  <input type="number" min={0} max={100} value={form.progress} onChange={e => setForm({ ...form, progress: Number(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="wasDelayed" checked={form.wasDelayed} onChange={e => setForm({ ...form, wasDelayed: e.target.checked })} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                <label htmlFor="wasDelayed" className="text-sm text-gray-700 flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-red-500" /> Fue retrasado (delay historico)
-                </label>
+                <div><label className={labelCls}>Avance (%)</label><input type="number" min={0} max={100} value={form.progress} onChange={e => setForm({...form, progress: Number(e.target.value)})} className={inputCls} /></div>
+                <div><label className={labelCls}>F. Inicio</label><input type="date" value={form.start_date} onChange={e => setForm({...form, start_date: e.target.value})} className={inputCls} /></div>
+                <div><label className={labelCls}>F. Fin</label><input type="date" value={form.end_date} onChange={e => setForm({...form, end_date: e.target.value})} className={inputCls} /></div>
               </div>
             </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">{t('common.cancel')}</button>
-              <button onClick={handleSave} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">{t('common.save')}</button>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border-light">
+              <button onClick={() => setShowModal(false)} className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl">Cancelar</button>
+              <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 text-[13px] font-semibold bg-accent text-white rounded-xl hover:bg-accent-hover shadow-sm shadow-accent/25 disabled:opacity-50">{saving ? 'Guardando...' : 'Guardar'}</button>
             </div>
           </div>
         </div>

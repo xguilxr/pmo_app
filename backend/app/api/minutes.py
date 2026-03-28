@@ -6,7 +6,7 @@ from app.database import get_db
 from app.models.user import User
 from app.models.modules import Minute
 from app.models.project import Project
-from app.schemas.minutes import GenerateMinutesRequest, MinuteResponse, GenerateMinutesResponse
+from app.schemas.minutes import GenerateMinutesRequest, MinuteResponse, GenerateMinutesResponse, MinuteCreate, MinuteUpdate
 from app.auth.security import get_current_user
 from app.services.folio import generate_folio
 from app.services.ai_engine import generate_minutes
@@ -32,6 +32,67 @@ def get_minute(minute_id: int, db: Session = Depends(get_db), current_user: User
     if not minute:
         raise HTTPException(status_code=404, detail="Minuta no encontrada")
     return minute
+
+
+@router.post("", response_model=MinuteResponse, status_code=201)
+def create_minute(
+    project_id: int,
+    data: MinuteCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    project = db.query(Project).filter(Project.id == project_id, Project.deleted_at.is_(None)).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+
+    folio = generate_folio(db, "MIN")
+    minute = Minute(
+        folio=folio,
+        title=data.title,
+        meeting_date=data.meeting_date or date.today(),
+        participants=data.participants,
+        topics=data.topics,
+        agreements=data.agreements,
+        source="manual",
+        project_id=project_id,
+        recorded_by_id=current_user.id,
+        created_by_id=current_user.id,
+    )
+    db.add(minute)
+    db.commit()
+    db.refresh(minute)
+    return minute
+
+
+@router.patch("/{minute_id}", response_model=MinuteResponse)
+def update_minute(
+    minute_id: int,
+    data: MinuteUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    minute = db.query(Minute).filter(Minute.id == minute_id, Minute.deleted_at.is_(None)).first()
+    if not minute:
+        raise HTTPException(status_code=404, detail="Minuta no encontrada")
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(minute, field, value)
+    db.commit()
+    db.refresh(minute)
+    return minute
+
+
+@router.delete("/{minute_id}", status_code=204)
+def delete_minute(
+    minute_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from datetime import datetime, timezone
+    minute = db.query(Minute).filter(Minute.id == minute_id, Minute.deleted_at.is_(None)).first()
+    if not minute:
+        raise HTTPException(status_code=404, detail="Minuta no encontrada")
+    minute.deleted_at = datetime.now(timezone.utc)
+    db.commit()
 
 
 @router.post("/generate", response_model=GenerateMinutesResponse)
@@ -82,29 +143,3 @@ async def generate_minute_from_transcript(
     )
 
 
-@router.patch("/{minute_id}", response_model=MinuteResponse)
-def update_minute(
-    minute_id: int,
-    title: str | None = None,
-    topics: str | None = None,
-    agreements: str | None = None,
-    participants: str | None = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    minute = db.query(Minute).filter(Minute.id == minute_id, Minute.deleted_at.is_(None)).first()
-    if not minute:
-        raise HTTPException(status_code=404, detail="Minuta no encontrada")
-
-    if title is not None:
-        minute.title = title
-    if topics is not None:
-        minute.topics = topics
-    if agreements is not None:
-        minute.agreements = agreements
-    if participants is not None:
-        minute.participants = participants
-
-    db.commit()
-    db.refresh(minute)
-    return minute

@@ -13,7 +13,6 @@ def generate_folio(db: Session, prefix: str) -> str:
     from app.models.modules import Risk, Issue, Change, Document, Lesson, Minute
     from app.models.project_request import ProjectRequest
     from app.models.area import ProjectArea
-
     model_map = {
         "PRJ": Project,
         "REQ": ProjectRequest,

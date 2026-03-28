@@ -1,242 +1,229 @@
-import { useMemo, useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Building2, FolderKanban, AlertTriangle, TrendingUp, ArrowLeft, Activity } from 'lucide-react';
-import { projects } from '../data/mock';
+import { Building2, FolderKanban, AlertTriangle, TrendingUp, Plus, X, Layers } from 'lucide-react';
 import { api } from '../services/api';
+import { LoadingSpinner } from '../hooks/useApi';
+import { useToast } from '../context/ToastContext';
 import PhaseBadge from '../components/common/PhaseBadge';
 import HealthBadge from '../components/common/HealthBadge';
 import ProgressBar from '../components/common/ProgressBar';
+import PageHeader from '../components/common/PageHeader';
+
+interface ApiOrg {
+  id: number; name: string; legal_name: string | null; industry: string | null;
+  country: string | null; contact_email: string | null; is_active: boolean;
+}
+
+interface ApiProject {
+  id: number; folio: string; name: string; type: string; priority: string;
+  phase: string; progress: number; planned_progress: number; budget: number; health: string; company?: string;
+}
+
+interface ApiProgram {
+  id: number; name: string; description: string | null; status: string;
+  start_date: string | null; end_date: string | null; organization_id: number;
+  project_count: number; created_at: string;
+}
 
 function formatMXN(value: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(value);
-}
-
-interface Risk {
-  id: number;
-  project: string;
-  description: string;
-  severity: string;
-  status: string;
-  owner: string;
-}
-
-interface ActivityItem {
-  id: number;
-  type: string;
-  project: string;
-  detail: string;
-  date: string;
-  icon: string;
 }
 
 export default function OrganizationDetailPage() {
   const { orgName } = useParams<{ orgName: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
-
+  const { toastSuccess, toastError } = useToast();
   const decodedName = decodeURIComponent(orgName || '');
 
-  const orgProjects = useMemo(() => {
-    return projects.filter(p => p.company === decodedName);
-  }, [decodedName]);
+  const [org, setOrg] = useState<ApiOrg | null>(null);
+  const [projects, setProjects] = useState<ApiProject[]>([]);
+  const [programs, setPrograms] = useState<ApiProgram[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showProgramModal, setShowProgramModal] = useState(false);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [programForm, setProgramForm] = useState({ name: '', description: '', startDate: '', endDate: '' });
+  const [projectForm, setProjectForm] = useState({ name: '', type: 'Tecnología', priority: 'Media', programId: 0, startDate: '', endDate: '', budget: 0 });
+  const [saving, setSaving] = useState(false);
 
-  const stats = useMemo(() => {
-    const total = orgProjects.length;
-    const inExecution = orgProjects.filter(p => p.phase === 'Ejecución').length;
-    const avgProgress = total > 0 ? Math.round(orgProjects.reduce((s, p) => s + p.progress, 0) / total) : 0;
-    return { total, inExecution, avgProgress };
-  }, [orgProjects]);
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const orgs = await api.get<ApiOrg[]>('/organizations');
+      const found = orgs.find(o => o.name === decodedName);
+      if (!found) { setLoading(false); return; }
+      setOrg(found);
 
-  const [orgRisks, setOrgRisks] = useState<Risk[]>([]);
-  const [orgActivities] = useState<ActivityItem[]>([]);
+      const [projs, progs] = await Promise.all([
+        api.get<ApiProject[]>(`/projects?company=${encodeURIComponent(decodedName)}`).catch(() => [] as ApiProject[]),
+        api.get<ApiProgram[]>(`/programs?organization_id=${found.id}`).catch(() => [] as ApiProgram[]),
+      ]);
+      setProjects(projs);
+      setPrograms(progs);
+    } catch { /* ignore */ }
+    setLoading(false);
+  };
 
-  useEffect(() => {
-    let cancelled = false;
-    async function fetchRisks() {
-      try {
-        const allRisks: Risk[] = [];
-        await Promise.all(
-          orgProjects.map(async (p) => {
-            try {
-              const risks = await api.get<Risk[]>(`/risks?project_id=${p.id}`);
-              if (risks && Array.isArray(risks)) {
-                allRisks.push(...risks.map(r => ({ ...r, project: r.project || p.name })));
-              }
-            } catch {
-              // skip failed project risk fetch
-            }
-          })
-        );
-        if (!cancelled) setOrgRisks(allRisks);
-      } catch {
-        if (!cancelled) setOrgRisks([]);
-      }
-    }
-    if (orgProjects.length > 0) {
-      fetchRisks();
-    }
-    return () => { cancelled = true; };
-  }, [orgProjects]);
+  useEffect(() => { fetchData(); }, [decodedName]);
 
-  const openRisksCount = orgRisks.filter(r => r.status === 'Abierto').length;
+  const handleCreateProgram = async () => {
+    if (!programForm.name.trim() || !org) return;
+    setSaving(true);
+    try {
+      await api.post('/programs', {
+        name: programForm.name, description: programForm.description || null,
+        organization_id: org.id,
+        start_date: programForm.startDate || null, end_date: programForm.endDate || null,
+      });
+      toastSuccess(`Programa "${programForm.name}" creado`);
+      setShowProgramModal(false);
+      setProgramForm({ name: '', description: '', startDate: '', endDate: '' });
+      fetchData();
+    } catch (err) { toastError(err instanceof Error ? err.message : 'Error al crear programa'); }
+    setSaving(false);
+  };
 
-  if (orgProjects.length === 0) {
+  const handleCreateProject = async () => {
+    if (!projectForm.name.trim() || !org) return;
+    setSaving(true);
+    try {
+      await api.post('/projects', {
+        name: projectForm.name, type: projectForm.type, priority: projectForm.priority,
+        organization_id: org.id,
+        program_id: projectForm.programId || null,
+        start_date: projectForm.startDate || null, end_date: projectForm.endDate || null,
+        budget: projectForm.budget,
+      });
+      toastSuccess(`Proyecto "${projectForm.name}" creado`);
+      setShowProjectModal(false);
+      setProjectForm({ name: '', type: 'Tecnología', priority: 'Media', programId: 0, startDate: '', endDate: '', budget: 0 });
+      fetchData();
+    } catch (err) { toastError(err instanceof Error ? err.message : 'Error al crear proyecto'); }
+    setSaving(false);
+  };
+
+  const stats = {
+    total: projects.length,
+    inExecution: projects.filter(p => p.phase === 'Ejecución').length,
+    avgProgress: projects.length > 0 ? Math.round(projects.reduce((s, p) => s + p.progress, 0) / projects.length) : 0,
+    totalBudget: projects.reduce((s, p) => s + p.budget, 0),
+  };
+
+  if (loading) return <LoadingSpinner />;
+
+  if (!org) {
     return (
       <div className="space-y-6">
-        <button onClick={() => navigate('/organizations')} className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors">
-          <ArrowLeft className="w-4 h-4" />
-          {t('nav.organizations')}
-        </button>
-        <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
-          <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">No se encontraron proyectos para "{decodedName}"</p>
+        <PageHeader breadcrumb={[{ label: 'Inicio', href: '/' }, { label: t('nav.organizations'), href: '/organizations' }, { label: decodedName }]} title={decodedName} />
+        <div className="text-center py-16 bg-surface rounded-2xl border border-border">
+          <Building2 className="w-12 h-12 text-text-tertiary mx-auto mb-3" />
+          <p className="text-text-secondary">No se encontró la organización "{decodedName}"</p>
         </div>
       </div>
     );
   }
 
+  const inputCls = "w-full border border-border bg-surface rounded-xl px-3.5 py-2.5 text-[13px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all";
+  const labelCls = "block text-[12px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5";
+
   return (
     <div className="space-y-6">
-      {/* Back + Header */}
-      <div>
-        <button onClick={() => navigate('/organizations')} className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors mb-3">
-          <ArrowLeft className="w-4 h-4" />
-          {t('nav.organizations')}
-        </button>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-blue-600" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">{decodedName}</h2>
-            <p className="text-sm text-gray-500">{stats.total} {stats.total === 1 ? 'proyecto' : 'proyectos'}</p>
-          </div>
+      <PageHeader
+        breadcrumb={[{ label: 'Inicio', href: '/' }, { label: t('nav.organizations'), href: '/organizations' }, { label: org.name }]}
+        title={org.name}
+        subtitle={[org.legal_name, org.industry, org.country].filter(Boolean).join(' · ')}
+      >
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowProgramModal(true)} className="inline-flex items-center gap-2 px-4 py-2.5 border border-border rounded-xl text-[13px] font-semibold text-text-secondary hover:bg-surface-hover transition-all">
+            <Layers className="w-4 h-4" /> Nuevo Programa
+          </button>
+          <button onClick={() => setShowProjectModal(true)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-accent text-white rounded-xl text-[13px] font-semibold hover:bg-accent-hover transition-all shadow-sm shadow-accent/25">
+            <Plus className="w-4 h-4" /> Nuevo Proyecto
+          </button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <FolderKanban className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">{t('dashboard.activeProjects')}</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-              <FolderKanban className="w-5 h-5 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">{t('projects.execution')}</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.inExecution}</p>
+        {[
+          { label: t('dashboard.activeProjects'), value: stats.total, icon: FolderKanban, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/50' },
+          { label: t('projects.execution'), value: stats.inExecution, icon: FolderKanban, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/50' },
+          { label: t('projects.progress'), value: `${stats.avgProgress}%`, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/50' },
+          { label: t('projects.budget'), value: formatMXN(stats.totalBudget), icon: AlertTriangle, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-950/50' },
+        ].map((kpi, i) => (
+          <div key={i} className="bg-surface rounded-2xl border border-border p-5">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl ${kpi.bg} flex items-center justify-center`}>
+                <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
+              </div>
+              <div>
+                <p className="text-[10px] text-text-tertiary uppercase tracking-wider font-medium">{kpi.label}</p>
+                <p className="text-xl font-bold text-text-primary">{kpi.value}</p>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">Riesgos Abiertos</p>
-              <p className="text-2xl font-bold text-gray-900">{openRisksCount}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">{t('projects.progress')}</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.avgProgress}%</p>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
+
+      {/* Programs Section */}
+      {programs.length > 0 && (
+        <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+          <div className="px-6 py-4 border-b border-border-light flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Layers className="w-4 h-4 text-accent" />
+              <h3 className="text-[15px] font-bold text-text-primary">Programas</h3>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-4">
+            {programs.map(prog => (
+              <Link key={prog.id} to={`/programs/${prog.id}`}
+                className="group bg-surface-secondary rounded-xl border border-border-light p-4 hover:border-accent/30 hover:shadow-md transition-all">
+                <div className="flex items-start justify-between mb-2">
+                  <h4 className="text-[14px] font-semibold text-text-primary group-hover:text-accent transition-colors">{prog.name}</h4>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${prog.status === 'active' ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400' : 'bg-gray-100 text-gray-500'}`}>
+                    {prog.status === 'active' ? 'Activo' : prog.status}
+                  </span>
+                </div>
+                {prog.description && <p className="text-[12px] text-text-tertiary mb-2 line-clamp-2">{prog.description}</p>}
+                <p className="text-[12px] text-text-secondary font-medium">{prog.project_count} proyecto{prog.project_count !== 1 ? 's' : ''}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Projects Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h3 className="text-base font-semibold text-gray-900">{t('nav.projects')}</h3>
+      <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+        <div className="px-6 py-4 border-b border-border-light">
+          <h3 className="text-[15px] font-bold text-text-primary">{t('nav.projects')}</h3>
         </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('projects.folio')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('projects.name')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('projects.phase')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">{t('projects.health', 'Salud')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600 w-44">{t('projects.progress')}</th>
-              <th className="text-right px-4 py-3 font-semibold text-gray-600">{t('projects.budget')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {orgProjects.map(p => (
-              <tr
-                key={p.id}
-                onClick={() => navigate(`/projects/${p.id}`)}
-                className="border-b border-gray-100 hover:bg-blue-50/40 transition-colors cursor-pointer"
-              >
-                <td className="px-4 py-3 text-gray-500 font-mono text-xs">{p.folio}</td>
-                <td className="px-4 py-3 text-blue-600 font-medium">{p.name}</td>
-                <td className="px-4 py-3"><PhaseBadge phase={p.phase} /></td>
-                <td className="px-4 py-3"><HealthBadge health={p.health} /></td>
-                <td className="px-4 py-3"><ProgressBar value={p.progress} planned={p.plannedProgress} /></td>
-                <td className="px-4 py-3 text-right text-gray-700 font-medium">{formatMXN(p.budget)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Risks Summary */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-red-500" />
-          <h3 className="text-base font-semibold text-gray-900">Riesgos</h3>
-        </div>
-        {orgRisks.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-sm text-gray-500">No hay riesgos registrados para esta organizaci&oacute;n</p>
+        {projects.length === 0 ? (
+          <div className="text-center py-12">
+            <FolderKanban className="w-10 h-10 text-text-tertiary mx-auto mb-3" />
+            <p className="text-[13px] text-text-secondary">Sin proyectos. Crea el primero.</p>
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full text-[13px]">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Proyecto</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Descripci&oacute;n</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Severidad</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Estado</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Responsable</th>
+              <tr className="bg-surface-tertiary border-b border-border">
+                <th className="text-left px-4 py-3 font-semibold text-text-tertiary text-[11px] uppercase tracking-wider">{t('projects.folio')}</th>
+                <th className="text-left px-4 py-3 font-semibold text-text-tertiary text-[11px] uppercase tracking-wider">{t('projects.name')}</th>
+                <th className="text-left px-4 py-3 font-semibold text-text-tertiary text-[11px] uppercase tracking-wider">{t('projects.phase')}</th>
+                <th className="text-left px-4 py-3 font-semibold text-text-tertiary text-[11px] uppercase tracking-wider">{t('projects.health', 'Salud')}</th>
+                <th className="text-left px-4 py-3 font-semibold text-text-tertiary text-[11px] uppercase tracking-wider w-40">{t('projects.progress')}</th>
+                <th className="text-right px-4 py-3 font-semibold text-text-tertiary text-[11px] uppercase tracking-wider">{t('projects.budget')}</th>
               </tr>
             </thead>
             <tbody>
-              {orgRisks.map(risk => (
-                <tr key={risk.id} className="border-b border-gray-100">
-                  <td className="px-4 py-3 text-gray-700 font-medium">{risk.project}</td>
-                  <td className="px-4 py-3 text-gray-600">{risk.description}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                      risk.severity === 'Alta' ? 'bg-red-100 text-red-700' :
-                      risk.severity === 'Media' ? 'bg-amber-100 text-amber-700' :
-                      'bg-green-100 text-green-700'
-                    }`}>{risk.severity}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                      risk.status === 'Abierto' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
-                    }`}>{risk.status}</span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{risk.owner}</td>
+              {projects.map(p => (
+                <tr key={p.id} onClick={() => navigate(`/projects/${p.id}`)} className="border-b border-border-light hover:bg-surface-hover transition-colors cursor-pointer">
+                  <td className="px-4 py-3 text-text-tertiary font-mono text-[11px]">{p.folio}</td>
+                  <td className="px-4 py-3 text-accent font-medium">{p.name}</td>
+                  <td className="px-4 py-3"><PhaseBadge phase={p.phase} /></td>
+                  <td className="px-4 py-3"><HealthBadge health={(p.health || 'green') as 'green' | 'yellow' | 'red'} /></td>
+                  <td className="px-4 py-3"><ProgressBar value={p.progress} planned={p.planned_progress} /></td>
+                  <td className="px-4 py-3 text-right text-text-secondary font-medium">{formatMXN(p.budget)}</td>
                 </tr>
               ))}
             </tbody>
@@ -244,30 +231,77 @@ export default function OrganizationDetailPage() {
         )}
       </div>
 
-      {/* Recent Activity */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-          <Activity className="w-4 h-4 text-blue-500" />
-          <h3 className="text-base font-semibold text-gray-900">Actividad Reciente</h3>
-        </div>
-        {orgActivities.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-sm text-gray-500">No hay actividad reciente</p>
+      {/* Create Program Modal */}
+      {showProgramModal && (
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-elevated rounded-2xl w-full max-w-lg border border-border shadow-2xl animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
+              <h3 className="text-[15px] font-bold text-text-primary">Nuevo Programa</h3>
+              <button onClick={() => setShowProgramModal(false)} className="p-1.5 hover:bg-surface-hover rounded-xl"><X className="w-4 h-4 text-text-tertiary" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div><label className={labelCls}>Nombre *</label><input value={programForm.name} onChange={e => setProgramForm({...programForm, name: e.target.value})} className={inputCls} /></div>
+              <div><label className={labelCls}>Descripción</label><textarea value={programForm.description} onChange={e => setProgramForm({...programForm, description: e.target.value})} rows={3} className={inputCls} /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className={labelCls}>Fecha Inicio</label><input type="date" value={programForm.startDate} onChange={e => setProgramForm({...programForm, startDate: e.target.value})} className={inputCls} /></div>
+                <div><label className={labelCls}>Fecha Fin</label><input type="date" value={programForm.endDate} onChange={e => setProgramForm({...programForm, endDate: e.target.value})} className={inputCls} /></div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border-light">
+              <button onClick={() => setShowProgramModal(false)} className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl">Cancelar</button>
+              <button onClick={handleCreateProgram} disabled={saving} className="px-5 py-2.5 text-[13px] font-semibold bg-accent text-white rounded-xl hover:bg-accent-hover shadow-sm shadow-accent/25 disabled:opacity-50">
+                {saving ? 'Creando...' : 'Crear Programa'}
+              </button>
+            </div>
           </div>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {orgActivities.map(activity => (
-              <div key={activity.id} className="px-6 py-3 flex items-start gap-3">
-                <span className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-sm flex-shrink-0 mt-0.5">{activity.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-900">{activity.detail}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{activity.project} &middot; {activity.date}</p>
+        </div>
+      )}
+
+      {/* Create Project Modal */}
+      {showProjectModal && (
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-elevated rounded-2xl w-full max-w-lg border border-border shadow-2xl animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
+              <h3 className="text-[15px] font-bold text-text-primary">Nuevo Proyecto</h3>
+              <button onClick={() => setShowProjectModal(false)} className="p-1.5 hover:bg-surface-hover rounded-xl"><X className="w-4 h-4 text-text-tertiary" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div><label className={labelCls}>Nombre *</label><input value={projectForm.name} onChange={e => setProjectForm({...projectForm, name: e.target.value})} className={inputCls} /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className={labelCls}>Tipo</label>
+                  <select value={projectForm.type} onChange={e => setProjectForm({...projectForm, type: e.target.value})} className={inputCls}>
+                    {['Tecnología', 'Digital', 'Procesos', 'Infraestructura', 'Regulatorio'].map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div><label className={labelCls}>Prioridad</label>
+                  <select value={projectForm.priority} onChange={e => setProjectForm({...projectForm, priority: e.target.value})} className={inputCls}>
+                    {['Alta', 'Media', 'Baja'].map(p => <option key={p}>{p}</option>)}
+                  </select>
                 </div>
               </div>
-            ))}
+              {programs.length > 0 && (
+                <div><label className={labelCls}>Programa (opcional)</label>
+                  <select value={projectForm.programId} onChange={e => setProjectForm({...projectForm, programId: Number(e.target.value)})} className={inputCls}>
+                    <option value={0}>Sin programa</option>
+                    {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className={labelCls}>Fecha Inicio</label><input type="date" value={projectForm.startDate} onChange={e => setProjectForm({...projectForm, startDate: e.target.value})} className={inputCls} /></div>
+                <div><label className={labelCls}>Fecha Fin</label><input type="date" value={projectForm.endDate} onChange={e => setProjectForm({...projectForm, endDate: e.target.value})} className={inputCls} /></div>
+              </div>
+              <div><label className={labelCls}>Presupuesto</label><input type="number" min="0" step="1000" value={projectForm.budget} onChange={e => setProjectForm({...projectForm, budget: Number(e.target.value)})} className={inputCls} /></div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border-light">
+              <button onClick={() => setShowProjectModal(false)} className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl">Cancelar</button>
+              <button onClick={handleCreateProject} disabled={saving} className="px-5 py-2.5 text-[13px] font-semibold bg-accent text-white rounded-xl hover:bg-accent-hover shadow-sm shadow-accent/25 disabled:opacity-50">
+                {saving ? 'Creando...' : 'Crear Proyecto'}
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
