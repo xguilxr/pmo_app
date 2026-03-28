@@ -10,7 +10,6 @@ import {
 import KpiCard from '../components/common/KpiCard';
 import HealthBadge from '../components/common/HealthBadge';
 import ProgressBar from '../components/common/ProgressBar';
-import { type Project } from '../data/mock';
 import { api } from '../services/api';
 import { useApi, LoadingSpinner } from '../hooks/useApi';
 import { Link } from 'react-router-dom';
@@ -37,10 +36,8 @@ interface ProjectRow {
   progress: number;
   planned_progress: number;
   budget: number;
-  real_budget: number;
-  start_date: string;
-  end_date: string;
   health: string;
+  company?: string;
 }
 
 function formatMXN(value: number) {
@@ -66,7 +63,6 @@ export default function DashboardPage() {
   const { data: apiKpis, loading: kpisLoading } = useApi(() => api.get<DashboardKPIs>('/dashboard/kpis'), []);
   const { data: apiProjects, loading: projectsLoading } = useApi(() => api.get<ProjectRow[]>('/projects'), []);
 
-  // Use API data when available, otherwise fall back to empty/zero defaults
   const kpiData = apiKpis
     ? {
         activeProjects: apiKpis.active_projects,
@@ -80,28 +76,9 @@ export default function DashboardPage() {
       }
     : { activeProjects: 0, requestsInReview: 0, openRisks: 0, changesInReview: 0, totalBudget: 0, avgProgress: 0, severeRisks: 0, openAids: 0 };
 
-  const projectData: Project[] = apiProjects
-    ? apiProjects.map(p => ({
-        id: p.id,
-        folio: p.folio,
-        name: p.name,
-        type: p.type,
-        priority: p.priority as 'Alta' | 'Media' | 'Baja',
-        company: '',
-        phase: p.phase as Project['phase'],
-        progress: p.progress,
-        plannedProgress: p.planned_progress || 0,
-        budget: p.budget,
-        realBudget: p.real_budget || 0,
-        startDate: p.start_date,
-        endDate: p.end_date,
-        health: p.health as Project['health'],
-      }))
-    : [];
-
+  const projectData = apiProjects || [];
   const activeProjects = projectData.filter(p => p.phase !== 'Cerrado');
 
-  // Compute chart data from projectData
   const computedProjectsByPhase = useMemo(() => {
     const phases = ['Planificación', 'Ejecución', 'Soporte', 'Cerrado'];
     return phases.map(phase => ({
@@ -114,41 +91,28 @@ export default function DashboardPage() {
   const computedAvgProgressByPhase = useMemo(() => {
     const phases = ['Planificación', 'Ejecución', 'Soporte', 'Cerrado'];
     return phases.map(phase => {
-      const phaseProjects = projectData.filter(p => p.phase === phase);
-      const avg = phaseProjects.length > 0
-        ? Math.round(phaseProjects.reduce((s, p) => s + p.progress, 0) / phaseProjects.length)
-        : 0;
+      const pp = projectData.filter(p => p.phase === phase);
+      const avg = pp.length > 0 ? Math.round(pp.reduce((s, p) => s + p.progress, 0) / pp.length) : 0;
       return { phase, progress: avg };
     });
   }, [projectData]);
 
   const computedBudgetByType = useMemo(() => {
     const typeMap = new Map<string, number>();
-    projectData.forEach(p => {
-      typeMap.set(p.type, (typeMap.get(p.type) || 0) + p.budget);
-    });
+    projectData.forEach(p => { typeMap.set(p.type, (typeMap.get(p.type) || 0) + p.budget); });
     return Array.from(typeMap.entries()).map(([type, budget]) => ({ type, budget }));
   }, [projectData]);
 
   const computedPortfolioHealth = useMemo(() => {
-    const healthCounts = new Map<string, number>();
-    projectData.forEach(p => {
-      healthCounts.set(p.health, (healthCounts.get(p.health) || 0) + 1);
-    });
-    return ['green', 'yellow', 'red'].map(h => ({
-      name: HEALTH_COLORS[h].name,
-      value: healthCounts.get(h) || 0,
-      color: HEALTH_COLORS[h].color,
-    }));
+    const hc = new Map<string, number>();
+    projectData.forEach(p => { hc.set(p.health, (hc.get(p.health) || 0) + 1); });
+    return ['green', 'yellow', 'red'].map(h => ({ name: HEALTH_COLORS[h].name, value: hc.get(h) || 0, color: HEALTH_COLORS[h].color }));
   }, [projectData]);
 
   if (kpisLoading && projectsLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader
-          breadcrumb={[{ label: 'Dashboard' }]}
-          title={t('dashboard.title')}
-        />
+        <PageHeader breadcrumb={[{ label: 'Dashboard' }]} title={t('dashboard.title')} />
         <LoadingSpinner />
       </div>
     );
@@ -156,28 +120,24 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        breadcrumb={[{ label: 'Dashboard' }]}
-        title={t('dashboard.title')}
-      />
+      <PageHeader breadcrumb={[{ label: 'Dashboard' }]} title={t('dashboard.title')} />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-4 bg-gradient-to-br from-blue-50/40 to-white rounded-xl p-4 border border-blue-100/30">
-        <KpiCard title={t('dashboard.activeProjects')} value={kpiData.activeProjects} icon={<FolderKanban className="w-5 h-5 text-blue-600" />} to="/projects" color="bg-blue-50" />
-        <KpiCard title={t('dashboard.requestsInReview')} value={kpiData.requestsInReview} icon={<FileText className="w-5 h-5 text-amber-600" />} to="/requests" color="bg-amber-50" />
-        <KpiCard title={t('dashboard.openRisks')} value={kpiData.openRisks} icon={<AlertTriangle className="w-5 h-5 text-orange-600" />} to="/risks" color="bg-orange-50" />
-        <KpiCard title={t('dashboard.changesInReview')} value={kpiData.changesInReview} icon={<RefreshCw className="w-5 h-5 text-purple-600" />} to="/changes" color="bg-purple-50" />
-        <KpiCard title={t('dashboard.totalBudget')} value={formatMXN(kpiData.totalBudget)} icon={<DollarSign className="w-5 h-5 text-green-600" />} to="/projects" color="bg-green-50" />
-        <KpiCard title={t('dashboard.avgProgress')} value={`${kpiData.avgProgress}%`} icon={<TrendingUp className="w-5 h-5 text-blue-600" />} to="/projects" color="bg-blue-50" />
-        <KpiCard title={t('dashboard.severeRisks')} value={kpiData.severeRisks} icon={<ShieldAlert className="w-5 h-5 text-red-600" />} to="/risks" color="bg-red-50" />
-        <KpiCard title={t('dashboard.openAids')} value={kpiData.openAids} icon={<Bug className="w-5 h-5 text-indigo-600" />} to="/issues" color="bg-indigo-50" />
+      <div className="grid grid-cols-4 gap-4">
+        <KpiCard title={t('dashboard.activeProjects')} value={kpiData.activeProjects} icon={<FolderKanban className="w-5 h-5 text-blue-600" />} to="/projects" color="bg-blue-50 dark:bg-blue-950/50" />
+        <KpiCard title={t('dashboard.requestsInReview')} value={kpiData.requestsInReview} icon={<FileText className="w-5 h-5 text-amber-600" />} to="/requests" color="bg-amber-50 dark:bg-amber-950/50" />
+        <KpiCard title={t('dashboard.openRisks')} value={kpiData.openRisks} icon={<AlertTriangle className="w-5 h-5 text-orange-600" />} to="/risks" color="bg-orange-50 dark:bg-orange-950/50" />
+        <KpiCard title={t('dashboard.changesInReview')} value={kpiData.changesInReview} icon={<RefreshCw className="w-5 h-5 text-purple-600" />} to="/changes" color="bg-purple-50 dark:bg-purple-950/50" />
+        <KpiCard title={t('dashboard.totalBudget')} value={formatMXN(kpiData.totalBudget)} icon={<DollarSign className="w-5 h-5 text-emerald-600" />} to="/projects" color="bg-emerald-50 dark:bg-emerald-950/50" />
+        <KpiCard title={t('dashboard.avgProgress')} value={`${kpiData.avgProgress}%`} icon={<TrendingUp className="w-5 h-5 text-blue-600" />} to="/projects" color="bg-blue-50 dark:bg-blue-950/50" />
+        <KpiCard title={t('dashboard.severeRisks')} value={kpiData.severeRisks} icon={<ShieldAlert className="w-5 h-5 text-red-600" />} to="/risks" color="bg-red-50 dark:bg-red-950/50" />
+        <KpiCard title={t('dashboard.openAids')} value={kpiData.openAids} icon={<Bug className="w-5 h-5 text-indigo-600" />} to="/issues" color="bg-indigo-50 dark:bg-indigo-950/50" />
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-2 gap-4">
-        {/* Projects by Phase - Pie */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">{t('dashboard.projectsByPhase')}</h3>
+        <div className="bg-surface rounded-2xl border border-border p-5">
+          <h3 className="text-[13px] font-semibold text-text-secondary mb-4">{t('dashboard.projectsByPhase')}</h3>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
               <Pie data={computedProjectsByPhase} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, value }) => `${name}: ${value}`}>
@@ -189,9 +149,8 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Avg Progress by Phase - Bar */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">{t('dashboard.avgProgressByPhase')}</h3>
+        <div className="bg-surface rounded-2xl border border-border p-5">
+          <h3 className="text-[13px] font-semibold text-text-secondary mb-4">{t('dashboard.avgProgressByPhase')}</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={computedAvgProgressByPhase}>
               <XAxis dataKey="phase" tick={{ fontSize: 12 }} />
@@ -202,9 +161,8 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Budget by Type - Bar */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">{t('dashboard.budgetByType')}</h3>
+        <div className="bg-surface rounded-2xl border border-border p-5">
+          <h3 className="text-[13px] font-semibold text-text-secondary mb-4">{t('dashboard.budgetByType')}</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={computedBudgetByType} layout="vertical">
               <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => formatMXN(v)} />
@@ -215,9 +173,8 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Portfolio Health - Pie */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">{t('dashboard.portfolioHealth')}</h3>
+        <div className="bg-surface rounded-2xl border border-border p-5">
+          <h3 className="text-[13px] font-semibold text-text-secondary mb-4">{t('dashboard.portfolioHealth')}</h3>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
               <Pie data={computedPortfolioHealth} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90} label={({ name, value }) => `${name}: ${value}`}>
@@ -231,42 +188,39 @@ export default function DashboardPage() {
       </div>
 
       {/* Plan vs Real Matrix */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">{t('dashboard.planVsReal')}</h3>
+      <div className="bg-surface rounded-2xl border border-border p-5">
+        <h3 className="text-[13px] font-semibold text-text-secondary mb-4">{t('dashboard.planVsReal')}</h3>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-[13px]">
             <thead>
-              <tr className="border-b border-gray-200 text-left">
-                <th className="pb-3 font-semibold text-gray-600">{t('dashboard.project')}</th>
-                <th className="pb-3 font-semibold text-gray-600">{t('dashboard.start')}</th>
-                <th className="pb-3 font-semibold text-gray-600">{t('dashboard.end')}</th>
-                <th className="pb-3 font-semibold text-gray-600 text-right">{t('dashboard.planBudget')}</th>
-                <th className="pb-3 font-semibold text-gray-600 text-right">{t('dashboard.realBudget')}</th>
-                <th className="pb-3 font-semibold text-gray-600 text-center">{t('dashboard.plannedProgress')}</th>
-                <th className="pb-3 font-semibold text-gray-600 w-40">{t('dashboard.progress')}</th>
-                <th className="pb-3 font-semibold text-gray-600 text-center">{t('dashboard.health')}</th>
+              <tr className="border-b border-border text-left">
+                <th className="pb-3 font-semibold text-text-tertiary text-[11px] uppercase tracking-wider">{t('dashboard.project')}</th>
+                <th className="pb-3 font-semibold text-text-tertiary text-[11px] uppercase tracking-wider text-right">{t('dashboard.planBudget')}</th>
+                <th className="pb-3 font-semibold text-text-tertiary text-[11px] uppercase tracking-wider text-center">{t('dashboard.plannedProgress')}</th>
+                <th className="pb-3 font-semibold text-text-tertiary text-[11px] uppercase tracking-wider w-40">{t('dashboard.progress')}</th>
+                <th className="pb-3 font-semibold text-text-tertiary text-[11px] uppercase tracking-wider text-center">{t('dashboard.health')}</th>
               </tr>
             </thead>
             <tbody>
               {activeProjects.map((p) => (
                 <tr
                   key={p.id}
-                  className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${p.progress < p.plannedProgress - 10 ? 'bg-red-50/50' : ''}`}
+                  className="border-b border-border-light hover:bg-surface-hover transition-colors"
                 >
                   <td className="py-3">
-                    <Link to={`/projects/${p.id}`} className="text-blue-600 hover:text-blue-800 font-medium">
+                    <Link to={`/projects/${p.id}`} className="text-accent hover:opacity-80 font-medium">
                       {p.name}
                     </Link>
                   </td>
-                  <td className="py-3 text-gray-500">{p.startDate}</td>
-                  <td className="py-3 text-gray-500">{p.endDate}</td>
-                  <td className="py-3 text-right text-gray-700">{formatMXN(p.budget)}</td>
-                  <td className="py-3 text-right text-gray-700">{formatMXN(p.realBudget)}</td>
-                  <td className="py-3 text-center text-gray-500">{p.plannedProgress}%</td>
-                  <td className="py-3"><ProgressBar value={p.progress} planned={p.plannedProgress} /></td>
-                  <td className="py-3 text-center"><HealthBadge health={p.health} /></td>
+                  <td className="py-3 text-right text-text-secondary">{formatMXN(p.budget)}</td>
+                  <td className="py-3 text-center text-text-tertiary">{p.planned_progress}%</td>
+                  <td className="py-3"><ProgressBar value={p.progress} planned={p.planned_progress} /></td>
+                  <td className="py-3 text-center"><HealthBadge health={p.health as 'green' | 'yellow' | 'red'} /></td>
                 </tr>
               ))}
+              {activeProjects.length === 0 && (
+                <tr><td colSpan={5} className="py-8 text-center text-text-tertiary">Sin proyectos activos</td></tr>
+              )}
             </tbody>
           </table>
         </div>

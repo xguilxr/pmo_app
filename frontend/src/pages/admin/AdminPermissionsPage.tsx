@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Shield, Check, Save, Plus } from 'lucide-react';
+import { Check, Save, Plus } from 'lucide-react';
 
 const roles = ['Administrador', 'PMO Manager', 'Project Manager', 'Viewer'];
 
@@ -25,9 +25,6 @@ type Action = (typeof actions)[number];
 
 type PermissionMatrix = Record<string, Record<string, boolean>>;
 
-function buildKey(mod: string, action: string) {
-  return `${mod}::${action}`;
-}
 
 function buildDefaultPermissions(role: string): PermissionMatrix {
   const matrix: PermissionMatrix = {};

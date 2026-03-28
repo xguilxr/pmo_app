@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Edit2, Trash2, X, Users, Shield, Check } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Check } from 'lucide-react';
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner, ErrorMessage } from '../../hooks/useApi';
 

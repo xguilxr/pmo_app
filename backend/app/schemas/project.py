@@ -65,6 +65,8 @@ class ProjectListResponse(BaseModel):
     planned_progress: float
     budget: float
     health: str
+    start_date: date | None = None
+    end_date: date | None = None
 
 
 class DashboardKPIs(BaseModel):

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.api import auth, users, projects, dashboard, minutes, risks, issues, changes, documents, lessons, areas, objectives, organizations, tasks, backlog, requests
+from app.api import auth, users, projects, dashboard, minutes, risks, issues, changes, documents, lessons, areas, objectives, organizations, tasks, backlog, requests, uploads
 import app.models  # noqa: F401 — register all models with SQLAlchemy mapper
 
 settings = get_settings()
@@ -40,6 +40,13 @@ app.include_router(organizations.router, prefix="/api")
 app.include_router(tasks.router, prefix="/api")
 app.include_router(backlog.router, prefix="/api")
 app.include_router(requests.router, prefix="/api")
+app.include_router(uploads.router, prefix="/api")
+
+
+from fastapi.staticfiles import StaticFiles
+import os
+uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
+os.makedirs(uploads_dir, exist_ok=True)
 
 
 @app.get("/api/health")

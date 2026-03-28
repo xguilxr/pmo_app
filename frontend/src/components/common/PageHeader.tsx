@@ -11,12 +11,12 @@ export default function PageHeader({ breadcrumb, title, subtitle, children }: Pa
   return (
     <div className="space-y-3">
       <Breadcrumb items={breadcrumb} />
-      <div className="bg-gradient-to-r from-blue-50 via-white to-blue-50 rounded-xl border border-blue-100/60 shadow-sm px-6 py-4">
+      <div className="bg-surface rounded-2xl border border-border px-6 py-5">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">{title}</h2>
+            <h2 className="text-xl font-bold text-text-primary tracking-tight">{title}</h2>
             {subtitle && (
-              <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>
+              <p className="text-[13px] text-text-secondary mt-0.5">{subtitle}</p>
             )}
           </div>
           {children && (

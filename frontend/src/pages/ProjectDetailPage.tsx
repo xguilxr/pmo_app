@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  ArrowLeft, Info, Users, AlertTriangle, Bug, RefreshCw,
-  Files, Lightbulb, ClipboardList, DollarSign, Target,
+  Info, Users, AlertTriangle, Bug, RefreshCw,
+  Files, Lightbulb, ClipboardList, DollarSign,
   Calendar, Building2, TrendingUp, ListTree, ListChecks, BarChart3
 } from 'lucide-react';
 import { api } from '../services/api';

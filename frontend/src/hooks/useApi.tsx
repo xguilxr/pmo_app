@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Loader2 } from 'lucide-react';
 
 interface UseApiState<T> {
   data: T | null;
@@ -35,18 +36,18 @@ export function useApi<T>(fetcher: () => Promise<T>, deps: unknown[] = []): UseA
 
 export function LoadingSpinner() {
   return (
-    <div className="flex items-center justify-center py-12">
-      <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+    <div className="flex items-center justify-center py-16">
+      <Loader2 className="w-8 h-8 text-accent animate-spin" />
     </div>
   );
 }
 
 export function ErrorMessage({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-      <p className="text-red-600 text-sm mb-2">{message}</p>
+    <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-2xl p-6 text-center">
+      <p className="text-red-600 dark:text-red-400 text-[13px] font-medium mb-2">{message}</p>
       {onRetry && (
-        <button onClick={onRetry} className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+        <button onClick={onRetry} className="text-[13px] text-accent hover:opacity-80 font-semibold">
           Reintentar
         </button>
       )}
