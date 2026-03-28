@@ -1,143 +1,232 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, X, BarChart3, Download, FileBarChart, Bot, Calendar } from 'lucide-react';
+import { Plus, X, BarChart3, Download, FileBarChart, Calendar, Trash2, Send, Eye } from 'lucide-react';
+import { api } from '../../services/api';
+import { useApi, LoadingSpinner } from '../../hooks/useApi';
+import { useToast } from '../../context/ToastContext';
 
-interface ProjectReport {
+interface Report {
   id: number;
-  type: 'avance' | 'seguimiento';
-  date: string;
-  status: 'draft' | 'sent';
-  periodStart: string;
-  periodEnd: string;
+  title: string;
+  content_html: string | null;
+  period_start: string | null;
+  period_end: string | null;
+  status: string;
+  recipients: string | null;
+  sent_date: string | null;
+  ai_model_used: string | null;
+  project_id: number;
+  created_at: string;
 }
-
-const mockProjectReports: Record<number, ProjectReport[]> = {
-  1: [
-    { id: 1, type: 'avance', date: '2026-03-20', status: 'sent', periodStart: '2026-03-14', periodEnd: '2026-03-20' },
-    { id: 2, type: 'seguimiento', date: '2026-03-13', status: 'sent', periodStart: '2026-03-07', periodEnd: '2026-03-13' },
-    { id: 3, type: 'avance', date: '2026-03-06', status: 'draft', periodStart: '2026-02-28', periodEnd: '2026-03-06' },
-  ],
-};
 
 export default function ProjectReportsTab({ projectId }: { projectId: number }) {
   const { t } = useTranslation();
-  const [reports, setReports] = useState<ProjectReport[]>(mockProjectReports[projectId] || [
-    { id: 101, type: 'avance', date: '2026-03-15', status: 'sent', periodStart: '2026-03-09', periodEnd: '2026-03-15' },
-    { id: 102, type: 'seguimiento', date: '2026-03-08', status: 'draft', periodStart: '2026-03-02', periodEnd: '2026-03-08' },
-  ]);
+  const { toastSuccess, toastError } = useToast();
+  const { data: reports, loading, refetch } = useApi<Report[]>(
+    () => api.get(`/reports?project_id=${projectId}`),
+    [projectId]   );
+
   const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewReport, setPreviewReport] = useState<Report | null>(null);
   const [formType, setFormType] = useState<'avance' | 'seguimiento'>('avance');
   const [formPeriodStart, setFormPeriodStart] = useState('');
   const [formPeriodEnd, setFormPeriodEnd] = useState('');
-  const [formAIGenerate, setFormAIGenerate] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const resetForm = () => {
     setFormType('avance');
     setFormPeriodStart('');
     setFormPeriodEnd('');
-    setFormAIGenerate(false);
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!formPeriodStart || !formPeriodEnd) return;
-    const newReport: ProjectReport = {
-      id: Date.now(),
-      type: formType,
-      date: new Date().toISOString().split('T')[0],
-      status: 'draft',
-      periodStart: formPeriodStart,
-      periodEnd: formPeriodEnd,
-    };
-    setReports(prev => [newReport, ...prev]);
-    setShowGenerateModal(false);
-    resetForm();
+    setGenerating(true);
+    try {
+      const title = formType === 'avance'
+        ? `Reporte de Avance - ${formPeriodStart} a ${formPeriodEnd}`
+        : `Reporte de Seguimiento - ${formPeriodStart} a ${formPeriodEnd}`;
+      await api.post(`/reports?project_id=${projectId}`, {
+        title,
+        period_start: formPeriodStart,
+        period_end: formPeriodEnd,
+        status: 'draft',
+      });
+      toastSuccess('Reporte generado exitosamente');
+      setShowGenerateModal(false);
+      resetForm();
+      refetch();
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Error al generar reporte');
+    }
+    setGenerating(false);
   };
 
-  const handleDownload = (report: ProjectReport) => {
-    console.log('Downloading report:', report.id, report.type, report.date);
-    alert(`Descargando reporte ${report.type === 'avance' ? 'de Avance' : 'de Seguimiento'} del ${report.date}`);
+  const handleDelete = async (id: number) => {
+    if (!confirm('¿Eliminar este reporte?')) return;
+    try {
+      await api.delete(`/reports/${id}`);
+      toastSuccess('Reporte eliminado');
+      refetch();
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Error al eliminar reporte');
+    }
   };
+
+  const handleMarkSent = async (id: number) => {
+    try {
+      await api.patch(`/reports/${id}`, { status: 'sent' });
+      toastSuccess('Reporte marcado como enviado');
+      refetch();
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Error al actualizar reporte');
+    }
+  };
+
+  const handleDownload = (id: number) => {
+    const token = localStorage.getItem('pmo_token');
+    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8080/api'}/reports/${id}/download`;
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.blob())
+      .then(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `reporte_${id}.html`;
+        a.click();
+      })
+      .catch(() => toastError('Error al descargar'));
+  };
+
+  const handlePreview = (report: Report) => {
+    setPreviewReport(report);
+    setShowPreviewModal(true);
+  };
+
+  const getReportType = (title: string): 'avance' | 'seguimiento' => {
+    return title.toLowerCase().includes('seguimiento') ? 'seguimiento' : 'avance';
+  };
+
+  const inputCls = "w-full border border-border bg-surface rounded-xl px-3.5 py-2.5 text-[13px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all";
+  const labelCls = "block text-[12px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5";
+
+  if (loading) return <LoadingSpinner />;
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-gray-900">{t('nav.reports')}</h3>
+        <h3 className="text-lg font-semibold text-text-primary">{t('nav.reports')}</h3>
         <button
           onClick={() => setShowGenerateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl text-[12px] font-semibold hover:bg-accent-hover shadow-sm shadow-accent/25 transition-colors"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-3.5 h-3.5" />
           {t('reports.generate')}
         </button>
       </div>
 
-      {reports.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-          <FileBarChart className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">{t('reports.noReports')}</p>
+      {!reports || reports.length === 0 ? (
+        <div className="text-center py-12 bg-surface rounded-2xl border border-border">
+          <FileBarChart className="w-12 h-12 text-text-tertiary mx-auto mb-3 opacity-30" />
+          <p className="text-[13px] text-text-tertiary">{t('reports.noReports')}</p>
         </div>
       ) : (
-        <div className="grid gap-4">
-          {reports.map(report => (
-            <div
-              key={report.id}
-              className="bg-white rounded-xl border border-gray-200 p-5 flex items-center justify-between hover:shadow-sm transition-shadow"
-            >
-              <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  report.type === 'avance' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'
-                }`}>
-                  {report.type === 'avance' ? <FileBarChart className="w-5 h-5" /> : <BarChart3 className="w-5 h-5" />}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      report.type === 'avance' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
-                    }`}>
-                      {report.type === 'avance' ? t('reports.avance') : t('reports.seguimiento')}
-                    </span>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      report.status === 'sent' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {report.status === 'sent' ? t('reports.sent') : t('reports.draft')}
-                    </span>
+        <div className="grid gap-3">
+          {reports.map(report => {
+            const reportType = getReportType(report.title);
+            return (
+              <div
+                key={report.id}
+                className="bg-surface rounded-2xl border border-border p-5 flex items-center justify-between hover:bg-surface-hover transition-all animate-fade-in"
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                    reportType === 'avance' ? 'bg-blue-100 dark:bg-blue-950/50 text-blue-600' : 'bg-amber-100 dark:bg-amber-950/50 text-amber-600'
+                  }`}>
+                    {reportType === 'avance' ? <FileBarChart className="w-5 h-5" /> : <BarChart3 className="w-5 h-5" />}
                   </div>
-                  <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                    <Calendar className="w-3 h-3" />
-                    {report.date} &middot; {report.periodStart} a {report.periodEnd}
-                  </p>
+                  <div>
+                    <p className="text-[13px] font-medium text-text-primary mb-1">{report.title}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                        reportType === 'avance' ? 'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400' : 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400'
+                      }`}>
+                        {reportType === 'avance' ? t('reports.avance') : t('reports.seguimiento')}
+                      </span>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                        report.status === 'sent' ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400' : 'bg-surface-tertiary text-text-secondary'
+                      }`}>
+                        {report.status === 'sent' ? t('reports.sent') : t('reports.draft')}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-text-tertiary flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {report.created_at?.slice(0, 10)}
+                      {report.period_start && report.period_end && (
+                        <> &middot; {report.period_start} a {report.period_end}</>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  {report.content_html && (
+                    <button
+                      onClick={() => handlePreview(report)}
+                      className="p-2 hover:bg-surface-tertiary rounded-xl transition-colors"
+                      title="Vista previa"
+                    >
+                      <Eye className="w-4 h-4 text-text-tertiary" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDownload(report.id)}
+                    className="p-2 hover:bg-surface-tertiary rounded-xl transition-colors"
+                    title="Descargar"
+                  >
+                    <Download className="w-4 h-4 text-text-tertiary" />
+                  </button>
+                  {report.status === 'draft' && (
+                    <button
+                      onClick={() => handleMarkSent(report.id)}
+                      className="p-2 hover:bg-surface-tertiary rounded-xl transition-colors"
+                      title="Marcar como enviado"
+                    >
+                      <Send className="w-4 h-4 text-text-tertiary" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDelete(report.id)}
+                    className="p-2 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-colors"
+                    title="Eliminar"
+                  >
+                    <Trash2 className="w-4 h-4 text-red-400" />
+                  </button>
                 </div>
               </div>
-              <button
-                onClick={() => handleDownload(report)}
-                className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-sm"
-              >
-                <Download className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {/* Generate Report Modal */}
       {showGenerateModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">{t('reports.generate')}</h3>
-              <button onClick={() => { setShowGenerateModal(false); resetForm(); }} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg transition-colors">
-                <X className="w-5 h-5" />
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-elevated rounded-2xl w-full max-w-lg border border-border shadow-2xl animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <h3 className="text-[15px] font-bold text-text-primary">{t('reports.generate')}</h3>
+              <button onClick={() => { setShowGenerateModal(false); resetForm(); }} className="p-1.5 hover:bg-surface-hover rounded-xl">
+                <X className="w-4 h-4 text-text-tertiary" />
               </button>
             </div>
-            <div className="px-6 py-5 space-y-4">
+            <div className="p-6 space-y-4">
               {/* Report type */}
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">{t('reports.type')} *</label>
+                <label className={labelCls}>{t('reports.type')} *</label>
                 <div className="flex gap-3">
                   <button
                     onClick={() => setFormType('avance')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
-                      formType === 'avance' ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-medium border transition-all ${
+                      formType === 'avance' ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-400' : 'bg-surface border-border text-text-secondary hover:bg-surface-hover'
                     }`}
                   >
                     <FileBarChart className="w-4 h-4" />
@@ -145,8 +234,8 @@ export default function ProjectReportsTab({ projectId }: { projectId: number }) 
                   </button>
                   <button
                     onClick={() => setFormType('seguimiento')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
-                      formType === 'seguimiento' ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-medium border transition-all ${
+                      formType === 'seguimiento' ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400' : 'bg-surface border-border text-text-secondary hover:bg-surface-hover'
                     }`}
                   >
                     <BarChart3 className="w-4 h-4" />
@@ -157,36 +246,72 @@ export default function ProjectReportsTab({ projectId }: { projectId: number }) 
 
               {/* Period */}
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">{t('reports.period')} *</label>
+                <label className={labelCls}>{t('reports.period')} *</label>
                 <div className="grid grid-cols-2 gap-3">
-                  <input type="date" value={formPeriodStart} onChange={e => setFormPeriodStart(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  <input type="date" value={formPeriodEnd} onChange={e => setFormPeriodEnd(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input
+                    type="date"
+                    value={formPeriodStart}
+                    onChange={e => setFormPeriodStart(e.target.value)}
+                    className={inputCls}
+                  />
+                  <input
+                    type="date"
+                    value={formPeriodEnd}
+                    onChange={e => setFormPeriodEnd(e.target.value)}
+                    className={inputCls}
+                  />
                 </div>
-              </div>
-
-              {/* AI toggle */}
-              <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-200">
-                <div className="flex items-center gap-2">
-                  <Bot className="w-4 h-4 text-purple-600" />
-                  <span className="text-sm font-medium text-purple-700">{t('reports.generateWithAI')}</span>
-                </div>
-                <button
-                  onClick={() => setFormAIGenerate(!formAIGenerate)}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${formAIGenerate ? 'bg-purple-600' : 'bg-gray-300'}`}
-                >
-                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${formAIGenerate ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
               </div>
             </div>
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
-              <button onClick={() => { setShowGenerateModal(false); resetForm(); }} className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">{t('common.cancel')}</button>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border">
+              <button
+                onClick={() => { setShowGenerateModal(false); resetForm(); }}
+                className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl transition-colors"
+              >
+                {t('common.cancel')}
+              </button>
               <button
                 onClick={handleGenerate}
-                disabled={!formPeriodStart || !formPeriodEnd}
-                className="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!formPeriodStart || !formPeriodEnd || generating}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent text-white rounded-xl text-[13px] font-semibold hover:bg-accent-hover shadow-sm shadow-accent/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Plus className="w-4 h-4" />
-                {t('reports.generate')}
+                {generating ? 'Generando...' : t('reports.generate')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preview Modal */}
+      {showPreviewModal && previewReport && (
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-elevated rounded-2xl w-full max-w-3xl border border-border shadow-2xl animate-fade-in max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+              <h3 className="text-[15px] font-bold text-text-primary">{previewReport.title}</h3>
+              <button onClick={() => setShowPreviewModal(false)} className="p-1.5 hover:bg-surface-hover rounded-xl">
+                <X className="w-4 h-4 text-text-tertiary" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              <div
+                className="prose dark:prose-invert max-w-none text-[13px] text-text-primary"
+                dangerouslySetInnerHTML={{ __html: previewReport.content_html || '<p>Sin contenido</p>' }}
+              />
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border shrink-0">
+              <button
+                onClick={() => handleDownload(previewReport.id)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 border border-border rounded-xl text-[13px] font-medium text-text-secondary hover:bg-surface-hover transition-all"
+              >
+                <Download className="w-4 h-4" />
+                Descargar
+              </button>
+              <button
+                onClick={() => setShowPreviewModal(false)}
+                className="px-4 py-2.5 text-[13px] font-medium bg-accent text-white rounded-xl hover:bg-accent-hover shadow-sm shadow-accent/25"
+              >
+                Cerrar
               </button>
             </div>
           </div>

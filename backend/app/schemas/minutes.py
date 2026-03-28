@@ -2,6 +2,22 @@ from pydantic import BaseModel
 from datetime import date, datetime
 
 
+class MinuteCreate(BaseModel):
+    title: str
+    meeting_date: date | None = None
+    participants: str | None = None
+    topics: str | None = None
+    agreements: str | None = None
+
+
+class MinuteUpdate(BaseModel):
+    title: str | None = None
+    meeting_date: date | None = None
+    participants: str | None = None
+    topics: str | None = None
+    agreements: str | None = None
+
+
 class GenerateMinutesRequest(BaseModel):
     transcript: str
     project_id: int
