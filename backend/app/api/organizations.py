@@ -9,6 +9,13 @@ from typing import Optional
 from app.database import get_db
 from app.models.user import User
 from app.models.organization import Organization
+from app.models.program import Program
+from app.models.project import Project
+from app.models.task import Task
+from app.models.modules import Risk, Issue, Change, Document, Lesson, Minute
+from app.models.backlog import BacklogItem
+from app.models.area import ProjectArea
+from app.models.objective import ProjectObjective
 from app.auth.security import get_current_user
 
 router = APIRouter(prefix="/organizations", tags=["Organizations"])
@@ -113,5 +120,32 @@ def delete_organization(
     org = db.query(Organization).filter(Organization.id == org_id, Organization.deleted_at.is_(None)).first()
     if not org:
         raise HTTPException(status_code=404, detail="Organización no encontrada")
-    org.deleted_at = datetime.now(timezone.utc)
+
+    now = datetime.now(timezone.utc)
+
+    # Cascade soft-delete: programs
+    db.query(Program).filter(Program.organization_id == org_id, Program.deleted_at.is_(None)).update(
+        {"deleted_at": now}, synchronize_session=False
+    )
+
+    # Get all project IDs belonging to this org
+    project_ids = [
+        p.id for p in db.query(Project.id).filter(
+            Project.organization_id == org_id, Project.deleted_at.is_(None)
+        ).all()
+    ]
+
+    if project_ids:
+        # Cascade soft-delete: all project children
+        for model in (Task, Risk, Issue, Change, Document, Lesson, Minute, BacklogItem, ProjectArea, ProjectObjective):
+            db.query(model).filter(
+                model.project_id.in_(project_ids), model.deleted_at.is_(None)
+            ).update({"deleted_at": now}, synchronize_session=False)
+
+        # Cascade soft-delete: projects
+        db.query(Project).filter(Project.id.in_(project_ids)).update(
+            {"deleted_at": now}, synchronize_session=False
+        )
+
+    org.deleted_at = now
     db.commit()
