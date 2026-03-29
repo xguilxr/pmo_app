@@ -17,6 +17,9 @@ from app.models.project import Project
 from app.models.project_request import ProjectRequest
 from app.models.modules import Risk, Issue, Change, Document, Lesson, Minute
 from app.models.task import Task, TaskDependency
+from app.models.backlog import BacklogItem
+from app.models.area import ProjectArea
+from app.models.objective import ProjectObjective
 from app.models.audit import AuditLog
 from app.models.report import ProgressReport
 
