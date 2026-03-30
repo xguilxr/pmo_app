@@ -70,7 +70,7 @@ def list_projects(
     if program_id:
         query = query.filter(Project.program_id == program_id)
 
-    projects = query.all()
+    projects = query.order_by(Project.name.asc()).all()
     return [
         ProjectListResponse(
             id=p.id, folio=p.folio, name=p.name, type=p.type, priority=p.priority,
