@@ -8,6 +8,11 @@ from app.models.user import User
 from app.models.project import Project
 from app.models.organization import Organization
 from app.models.program import Program
+from app.models.task import Task
+from app.models.modules import Risk, Issue, Change, Document, Lesson, Minute
+from app.models.backlog import BacklogItem
+from app.models.area import ProjectArea
+from app.models.objective import ProjectObjective
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse, ProjectListResponse
 from app.auth.security import get_current_user
 from app.services.folio import generate_folio
@@ -137,5 +142,14 @@ def delete_project(
     project = db.query(Project).filter(Project.id == project_id, Project.deleted_at.is_(None)).first()
     if not project:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-    project.deleted_at = datetime.now(timezone.utc)
+
+    now = datetime.now(timezone.utc)
+
+    # Cascade soft-delete all child records
+    for model in (Task, Risk, Issue, Change, Document, Lesson, Minute, BacklogItem, ProjectArea, ProjectObjective):
+        db.query(model).filter(
+            model.project_id == project_id, model.deleted_at.is_(None)
+        ).update({"deleted_at": now}, synchronize_session=False)
+
+    project.deleted_at = now
     db.commit()
