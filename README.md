@@ -18,6 +18,7 @@ Plataforma de Project Management Office (PMO) como servicio. Sistema integral pa
 | **Iconos** | Lucide React |
 | **i18n** | react-i18next (ES/EN) |
 | **Auth** | JWT (python-jose) + bcrypt |
+| **MS Project** | mpxj (Java) via subprocess |
 
 ---
 
@@ -27,9 +28,10 @@ Plataforma de Project Management Office (PMO) como servicio. Sistema integral pa
 pmo_app/
 ├── backend/
 │   ├── app/
-│   │   ├── api/            # Endpoints REST (12 routers)
+│   │   ├── api/            # Endpoints REST (16 routers)
 │   │   │   ├── areas.py         # CRUD areas de proyecto
 │   │   │   ├── auth.py          # Login + JWT
+│   │   │   ├── backlog.py       # Backlog items
 │   │   │   ├── changes.py       # Control de cambios
 │   │   │   ├── dashboard.py     # KPIs del portafolio
 │   │   │   ├── documents.py     # Documentos del proyecto
@@ -37,18 +39,25 @@ pmo_app/
 │   │   │   ├── lessons.py       # Lecciones aprendidas
 │   │   │   ├── minutes.py       # Minutas + generacion IA
 │   │   │   ├── objectives.py    # Objetivos del proyecto
+│   │   │   ├── organizations.py # Organizaciones (cascade delete)
+│   │   │   ├── programs.py      # Programas (cascade delete)
 │   │   │   ├── projects.py      # Portafolio de proyectos
+│   │   │   ├── reports.py       # Reportes de avance (auto-generados)
 │   │   │   ├── risks.py         # Matriz de riesgos
+│   │   │   ├── tasks.py         # Tareas + import .mpp/.xlsx/.csv
 │   │   │   └── users.py         # Gestion de usuarios
 │   │   ├── auth/            # Seguridad JWT
 │   │   ├── models/          # 14 modelos SQLAlchemy
 │   │   ├── schemas/         # Validacion Pydantic
 │   │   ├── services/        # AI engine + folio generator
+│   │   ├── utils/           # MppToJson.java (MS Project parser)
 │   │   ├── config.py        # Configuracion centralizada
 │   │   ├── database.py      # Conexion PostgreSQL
-│   │   ├── main.py          # App FastAPI
+│   │   ├── main.py          # App FastAPI (auto-sync schema on startup)
 │   │   └── seed.py          # Datos iniciales
-│   ├── migrations/          # Alembic
+│   ├── migrations/          # Alembic + sync_schema.sql
+│   ├── lib/                 # mpxj JARs (auto-downloaded)
+│   ├── setup_mpp.py         # Descarga mpxj JARs para .mpp
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
@@ -56,7 +65,7 @@ pmo_app/
 │   │   │   ├── common/      # KpiCard, ProgressBar, PhaseBadge, HealthBadge
 │   │   │   ├── layout/      # AppLayout, Sidebar, TopBar
 │   │   │   └── project/     # 8 tabs del detalle de proyecto
-│   │   ├── pages/           # Dashboard, Projects, ProjectDetail, Login, Minutes
+│   │   ├── pages/           # Dashboard, Projects, ProjectDetail, Login, Minutes, Reports, etc.
 │   │   ├── data/            # Mock data para desarrollo
 │   │   └── i18n/            # Traducciones ES/EN
 │   └── package.json
@@ -78,6 +87,7 @@ pmo_app/
 - **Node.js** 18+ y npm
 - **Python** 3.11+
 - **PostgreSQL** 15+
+- **Java JDK** 11+ (para importacion de archivos .mpp, opcional)
 - **Ollama** 0.1+ (para IA local, opcional)
 - **Git**
 
@@ -130,9 +140,26 @@ pip install -r requirements.txt
 # Seed de datos iniciales
 python -m app.seed
 
-# Iniciar servidor
+# Iniciar servidor (el schema se sincroniza automaticamente al arrancar)
 uvicorn app.main:app --reload --port 8080
 ```
+
+### 3b. Soporte para MS Project (.mpp) - Opcional
+
+```bash
+# Requiere Java JDK 11+ instalado
+java -version
+
+# Opcion 1: Instalar mpxj via pip (recomendado)
+pip install mpxj --no-deps
+
+# Opcion 2: Descargar JARs manualmente
+cd backend
+python setup_mpp.py
+```
+
+Con esto podras importar archivos `.mpp`, `.mpx` y `.xml` de Microsoft Project
+directamente desde el tab "Informacion" del detalle de proyecto.
 
 ### 4. Frontend
 
@@ -202,10 +229,25 @@ ollama pull qwen2.5:7b        # ~4.4GB
 - Editar antes de guardar
 - Muestra tiempo de generacion y modelo usado
 
+### Reportes de Avance
+- Generacion automatica de reportes HTML desde datos reales del proyecto
+- KPIs: avance real vs planeado, presupuesto vs gasto real
+- Incluye resumen de tareas, riesgos, incidencias y cambios
+- Descargar como HTML (imprimible como PDF desde el navegador)
+- Enviar reportes a destinatarios
+- Filtrar y ordenar por proyecto o fecha
+
+### Importacion MS Project
+- Importar archivos .mpp, .mpx, .xml directamente
+- Tambien soporta .xlsx y .csv
+- Extrae: nombre, WBS, fechas, duracion, avance, hitos, recursos
+- Desde el tab "Informacion" del detalle de proyecto
+
 ### Administracion
-- Gestion de usuarios con roles
+- Gestion de usuarios con roles y organizaciones
 - 4 roles con permisos granulares: Administrador, PMO Manager, Project Manager, Viewer
 - 36 permisos (9 modulos x 4 acciones: view, create, edit, delete)
+- Organizaciones con cascade delete (org -> programas -> proyectos -> todos los hijos)
 
 ---
 
@@ -249,6 +291,41 @@ Cada modulo sigue el patron CRUD:
 | GET | `/api/{modulo}/{item_id}` | Obtener detalle |
 | PATCH | `/api/{modulo}/{item_id}` | Actualizar |
 | DELETE | `/api/{modulo}/{item_id}` | Soft delete |
+
+### Tareas
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/tasks` | Listar tareas (filtro por `project_id`) |
+| POST | `/api/tasks?project_id={id}` | Crear tarea |
+| PATCH | `/api/tasks/{id}` | Actualizar tarea |
+| DELETE | `/api/tasks/{id}` | Soft delete |
+| POST | `/api/tasks/import-file?project_id={id}` | Importar .mpp/.xlsx/.csv |
+
+### Reportes
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/reports` | Listar reportes (filtro por `project_id`) |
+| POST | `/api/reports?project_id={id}` | Generar reporte (contenido auto-generado) |
+| GET | `/api/reports/{id}` | Obtener detalle |
+| PATCH | `/api/reports/{id}` | Actualizar (ej. marcar como enviado) |
+| DELETE | `/api/reports/{id}` | Soft delete |
+| GET | `/api/reports/{id}/download` | Descargar como HTML |
+
+### Organizaciones y Programas
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET/POST | `/api/organizations` | CRUD organizaciones |
+| PATCH/DELETE | `/api/organizations/{id}` | Actualizar/eliminar (cascade) |
+| GET/POST | `/api/programs` | CRUD programas |
+| PATCH/DELETE | `/api/programs/{id}` | Actualizar/eliminar (cascade) |
+
+### Usuarios
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/users` | Listar usuarios |
+| POST | `/api/users` | Crear usuario (con roles y organizaciones) |
+| PATCH | `/api/users/{id}` | Actualizar |
+| DELETE | `/api/users/{id}` | Soft delete |
 
 ### Dashboard
 | Metodo | Ruta | Descripcion |
@@ -368,6 +445,7 @@ uvicorn app.main:app --reload --port 8080    # Dev server
 python -m app.seed                            # Seed database
 alembic upgrade head                          # Run migrations
 alembic revision --autogenerate -m "msg"      # Create migration
+python setup_mpp.py                           # Descargar mpxj JARs
 
 # Frontend
 npm run dev                                   # Dev server (Vite)
@@ -380,6 +458,15 @@ ollama pull qwen2.5:7b                        # Download model
 ollama list                                   # List models
 ollama serve                                  # Start server
 ```
+
+---
+
+## Notas Tecnicas
+
+- **Schema auto-sync**: Al iniciar el backend, `sync_schema.sql` se ejecuta automaticamente para agregar columnas faltantes a tablas existentes (usa `IF NOT EXISTS`).
+- **Soft delete**: Todos los modelos usan `deleted_at`. Al eliminar, se marca la fecha en vez de borrar el registro.
+- **Cascade delete**: Eliminar una organizacion elimina en cascada programas, proyectos y todos sus hijos (tareas, riesgos, etc.).
+- **Windows**: El backend maneja encoding UTF-8 explicitamente para compatibilidad con Windows (cp1252).
 
 ---
 

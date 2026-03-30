@@ -158,9 +158,9 @@ def _generate_report_html(db: Session, project: Project, period_start: date | No
     delayed_tasks = sum(1 for t in tasks if t.was_delayed)
     avg_progress = round(sum(t.progress for t in tasks) / total_tasks, 1) if total_tasks > 0 else 0
 
-    open_risks = sum(1 for r in risks if r.status == "Abierto")
-    open_issues = sum(1 for i in issues if i.status == "Abierto")
-    pending_changes = sum(1 for c in changes if c.status == "Pendiente")
+    open_risks = sum(1 for r in risks if r.status in ("open", "Abierto"))
+    open_issues = sum(1 for i in issues if i.status in ("open", "Abierto"))
+    pending_changes = sum(1 for c in changes if c.status in ("in_review", "Pendiente"))
 
     fmt_budget = f"${project.budget:,.0f}" if project.budget else "$0"
     fmt_real = f"${project.real_budget:,.0f}" if project.real_budget else "$0"

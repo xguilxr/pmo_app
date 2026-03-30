@@ -118,8 +118,8 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
   const [importing, setImporting] = useState(false);
   const processFile = useCallback(async (file: File) => {
     const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-    if (!['.xlsx', '.csv'].includes(ext)) {
-      toastError('Solo se aceptan archivos .xlsx o .csv');
+    if (!['.xlsx', '.csv', '.mpp', '.mpx'].includes(ext)) {
+      toastError('Solo se aceptan archivos .mpp, .xlsx o .csv');
       return;
     }
     setImporting(true);
@@ -296,11 +296,11 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
                 ) : (
                   <>
                     <Upload className="w-10 h-10 text-text-tertiary mx-auto mb-3 opacity-40" />
-                    <p className="text-[13px] text-text-secondary mb-1">Arrastra un archivo .xlsx o .csv</p>
+                    <p className="text-[13px] text-text-secondary mb-1">Arrastra un archivo .mpp, .xlsx o .csv</p>
                     <p className="text-[11px] text-text-tertiary">o haz clic para seleccionar</p>
                   </>
                 )}
-                <input ref={fileInputRef} type="file" className="hidden" accept=".xlsx,.csv" onChange={handleFileSelect} />
+                <input ref={fileInputRef} type="file" className="hidden" accept=".mpp,.mpx,.xlsx,.csv" onChange={handleFileSelect} />
                 <button
                   onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
                   className="mt-4 inline-flex items-center gap-2 px-3 py-2 border border-border rounded-xl text-[12px] font-medium text-text-secondary hover:bg-surface-hover transition-all"
@@ -308,7 +308,7 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
                   Seleccionar archivo
                 </button>
               </div>
-              <p className="text-[11px] text-text-tertiary mt-3 text-center">Formatos soportados: Excel (.xlsx), CSV (.csv). Columnas: WBS, Nombre, Inicio, Fin, Duración, Avance, Responsable</p>
+              <p className="text-[11px] text-text-tertiary mt-3 text-center">Formatos soportados: MS Project (.mpp), Excel (.xlsx), CSV (.csv). Columnas: WBS, Nombre, Inicio, Fin, Duracion, Avance, Responsable</p>
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-border-light">
               <button onClick={() => setShowImport(false)} className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl">Cancelar</button>

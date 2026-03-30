@@ -2,6 +2,7 @@ from datetime import date, datetime, timezone
 from typing import Optional
 import csv
 import io
+import os
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 from sqlalchemy.orm import Session
@@ -221,12 +222,14 @@ async def import_tasks_from_file(
     filename = (file.filename or "").lower()
     content = await file.read()
 
-    if filename.endswith(".xlsx"):
+    if filename.endswith(".mpp") or filename.endswith(".mpx") or filename.endswith(".xml") and b"<Project" in content[:500]:
+        rows = _parse_mpp(content, filename)
+    elif filename.endswith(".xlsx"):
         rows = _parse_xlsx(content)
     elif filename.endswith(".csv"):
         rows = _parse_csv(content)
     else:
-        raise HTTPException(status_code=400, detail="Formato no soportado. Use .csv o .xlsx")
+        raise HTTPException(status_code=400, detail="Formato no soportado. Use .mpp, .xlsx o .csv")
 
     if not rows:
         raise HTTPException(status_code=400, detail="No se encontraron tareas en el archivo")
@@ -364,6 +367,144 @@ def _parse_csv(content: bytes) -> list[dict]:
         if task:
             tasks.append(task)
     return tasks
+
+
+def _find_mpxj_jars() -> str:
+    """Find mpxj JAR files - check pip package or local lib directory."""
+    import glob
+
+    # Option 1: mpxj pip package (installed with --no-deps)
+    try:
+        import mpxj as mpxj_mod
+        mpxj_dir = os.path.dirname(mpxj_mod.__file__)
+        # JARs are in mpxj/lib/ subdirectory
+        jars = glob.glob(os.path.join(mpxj_dir, "lib", "*.jar"))
+        if not jars:
+            jars = glob.glob(os.path.join(mpxj_dir, "*.jar"))
+        if jars:
+            return os.pathsep.join(jars)
+    except ImportError:
+        pass
+
+    # Option 2: local lib/ directory next to backend
+    backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    lib_dir = os.path.join(backend_dir, "lib")
+    if os.path.isdir(lib_dir):
+        jars = glob.glob(os.path.join(lib_dir, "*.jar"))
+        if jars:
+            return os.pathsep.join(jars)
+
+    return ""
+
+
+def _ensure_mpp_helper_compiled(utils_dir: str, classpath: str) -> str:
+    """Compile MppToJson.java if .class doesn't exist yet. Returns utils_dir."""
+    class_file = os.path.join(utils_dir, "MppToJson.class")
+    java_file = os.path.join(utils_dir, "MppToJson.java")
+
+    if os.path.exists(class_file):
+        return utils_dir
+
+    if not os.path.exists(java_file):
+        raise HTTPException(
+            status_code=500,
+            detail="Archivo MppToJson.java no encontrado en el servidor"
+        )
+
+    import subprocess
+    result = subprocess.run(
+        ["javac", "-cp", classpath, java_file],
+        capture_output=True, text=True, timeout=30
+    )
+    if result.returncode != 0:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al compilar MppToJson.java: {result.stderr[:500]}"
+        )
+    return utils_dir
+
+
+def _parse_mpp(content: bytes, filename: str) -> list[dict]:
+    """Parse MS Project (.mpp/.mpx/.xml) using mpxj via subprocess (requires Java)."""
+    import tempfile
+    import subprocess
+    import json
+
+    # Check Java is available
+    try:
+        subprocess.run(["java", "-version"], capture_output=True, timeout=10)
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=400,
+            detail="Se requiere Java (JDK/JRE) instalado para leer archivos .mpp. "
+                   "Descargalo de https://adoptium.net/"
+        )
+
+    # Find mpxj JARs
+    classpath = _find_mpxj_jars()
+    if not classpath:
+        raise HTTPException(
+            status_code=400,
+            detail="mpxj no encontrado. Ejecute: pip install mpxj --no-deps"
+        )
+
+    # Compile helper if needed
+    utils_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "utils")
+    _ensure_mpp_helper_compiled(utils_dir, classpath)
+
+    # Full classpath = mpxj jars + utils dir (for MppToJson.class)
+    full_cp = classpath + os.pathsep + utils_dir
+
+    # Write uploaded file to temp
+    suffix = os.path.splitext(filename)[1] or ".mpp"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        result = subprocess.run(
+            ["java", "-cp", full_cp, "MppToJson", tmp_path],
+            capture_output=True, text=True, timeout=60
+        )
+
+        if result.returncode != 0:
+            err_msg = result.stderr.strip()[:500] if result.stderr else "Error desconocido"
+            raise HTTPException(
+                status_code=400,
+                detail=f"Error al leer archivo MS Project: {err_msg}"
+            )
+
+        raw_tasks = json.loads(result.stdout)
+
+        tasks = []
+        for t in raw_tasks:
+            name = (t.get("name") or "").strip()
+            if not name:
+                continue
+            tasks.append({
+                "name": name,
+                "wbs": t.get("wbs") or None,
+                "start_date": _parse_date(t.get("start_date")) if t.get("start_date") else None,
+                "end_date": _parse_date(t.get("end_date")) if t.get("end_date") else None,
+                "duration_days": t.get("duration_days"),
+                "progress": t.get("progress", 0),
+                "outline_level": t.get("outline_level", 1),
+                "is_milestone": t.get("is_milestone", False),
+                "responsible_name": t.get("responsible_name"),
+            })
+
+        return tasks
+
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=400,
+            detail="Error al procesar la salida del archivo MS Project"
+        )
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
 
 
 def _parse_xlsx(content: bytes) -> list[dict]:
