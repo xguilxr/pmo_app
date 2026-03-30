@@ -2,8 +2,8 @@ import java.io.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import net.sf.mpxj.*;
-import net.sf.mpxj.reader.*;
+import org.mpxj.*;
+import org.mpxj.reader.*;
 
 /**
  * Reads an MS Project file (.mpp/.mpx/.xml) and outputs task data as JSON to stdout.
