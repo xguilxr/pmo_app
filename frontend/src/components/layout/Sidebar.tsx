@@ -29,39 +29,39 @@ export default function Sidebar() {
   const [adminOpen, setAdminOpen] = useState(false);
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-200 ${
+    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-normal transition-all duration-200 ${
       isActive
-        ? 'bg-accent text-white shadow-sm shadow-accent/25'
-        : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
+        ? 'bg-gradient-to-r from-accent/20 to-accent/10 text-white shadow-sm shadow-accent/10'
+        : 'text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-active'
     }`;
 
   const subLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 pl-9 pr-3 py-1.5 rounded-xl text-[13px] transition-all duration-200 ${
+    `flex items-center gap-3 pl-9 pr-3 py-1.5 rounded-xl text-[13px] font-light transition-all duration-200 ${
       isActive
-        ? 'bg-accent-light text-accent font-medium'
-        : 'text-text-tertiary hover:bg-surface-hover hover:text-text-secondary'
+        ? 'text-accent font-normal'
+        : 'text-sidebar-text/60 hover:text-sidebar-text hover:bg-sidebar-hover'
     }`;
 
   const sectionBtnClass =
-    'flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary w-full transition-all duration-200';
+    'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-normal text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-active w-full transition-all duration-200';
 
   return (
-    <aside className="w-[260px] bg-sidebar-bg border-r border-border h-screen flex flex-col fixed left-0 top-0 z-20">
+    <aside className="w-[260px] sidebar-gradient border-r border-sidebar-border h-screen flex flex-col fixed left-0 top-0 z-20">
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-border-light">
+      <div className="px-5 py-5 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center shadow-sm shadow-accent/25">
+          <div className="w-9 h-9 rounded-xl btn-gradient flex items-center justify-center">
             <FolderKanban className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-[15px] font-bold text-text-primary tracking-tight">PMO Platform</h1>
-            <p className="text-[10px] text-text-tertiary font-medium uppercase tracking-wider">Project Management</p>
+            <h1 className="text-[15px] font-medium text-white tracking-tight">PMO Platform</h1>
+            <p className="text-[10px] text-sidebar-text/50 font-light uppercase tracking-widest">Project Management</p>
           </div>
         </div>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <p className="px-3 pb-1 text-[10px] font-semibold text-text-tertiary uppercase tracking-wider">Principal</p>
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        <p className="px-3 pb-2 pt-1 text-[10px] font-medium text-sidebar-text/40 uppercase tracking-widest">Principal</p>
         <NavLink to="/" className={linkClass} end>
           <LayoutDashboard className="w-4 h-4" />
           {t('nav.dashboard')}
@@ -83,13 +83,13 @@ export default function Sidebar() {
         </NavLink>
 
         {/* Modules dropdown */}
-        <div className="pt-3">
-          <p className="px-3 pb-1 text-[10px] font-semibold text-text-tertiary uppercase tracking-wider">Módulos</p>
+        <div className="pt-4">
+          <p className="px-3 pb-2 text-[10px] font-medium text-sidebar-text/40 uppercase tracking-widest">Modulos</p>
         </div>
         <button onClick={() => setModulesOpen(!modulesOpen)} className={sectionBtnClass}>
           <ClipboardList className="w-4 h-4" />
           {t('nav.projectModules')}
-          {modulesOpen ? <ChevronDown className="w-3 h-3 ml-auto" /> : <ChevronRight className="w-3 h-3 ml-auto" />}
+          {modulesOpen ? <ChevronDown className="w-3 h-3 ml-auto opacity-50" /> : <ChevronRight className="w-3 h-3 ml-auto opacity-50" />}
         </button>
         {modulesOpen && (
           <div className="space-y-0.5 animate-fade-in">
@@ -104,13 +104,13 @@ export default function Sidebar() {
         )}
 
         {/* Admin dropdown */}
-        <div className="pt-3">
-          <p className="px-3 pb-1 text-[10px] font-semibold text-text-tertiary uppercase tracking-wider">Sistema</p>
+        <div className="pt-4">
+          <p className="px-3 pb-2 text-[10px] font-medium text-sidebar-text/40 uppercase tracking-widest">Sistema</p>
         </div>
         <button onClick={() => setAdminOpen(!adminOpen)} className={sectionBtnClass}>
           <Settings className="w-4 h-4" />
           {t('nav.admin')}
-          {adminOpen ? <ChevronDown className="w-3 h-3 ml-auto" /> : <ChevronRight className="w-3 h-3 ml-auto" />}
+          {adminOpen ? <ChevronDown className="w-3 h-3 ml-auto opacity-50" /> : <ChevronRight className="w-3 h-3 ml-auto opacity-50" />}
         </button>
         {adminOpen && (
           <div className="space-y-0.5 animate-fade-in">
@@ -124,8 +124,8 @@ export default function Sidebar() {
         )}
       </nav>
 
-      <div className="p-3 border-t border-border-light">
-        <button onClick={() => logout()} className="flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium text-text-tertiary hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-400 w-full transition-all duration-200">
+      <div className="p-3 border-t border-sidebar-border">
+        <button onClick={() => logout()} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-light text-sidebar-text/60 hover:bg-red-500/10 hover:text-red-400 w-full transition-all duration-200">
           <LogOut className="w-4 h-4" />
           {t('nav.logout')}
         </button>

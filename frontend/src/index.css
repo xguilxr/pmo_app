@@ -3,50 +3,64 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
+  /* --- Light Mode (default) --- */
   --color-surface: #ffffff;
-  --color-surface-secondary: #f8fafc;
-  --color-surface-tertiary: #f1f5f9;
-  --color-surface-hover: #f1f5f9;
+  --color-surface-secondary: #f7f8fc;
+  --color-surface-tertiary: #eef0f6;
+  --color-surface-hover: #f0f2f8;
   --color-surface-elevated: #ffffff;
-  --color-border: #e2e8f0;
-  --color-border-light: #f1f5f9;
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #475569;
-  --color-text-tertiary: #94a3b8;
-  --color-accent: #3b82f6;
-  --color-accent-hover: #2563eb;
-  --color-accent-light: #eff6ff;
-  --color-sidebar-bg: #ffffff;
-  --color-sidebar-hover: #f1f5f9;
-  --color-topbar-bg: rgba(255, 255, 255, 0.8);
+  --color-border: #e0e3ef;
+  --color-border-light: #eef0f6;
+  --color-text-primary: #1a1d2e;
+  --color-text-secondary: #5a5f7a;
+  --color-text-tertiary: #8b90a8;
+  --color-accent: #5b5df0;
+  --color-accent-hover: #4a4ce0;
+  --color-accent-light: #ededfe;
+  --color-sidebar-bg: #12142b;
+  --color-sidebar-hover: #1e2046;
+  --color-sidebar-border: #2a2d52;
+  --color-sidebar-text: #a8adc6;
+  --color-sidebar-text-active: #ffffff;
+  --color-topbar-bg: rgba(255, 255, 255, 0.72);
+  --color-gradient-start: #5b5df0;
+  --color-gradient-mid: #4f46e5;
+  --color-gradient-end: #3730a3;
   --animate-slide-in: slide-in 0.3s ease-out;
   --animate-fade-in: fade-in 0.2s ease-out;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
 
 @layer base {
   body {
     @apply bg-surface-secondary text-text-primary antialiased;
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', system-ui, sans-serif;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
   }
 
   .dark {
-    --color-surface: #0f1729;
-    --color-surface-secondary: #0b1120;
-    --color-surface-tertiary: #162036;
-    --color-surface-hover: #1e293b;
-    --color-surface-elevated: #162036;
-    --color-border: #1e3a5f;
-    --color-border-light: #162036;
-    --color-text-primary: #e2e8f0;
-    --color-text-secondary: #94a3b8;
-    --color-text-tertiary: #64748b;
-    --color-accent: #60a5fa;
-    --color-accent-hover: #3b82f6;
-    --color-accent-light: #1e3a5f;
-    --color-sidebar-bg: #0b1120;
-    --color-sidebar-hover: #162036;
-    --color-topbar-bg: rgba(11, 17, 32, 0.8);
+    --color-surface: #111425;
+    --color-surface-secondary: #0c0e1c;
+    --color-surface-tertiary: #1a1d33;
+    --color-surface-hover: #1e2140;
+    --color-surface-elevated: #161933;
+    --color-border: #262a4a;
+    --color-border-light: #1e2140;
+    --color-text-primary: #e4e5f0;
+    --color-text-secondary: #9498b8;
+    --color-text-tertiary: #626688;
+    --color-accent: #7c7ef8;
+    --color-accent-hover: #6c6ef0;
+    --color-accent-light: #1e1f42;
+    --color-sidebar-bg: #090b18;
+    --color-sidebar-hover: #141730;
+    --color-sidebar-border: #1e2140;
+    --color-sidebar-text: #7a7fa0;
+    --color-sidebar-text-active: #e4e5f0;
+    --color-topbar-bg: rgba(12, 14, 28, 0.72);
   }
 }
 
@@ -60,35 +74,98 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Glassmorphism utility */
-.glass {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }
 
-.dark .glass {
-  background: rgba(15, 23, 41, 0.7);
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+/* Glassmorphism */
+.glass {
+  background: var(--color-topbar-bg);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+}
+
+/* Gradient accent button */
+.btn-gradient {
+  background: linear-gradient(135deg, var(--color-gradient-start) 0%, var(--color-gradient-mid) 50%, var(--color-gradient-end) 100%);
+  background-size: 200% 200%;
+  transition: all 0.3s ease;
+}
+.btn-gradient:hover {
+  background-position: 100% 0%;
+  box-shadow: 0 4px 20px -2px rgba(91, 93, 240, 0.35);
+}
+
+/* Gradient text */
+.text-gradient {
+  background: linear-gradient(135deg, #5b5df0 0%, #4f46e5 50%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.dark .text-gradient {
+  background: linear-gradient(135deg, #7c7ef8 0%, #818cf8 50%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Subtle card glow on hover */
+.card-glow {
+  transition: all 0.3s ease;
+}
+.card-glow:hover {
+  box-shadow: 0 0 0 1px rgba(91, 93, 240, 0.15), 0 8px 32px -4px rgba(91, 93, 240, 0.1);
+}
+.dark .card-glow:hover {
+  box-shadow: 0 0 0 1px rgba(124, 126, 248, 0.2), 0 8px 32px -4px rgba(124, 126, 248, 0.08);
+}
+
+/* Mesh gradient background */
+.bg-mesh {
+  background-image:
+    radial-gradient(at 20% 0%, rgba(91, 93, 240, 0.04) 0%, transparent 50%),
+    radial-gradient(at 80% 100%, rgba(79, 70, 229, 0.04) 0%, transparent 50%);
+}
+.dark .bg-mesh {
+  background-image:
+    radial-gradient(at 20% 0%, rgba(91, 93, 240, 0.06) 0%, transparent 50%),
+    radial-gradient(at 80% 100%, rgba(79, 70, 229, 0.06) 0%, transparent 50%);
 }
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
+  background: #c5c8d8;
+  border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #9498b8;
 }
 .dark ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #2a2d52;
 }
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #3a3e66;
+}
+
+/* Sidebar gradient */
+.sidebar-gradient {
+  background: linear-gradient(180deg, #12142b 0%, #0e1024 40%, #12142b 100%);
+}
+.dark .sidebar-gradient {
+  background: linear-gradient(180deg, #090b18 0%, #060810 40%, #090b18 100%);
 }

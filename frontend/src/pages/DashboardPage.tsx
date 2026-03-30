@@ -45,7 +45,9 @@ function formatMXN(value: number) {
 }
 
 const PHASE_COLORS: Record<string, string> = {
-  'Planificación': '#3b82f6',
+  'Planificacion': '#6366f1',
+  'Planificación': '#6366f1',
+  'Ejecucion': '#f59e0b',
   'Ejecución': '#f59e0b',
   'Soporte': '#8b5cf6',
   'Cerrado': '#6b7280',
@@ -53,9 +55,11 @@ const PHASE_COLORS: Record<string, string> = {
 
 const HEALTH_COLORS: Record<string, { name: string; color: string }> = {
   green: { name: 'Sano', color: '#22c55e' },
-  yellow: { name: 'Atención', color: '#f59e0b' },
-  red: { name: 'Crítico', color: '#ef4444' },
+  yellow: { name: 'Atencion', color: '#f59e0b' },
+  red: { name: 'Critico', color: '#ef4444' },
 };
+
+const CHART_COLORS = ['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe'];
 
 export default function DashboardPage() {
   const { t } = useTranslation();
@@ -124,81 +128,81 @@ export default function DashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard title={t('dashboard.activeProjects')} value={kpiData.activeProjects} icon={<FolderKanban className="w-5 h-5 text-blue-600" />} to="/projects" color="bg-blue-50 dark:bg-blue-950/50" />
-        <KpiCard title={t('dashboard.requestsInReview')} value={kpiData.requestsInReview} icon={<FileText className="w-5 h-5 text-amber-600" />} to="/requests" color="bg-amber-50 dark:bg-amber-950/50" />
-        <KpiCard title={t('dashboard.openRisks')} value={kpiData.openRisks} icon={<AlertTriangle className="w-5 h-5 text-orange-600" />} to="/risks" color="bg-orange-50 dark:bg-orange-950/50" />
-        <KpiCard title={t('dashboard.changesInReview')} value={kpiData.changesInReview} icon={<RefreshCw className="w-5 h-5 text-purple-600" />} to="/changes" color="bg-purple-50 dark:bg-purple-950/50" />
-        <KpiCard title={t('dashboard.totalBudget')} value={formatMXN(kpiData.totalBudget)} icon={<DollarSign className="w-5 h-5 text-emerald-600" />} to="/projects" color="bg-emerald-50 dark:bg-emerald-950/50" />
-        <KpiCard title={t('dashboard.avgProgress')} value={`${kpiData.avgProgress}%`} icon={<TrendingUp className="w-5 h-5 text-blue-600" />} to="/projects" color="bg-blue-50 dark:bg-blue-950/50" />
-        <KpiCard title={t('dashboard.severeRisks')} value={kpiData.severeRisks} icon={<ShieldAlert className="w-5 h-5 text-red-600" />} to="/risks" color="bg-red-50 dark:bg-red-950/50" />
-        <KpiCard title={t('dashboard.openAids')} value={kpiData.openAids} icon={<Bug className="w-5 h-5 text-indigo-600" />} to="/issues" color="bg-indigo-50 dark:bg-indigo-950/50" />
+        <KpiCard title={t('dashboard.activeProjects')} value={kpiData.activeProjects} icon={<FolderKanban className="w-5 h-5 text-indigo-500" />} to="/projects" color="bg-indigo-500/10" />
+        <KpiCard title={t('dashboard.requestsInReview')} value={kpiData.requestsInReview} icon={<FileText className="w-5 h-5 text-amber-500" />} to="/requests" color="bg-amber-500/10" />
+        <KpiCard title={t('dashboard.openRisks')} value={kpiData.openRisks} icon={<AlertTriangle className="w-5 h-5 text-orange-500" />} to="/risks" color="bg-orange-500/10" />
+        <KpiCard title={t('dashboard.changesInReview')} value={kpiData.changesInReview} icon={<RefreshCw className="w-5 h-5 text-violet-500" />} to="/changes" color="bg-violet-500/10" />
+        <KpiCard title={t('dashboard.totalBudget')} value={formatMXN(kpiData.totalBudget)} icon={<DollarSign className="w-5 h-5 text-emerald-500" />} to="/projects" color="bg-emerald-500/10" />
+        <KpiCard title={t('dashboard.avgProgress')} value={`${kpiData.avgProgress}%`} icon={<TrendingUp className="w-5 h-5 text-indigo-500" />} to="/projects" color="bg-indigo-500/10" />
+        <KpiCard title={t('dashboard.severeRisks')} value={kpiData.severeRisks} icon={<ShieldAlert className="w-5 h-5 text-red-500" />} to="/risks" color="bg-red-500/10" />
+        <KpiCard title={t('dashboard.openAids')} value={kpiData.openAids} icon={<Bug className="w-5 h-5 text-violet-500" />} to="/issues" color="bg-violet-500/10" />
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-surface rounded-2xl border border-border p-5">
-          <h3 className="text-[13px] font-semibold text-text-secondary mb-4">{t('dashboard.projectsByPhase')}</h3>
+        <div className="bg-surface rounded-2xl border border-border p-5 card-glow">
+          <h3 className="text-[12px] font-normal text-text-tertiary uppercase tracking-widest mb-4">{t('dashboard.projectsByPhase')}</h3>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
               <Pie data={computedProjectsByPhase} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, value }) => `${name}: ${value}`}>
                 {computedProjectsByPhase.map((entry, i) => <Cell key={i} fill={entry.color} />)}
               </Pie>
-              <Tooltip />
-              <Legend />
+              <Tooltip contentStyle={{ background: 'var(--color-surface-elevated)', border: '1px solid var(--color-border)', borderRadius: '12px', fontSize: '12px' }} />
+              <Legend wrapperStyle={{ fontSize: '12px' }} />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-surface rounded-2xl border border-border p-5">
-          <h3 className="text-[13px] font-semibold text-text-secondary mb-4">{t('dashboard.avgProgressByPhase')}</h3>
+        <div className="bg-surface rounded-2xl border border-border p-5 card-glow">
+          <h3 className="text-[12px] font-normal text-text-tertiary uppercase tracking-widest mb-4">{t('dashboard.avgProgressByPhase')}</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={computedAvgProgressByPhase}>
-              <XAxis dataKey="phase" tick={{ fontSize: 12 }} />
-              <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
-              <Tooltip formatter={(value) => `${value}%`} />
-              <Bar dataKey="progress" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+              <XAxis dataKey="phase" tick={{ fontSize: 11, fill: 'var(--color-text-tertiary)' }} />
+              <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: 'var(--color-text-tertiary)' }} />
+              <Tooltip formatter={(value) => `${value}%`} contentStyle={{ background: 'var(--color-surface-elevated)', border: '1px solid var(--color-border)', borderRadius: '12px', fontSize: '12px' }} />
+              <Bar dataKey="progress" fill="#6366f1" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-surface rounded-2xl border border-border p-5">
-          <h3 className="text-[13px] font-semibold text-text-secondary mb-4">{t('dashboard.budgetByType')}</h3>
+        <div className="bg-surface rounded-2xl border border-border p-5 card-glow">
+          <h3 className="text-[12px] font-normal text-text-tertiary uppercase tracking-widest mb-4">{t('dashboard.budgetByType')}</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={computedBudgetByType} layout="vertical">
-              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => formatMXN(v)} />
-              <YAxis type="category" dataKey="type" tick={{ fontSize: 12 }} width={110} />
-              <Tooltip formatter={(value) => formatMXN(value as number)} />
-              <Bar dataKey="budget" fill="#8b5cf6" radius={[0, 6, 6, 0]} />
+              <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} tickFormatter={(v: number) => formatMXN(v)} />
+              <YAxis type="category" dataKey="type" tick={{ fontSize: 11, fill: 'var(--color-text-tertiary)' }} width={110} />
+              <Tooltip formatter={(value) => formatMXN(value as number)} contentStyle={{ background: 'var(--color-surface-elevated)', border: '1px solid var(--color-border)', borderRadius: '12px', fontSize: '12px' }} />
+              <Bar dataKey="budget" fill="#8b5cf6" radius={[0, 8, 8, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-surface rounded-2xl border border-border p-5">
-          <h3 className="text-[13px] font-semibold text-text-secondary mb-4">{t('dashboard.portfolioHealth')}</h3>
+        <div className="bg-surface rounded-2xl border border-border p-5 card-glow">
+          <h3 className="text-[12px] font-normal text-text-tertiary uppercase tracking-widest mb-4">{t('dashboard.portfolioHealth')}</h3>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
               <Pie data={computedPortfolioHealth} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90} label={({ name, value }) => `${name}: ${value}`}>
                 {computedPortfolioHealth.map((entry, i) => <Cell key={i} fill={entry.color} />)}
               </Pie>
-              <Tooltip />
-              <Legend />
+              <Tooltip contentStyle={{ background: 'var(--color-surface-elevated)', border: '1px solid var(--color-border)', borderRadius: '12px', fontSize: '12px' }} />
+              <Legend wrapperStyle={{ fontSize: '12px' }} />
             </PieChart>
           </ResponsiveContainer>
         </div>
       </div>
 
       {/* Plan vs Real Matrix */}
-      <div className="bg-surface rounded-2xl border border-border p-5">
-        <h3 className="text-[13px] font-semibold text-text-secondary mb-4">{t('dashboard.planVsReal')}</h3>
+      <div className="bg-surface rounded-2xl border border-border p-5 card-glow">
+        <h3 className="text-[12px] font-normal text-text-tertiary uppercase tracking-widest mb-4">{t('dashboard.planVsReal')}</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-[13px]">
             <thead>
               <tr className="border-b border-border text-left">
-                <th className="pb-3 font-semibold text-text-tertiary text-[11px] uppercase tracking-wider">{t('dashboard.project')}</th>
-                <th className="pb-3 font-semibold text-text-tertiary text-[11px] uppercase tracking-wider text-right">{t('dashboard.planBudget')}</th>
-                <th className="pb-3 font-semibold text-text-tertiary text-[11px] uppercase tracking-wider text-center">{t('dashboard.plannedProgress')}</th>
-                <th className="pb-3 font-semibold text-text-tertiary text-[11px] uppercase tracking-wider w-40">{t('dashboard.progress')}</th>
-                <th className="pb-3 font-semibold text-text-tertiary text-[11px] uppercase tracking-wider text-center">{t('dashboard.health')}</th>
+                <th className="pb-3 font-normal text-text-tertiary text-[11px] uppercase tracking-widest">{t('dashboard.project')}</th>
+                <th className="pb-3 font-normal text-text-tertiary text-[11px] uppercase tracking-widest text-right">{t('dashboard.planBudget')}</th>
+                <th className="pb-3 font-normal text-text-tertiary text-[11px] uppercase tracking-widest text-center">{t('dashboard.plannedProgress')}</th>
+                <th className="pb-3 font-normal text-text-tertiary text-[11px] uppercase tracking-widest w-40">{t('dashboard.progress')}</th>
+                <th className="pb-3 font-normal text-text-tertiary text-[11px] uppercase tracking-widest text-center">{t('dashboard.health')}</th>
               </tr>
             </thead>
             <tbody>
@@ -208,18 +212,18 @@ export default function DashboardPage() {
                   className="border-b border-border-light hover:bg-surface-hover transition-colors"
                 >
                   <td className="py-3">
-                    <Link to={`/projects/${p.id}`} className="text-accent hover:opacity-80 font-medium">
+                    <Link to={`/projects/${p.id}`} className="text-accent hover:opacity-80 font-normal">
                       {p.name}
                     </Link>
                   </td>
-                  <td className="py-3 text-right text-text-secondary">{formatMXN(p.budget)}</td>
-                  <td className="py-3 text-center text-text-tertiary">{p.planned_progress}%</td>
+                  <td className="py-3 text-right text-text-secondary font-light">{formatMXN(p.budget)}</td>
+                  <td className="py-3 text-center text-text-tertiary font-light">{p.planned_progress}%</td>
                   <td className="py-3"><ProgressBar value={p.progress} planned={p.planned_progress} /></td>
                   <td className="py-3 text-center"><HealthBadge health={p.health as 'green' | 'yellow' | 'red'} /></td>
                 </tr>
               ))}
               {activeProjects.length === 0 && (
-                <tr><td colSpan={5} className="py-8 text-center text-text-tertiary">Sin proyectos activos</td></tr>
+                <tr><td colSpan={5} className="py-8 text-center text-text-tertiary font-light">Sin proyectos activos</td></tr>
               )}
             </tbody>
           </table>
