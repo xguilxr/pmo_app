@@ -11,6 +11,24 @@ Requirements:
 import os
 import sys
 import subprocess
+import glob
+
+
+def find_mpxj_jars():
+    """Locate mpxj JARs via pip show (works even without jpype1)."""
+    result = subprocess.run(
+        [sys.executable, "-m", "pip", "show", "mpxj"],
+        capture_output=True, text=True
+    )
+    for line in result.stdout.splitlines():
+        if line.startswith("Location:"):
+            loc = line.split(":", 1)[1].strip()
+            mpxj_dir = os.path.join(loc, "mpxj")
+            jars = glob.glob(os.path.join(mpxj_dir, "lib", "*.jar"))
+            if not jars:
+                jars = glob.glob(os.path.join(mpxj_dir, "*.jar"))
+            return mpxj_dir, jars
+    return None, []
 
 
 def main():
@@ -26,19 +44,17 @@ def main():
         sys.exit(1)
 
     # Verify JARs are present
-    try:
-        import mpxj as mpxj_mod
-        import glob
-        mpxj_dir = os.path.dirname(mpxj_mod.__file__)
-        jars = glob.glob(os.path.join(mpxj_dir, "lib", "*.jar"))
-        if not jars:
-            jars = glob.glob(os.path.join(mpxj_dir, "*.jar"))
+    mpxj_dir, jars = find_mpxj_jars()
+    if jars:
         print(f"Found {len(jars)} JAR files in {mpxj_dir}")
-        if jars:
-            for j in sorted(jars):
-                print(f"  - {os.path.basename(j)}")
-    except ImportError:
-        print("Warning: mpxj package not found after install")
+        for j in sorted(jars)[:5]:
+            print(f"  - {os.path.basename(j)}")
+        if len(jars) > 5:
+            print(f"  ... and {len(jars) - 5} more")
+    else:
+        print("WARNING: mpxj package installed but no JARs found!")
+        print("Try: pip install mpxj --no-deps")
+        sys.exit(1)
 
     # Step 2: Compile Java helper
     utils_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app", "utils")
@@ -47,32 +63,17 @@ def main():
     if not os.path.exists(java_file):
         print(f"Warning: {java_file} not found")
     else:
-        # Build classpath from all JARs
-        classpath = ""
-        try:
-            import mpxj as mpxj_mod
-            import glob
-            mpxj_dir = os.path.dirname(mpxj_mod.__file__)
-            jar_list = glob.glob(os.path.join(mpxj_dir, "lib", "*.jar"))
-            if not jar_list:
-                jar_list = glob.glob(os.path.join(mpxj_dir, "*.jar"))
-            classpath = os.pathsep.join(jar_list)
-        except ImportError:
-            pass
-
-        if classpath:
-            print("\nCompiling MppToJson.java...")
-            result = subprocess.run(
-                ["javac", "-cp", classpath, java_file],
-                capture_output=True, text=True
-            )
-            if result.returncode == 0:
-                print("MppToJson.java compiled successfully!")
-            else:
-                print(f"Warning: Could not compile MppToJson.java: {result.stderr}")
-                print("It will be compiled automatically on first .mpp import.")
+        classpath = os.pathsep.join(jars)
+        print("\nCompiling MppToJson.java...")
+        result = subprocess.run(
+            ["javac", "-cp", classpath, java_file],
+            capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            print("MppToJson.java compiled successfully!")
         else:
-            print("Warning: No JARs found for compilation classpath")
+            print(f"Warning: Could not compile MppToJson.java: {result.stderr}")
+            print("It will be compiled automatically on first .mpp import.")
 
     # Step 3: Verify Java
     print("\nChecking Java...")
