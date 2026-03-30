@@ -22,6 +22,8 @@ import AdminPermissionsPage from './pages/admin/AdminPermissionsPage';
 import AdminProjectTypesPage from './pages/admin/AdminProjectTypesPage';
 import AdminVariablesPage from './pages/admin/AdminVariablesPage';
 import AdminLogsPage from './pages/admin/AdminLogsPage';
+import AdminProjectsPage from './pages/admin/AdminProjectsPage';
+import AdminProgramsPage from './pages/admin/AdminProgramsPage';
 import './i18n';
 
 export default function App() {
@@ -52,7 +54,8 @@ export default function App() {
           <Route path="/admin/project-types" element={<AdminProjectTypesPage />} />
           <Route path="/admin/variables" element={<AdminVariablesPage />} />
           <Route path="/admin/logs" element={<AdminLogsPage />} />
-          <Route path="/admin/projects" element={<ProjectsPage />} />
+          <Route path="/admin/projects" element={<AdminProjectsPage />} />
+          <Route path="/admin/programs" element={<AdminProgramsPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

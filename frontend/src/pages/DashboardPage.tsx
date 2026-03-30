@@ -45,11 +45,11 @@ function formatMXN(value: number) {
 }
 
 const PHASE_COLORS: Record<string, string> = {
-  'Planificacion': '#6366f1',
-  'Planificación': '#6366f1',
+  'Planificacion': '#2563eb',
+  'Planificación': '#2563eb',
   'Ejecucion': '#f59e0b',
   'Ejecución': '#f59e0b',
-  'Soporte': '#8b5cf6',
+  'Soporte': '#1d4ed8',
   'Cerrado': '#6b7280',
 };
 
@@ -59,7 +59,7 @@ const HEALTH_COLORS: Record<string, { name: string; color: string }> = {
   red: { name: 'Critico', color: '#ef4444' },
 };
 
-const CHART_COLORS = ['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe'];
+const CHART_COLORS = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd'];
 
 export default function DashboardPage() {
   const { t } = useTranslation();

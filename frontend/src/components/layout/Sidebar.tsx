@@ -20,6 +20,7 @@ import {
   ChevronRight,
   LogOut,
   Sliders,
+  Layers,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -115,7 +116,10 @@ export default function Sidebar() {
         {adminOpen && (
           <div className="space-y-0.5 animate-fade-in">
             <NavLink to="/admin/organizations" className={subLinkClass}><Building2 className="w-3.5 h-3.5" />{t('nav.organizations')}</NavLink>
+            <NavLink to="/admin/programs" className={subLinkClass}><Layers className="w-3.5 h-3.5" />Programas</NavLink>
+            <NavLink to="/admin/projects" className={subLinkClass}><FolderKanban className="w-3.5 h-3.5" />{t('nav.projects')}</NavLink>
             <NavLink to="/admin/users" className={subLinkClass}><Users className="w-3.5 h-3.5" />{t('nav.users')}</NavLink>
+            <NavLink to="/admin/roles" className={subLinkClass}><Shield className="w-3.5 h-3.5" />Roles</NavLink>
             <NavLink to="/admin/permissions" className={subLinkClass}><Shield className="w-3.5 h-3.5" />{t('nav.permissions')}</NavLink>
             <NavLink to="/admin/project-types" className={subLinkClass}><FolderKanban className="w-3.5 h-3.5" />{t('nav.projectTypes')}</NavLink>
             <NavLink to="/admin/variables" className={subLinkClass}><Sliders className="w-3.5 h-3.5" />{t('nav.variables')}</NavLink>
