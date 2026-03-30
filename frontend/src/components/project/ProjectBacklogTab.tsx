@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, X, Download, Edit2, Trash2 } from 'lucide-react';
+import { Plus, X, Download, Edit2, Trash2, FileSpreadsheet } from 'lucide-react';
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
@@ -66,6 +66,15 @@ export default function ProjectBacklogTab({ projectId }: { projectId: number }) 
       .catch(() => toastError('Error al exportar'));
   };
 
+  const handleDownloadXlsx = () => {
+    const token = localStorage.getItem('pmo_token');
+    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8080/api'}/exports/project-xlsx?project_id=${projectId}`;
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.blob())
+      .then(blob => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `proyecto_backlog_raid_${projectId}.xlsx`; a.click(); })
+      .catch(() => toastError('Error al descargar'));
+  };
+
   if (loading) return <LoadingSpinner />;
 
   const inputCls = "w-full border border-border bg-surface rounded-xl px-3.5 py-2.5 text-[13px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all";
@@ -82,6 +91,7 @@ export default function ProjectBacklogTab({ projectId }: { projectId: number }) 
           ))}
         </div>
         <div className="flex gap-2">
+          <button onClick={handleDownloadXlsx} className="inline-flex items-center gap-2 px-3 py-2 border border-border rounded-xl text-[12px] font-medium text-text-secondary hover:bg-surface-hover transition-all"><FileSpreadsheet className="w-3.5 h-3.5" /> XLSX</button>
           <button onClick={handleExport} className="inline-flex items-center gap-2 px-3 py-2 border border-border rounded-xl text-[12px] font-medium text-text-secondary hover:bg-surface-hover transition-all"><Download className="w-3.5 h-3.5" /> CSV</button>
           <button onClick={openCreate} className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl text-[12px] font-semibold hover:bg-accent-hover shadow-sm shadow-accent/25"><Plus className="w-3.5 h-3.5" /> Nuevo</button>
         </div>

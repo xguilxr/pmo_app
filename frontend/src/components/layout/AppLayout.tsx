@@ -33,7 +33,7 @@ export default function AppLayout() {
   }
 
   return (
-    <div className="flex min-h-screen bg-surface-secondary">
+    <div className="flex min-h-screen bg-surface-secondary bg-mesh">
       <Sidebar />
       <div className="flex-1 ml-[260px]">
         <TopBar />

@@ -12,12 +12,12 @@ export default function Breadcrumb({ items }: BreadcrumbProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="flex items-center gap-2 text-[13px]">
+    <div className="flex items-center gap-2 text-[12px]">
       <button
         onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-1.5 text-text-tertiary hover:text-accent transition-colors font-medium"
+        className="inline-flex items-center gap-1.5 text-text-tertiary hover:text-accent transition-colors font-light"
       >
-        <ArrowLeft className="w-4 h-4" />
+        <ArrowLeft className="w-3.5 h-3.5" />
         {t('common.back')}
       </button>
       <span className="text-border mx-1">|</span>
@@ -25,13 +25,13 @@ export default function Breadcrumb({ items }: BreadcrumbProps) {
         const isLast = index === items.length - 1;
         return (
           <span key={index} className="flex items-center gap-2">
-            {index > 0 && <span className="text-text-tertiary">/</span>}
+            {index > 0 && <span className="text-text-tertiary/40">/</span>}
             {isLast || !item.href ? (
-              <span className="font-semibold text-text-primary">{item.label}</span>
+              <span className="font-normal text-text-primary">{item.label}</span>
             ) : (
               <NavLink
                 to={item.href}
-                className="text-text-tertiary hover:text-accent transition-colors"
+                className="text-text-tertiary hover:text-accent transition-colors font-light"
               >
                 {item.label}
               </NavLink>

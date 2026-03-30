@@ -32,7 +32,7 @@ export default function LoginPage() {
       await login(userOrEmail, password);
       navigate('/');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error de autenticación';
+      const msg = err instanceof Error ? err.message : 'Error de autenticacion';
       setError(msg);
     } finally {
       setLoading(false);
@@ -44,62 +44,66 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-secondary flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#0c0e1c]">
       {/* Background gradient orbs */}
-      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-accent/5 blur-3xl" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-accent/5 blur-3xl" />
+      <div className="absolute top-[-30%] left-[-15%] w-[700px] h-[700px] rounded-full bg-gradient-to-br from-indigo-600/15 to-transparent blur-3xl" />
+      <div className="absolute bottom-[-30%] right-[-15%] w-[700px] h-[700px] rounded-full bg-gradient-to-tl from-violet-600/10 to-transparent blur-3xl" />
+      <div className="absolute top-[40%] left-[50%] w-[400px] h-[400px] rounded-full bg-indigo-500/5 blur-3xl" />
+
+      {/* Grid pattern overlay */}
+      <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
 
       {/* Top controls */}
-      <div className="absolute top-4 right-4 flex items-center gap-2">
+      <div className="absolute top-5 right-5 flex items-center gap-2">
         <button
           onClick={toggleTheme}
-          className="flex items-center justify-center w-9 h-9 rounded-xl text-text-tertiary hover:bg-surface-hover transition-all"
+          className="flex items-center justify-center w-9 h-9 rounded-xl text-white/30 hover:text-white/60 hover:bg-white/5 transition-all"
         >
           {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
         <button
           onClick={toggleLang}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[13px] text-text-tertiary hover:bg-surface-hover transition-all"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] text-white/30 hover:text-white/60 hover:bg-white/5 transition-all font-light"
         >
           <Globe className="w-4 h-4" />
-          {i18n.language === 'es' ? 'English' : 'Español'}
+          {i18n.language === 'es' ? 'English' : 'Espanol'}
         </button>
       </div>
 
       <div className="w-full max-w-[400px] relative z-10">
-        {/* Logo section */}
+        {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent shadow-lg shadow-accent/25 mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl btn-gradient mb-5">
             <FolderKanban className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-text-primary tracking-tight">PMO Platform</h1>
-          <p className="text-text-tertiary text-[13px] mt-1">{t('login.title')}</p>
+          <h1 className="text-2xl font-medium text-white tracking-tight">PMO Platform</h1>
+          <p className="text-white/30 text-[13px] mt-1.5 font-light">{t('login.title')}</p>
         </div>
 
-        {/* Login form */}
-        <form onSubmit={handleLogin} className="bg-surface rounded-2xl border border-border shadow-xl shadow-black/5 dark:shadow-black/20 p-8 space-y-5">
+        {/* Login card */}
+        <form onSubmit={handleLogin} className="rounded-2xl border border-white/[0.06] bg-white/[0.04] backdrop-blur-xl p-8 space-y-5 shadow-2xl shadow-black/20">
           {error && (
-            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-[13px] rounded-xl px-4 py-3 font-medium">
+            <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-[13px] rounded-xl px-4 py-3 font-light">
               {error}
             </div>
           )}
 
           <div>
-            <label className="block text-[12px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-normal text-white/40 uppercase tracking-widest mb-2">
               {t('login.userOrEmail')}
             </label>
             <input
               type="text"
               value={userOrEmail}
               onChange={(e) => { setUserOrEmail(e.target.value); setError(''); }}
-              className="w-full border border-border bg-surface rounded-xl px-4 py-2.5 text-[13px] text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+              className="w-full border border-white/[0.08] bg-white/[0.04] rounded-xl px-4 py-3 text-[13px] text-white/90 placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/40 transition-all font-light"
               placeholder="usuario@empresa.com"
               autoFocus
             />
           </div>
 
           <div>
-            <label className="block text-[12px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-normal text-white/40 uppercase tracking-widest mb-2">
               {t('login.password')}
             </label>
             <div className="relative">
@@ -107,13 +111,13 @@ export default function LoginPage() {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                className="w-full border border-border bg-surface rounded-xl px-4 py-2.5 pr-10 text-[13px] text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+                className="w-full border border-white/[0.08] bg-white/[0.04] rounded-xl px-4 py-3 pr-10 text-[13px] text-white/90 placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/40 transition-all font-light"
                 placeholder="••••••••"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-2.5 text-text-tertiary hover:text-text-secondary transition-colors"
+                className="absolute right-3 top-3 text-white/20 hover:text-white/50 transition-colors"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -123,13 +127,13 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-accent text-white rounded-xl py-2.5 text-[13px] font-semibold hover:bg-accent-hover transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:ring-offset-2 focus:ring-offset-surface disabled:opacity-50 shadow-sm shadow-accent/25"
+            className="w-full btn-gradient text-white rounded-xl py-3 text-[13px] font-normal tracking-wide disabled:opacity-50 transition-all"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : t('login.login')}
           </button>
 
           <div className="text-center">
-            <button type="button" className="text-[13px] text-accent hover:opacity-80 transition-colors font-medium">
+            <button type="button" className="text-[12px] text-white/30 hover:text-accent transition-colors font-light">
               {t('login.forgotPassword')}
             </button>
           </div>
