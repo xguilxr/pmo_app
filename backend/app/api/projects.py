@@ -7,9 +7,24 @@ from app.database import get_db
 from app.models.user import User
 from app.models.project import Project
 from app.models.organization import Organization
+from app.models.program import Program
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse, ProjectListResponse
 from app.auth.security import get_current_user
 from app.services.folio import generate_folio
+
+
+def _project_to_response(p: Project) -> ProjectResponse:
+    """Build ProjectResponse with organization/program names resolved."""
+    return ProjectResponse(
+        id=p.id, folio=p.folio, name=p.name, description=p.description,
+        type=p.type, priority=p.priority, phase=p.phase, status=p.status,
+        health=p.health, start_date=p.start_date, end_date=p.end_date,
+        budget=p.budget, real_budget=p.real_budget, progress=p.progress,
+        planned_progress=p.planned_progress, organization_id=p.organization_id,
+        program_id=p.program_id, created_at=p.created_at,
+        organization_name=p.organization.name if p.organization else None,
+        program_name=p.program.name if p.program else None,
+    )
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
@@ -56,6 +71,7 @@ def list_projects(
             company=p.organization.name, phase=p.phase, progress=p.progress,
             planned_progress=p.planned_progress, budget=p.budget, health=p.health,
             start_date=p.start_date, end_date=p.end_date, program_id=p.program_id,
+            program_name=p.program.name if p.program else None,
         )
         for p in projects
     ]
@@ -87,7 +103,7 @@ def create_project(data: ProjectCreate, db: Session = Depends(get_db), current_u
         db.rollback()
         raise HTTPException(status_code=400, detail="Error de integridad al crear el proyecto")
     db.refresh(project)
-    return project
+    return _project_to_response(project)
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)
@@ -95,7 +111,7 @@ def get_project(project_id: int, db: Session = Depends(get_db), current_user: Us
     project = db.query(Project).filter(Project.id == project_id, Project.deleted_at.is_(None)).first()
     if not project:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-    return project
+    return _project_to_response(project)
 
 
 @router.patch("/{project_id}", response_model=ProjectResponse)
@@ -109,7 +125,7 @@ def update_project(project_id: int, data: ProjectUpdate, db: Session = Depends(g
 
     db.commit()
     db.refresh(project)
-    return project
+    return _project_to_response(project)
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -12,6 +12,7 @@ interface Project {
   type: string;
   priority: string;
   company: string;
+  programName: string;
   phase: string;
   progress: number;
   plannedProgress: number;
@@ -198,8 +199,12 @@ export default function ProjectInfoTab({ project }: { project: Project }) {
               <dd className="font-medium text-text-primary">{project.phase}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-text-secondary">{t('projects.company')}</dt>
-              <dd className="font-medium text-text-primary">{project.company}</dd>
+              <dt className="text-text-secondary">Organización</dt>
+              <dd className="font-medium text-text-primary">{project.company || '-'}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-text-secondary">Programa</dt>
+              <dd className="font-medium text-text-primary">{project.programName || '-'}</dd>
             </div>
           </dl>
         </div>

@@ -217,7 +217,7 @@ export default function OrganizationDetailPage() {
             </thead>
             <tbody>
               {projects.map(p => (
-                <tr key={p.id} onClick={() => navigate(`/projects/${p.id}`)} className="border-b border-border-light hover:bg-surface-hover transition-colors cursor-pointer">
+                <tr key={p.id} onClick={() => navigate(`/projects/${p.id}`, { state: { fromOrg: org.name, fromOrgId: org.id } })} className="border-b border-border-light hover:bg-surface-hover transition-colors cursor-pointer">
                   <td className="px-4 py-3 text-text-tertiary font-mono text-[11px]">{p.folio}</td>
                   <td className="px-4 py-3 text-accent font-medium">{p.name}</td>
                   <td className="px-4 py-3"><PhaseBadge phase={p.phase} /></td>

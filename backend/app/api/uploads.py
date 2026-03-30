@@ -17,7 +17,7 @@ UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file
 ALLOWED_EXTENSIONS = {
     '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
     '.txt', '.csv', '.png', '.jpg', '.jpeg', '.gif', '.svg',
-    '.zip', '.rar', '.7z',
+    '.zip', '.rar', '.7z', '.mpp', '.mpx',
 }
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 
