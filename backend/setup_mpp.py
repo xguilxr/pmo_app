@@ -24,10 +24,14 @@ def find_mpxj_jars():
         if line.startswith("Location:"):
             loc = line.split(":", 1)[1].strip()
             mpxj_dir = os.path.join(loc, "mpxj")
-            jars = glob.glob(os.path.join(mpxj_dir, "lib", "*.jar"))
-            if not jars:
-                jars = glob.glob(os.path.join(mpxj_dir, "*.jar"))
-            return mpxj_dir, jars
+            lib_dir = os.path.join(mpxj_dir, "lib")
+            if os.path.isdir(lib_dir):
+                jars = glob.glob(os.path.join(lib_dir, "*.jar"))
+                if jars:
+                    return lib_dir, jars
+            jars = glob.glob(os.path.join(mpxj_dir, "*.jar"))
+            if jars:
+                return mpxj_dir, jars
     return None, []
 
 
@@ -63,7 +67,8 @@ def main():
     if not os.path.exists(java_file):
         print(f"Warning: {java_file} not found")
     else:
-        classpath = os.pathsep.join(jars)
+        # Use wildcard classpath (dir/*) - avoids Windows command line length limits
+        classpath = os.path.join(mpxj_dir, "*")
         print("\nCompiling MppToJson.java...")
         result = subprocess.run(
             ["javac", "-cp", classpath, java_file],
