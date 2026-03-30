@@ -67,12 +67,13 @@ def main():
     if not os.path.exists(java_file):
         print(f"Warning: {java_file} not found")
     else:
-        # Use wildcard classpath (dir/*) - avoids Windows command line length limits
-        classpath = os.path.join(mpxj_dir, "*")
-        print("\nCompiling MppToJson.java...")
+        # javac does NOT support wildcard classpath - must list JARs explicitly
+        classpath = os.pathsep.join(jars)
+        print(f"\nCompiling MppToJson.java (classpath: {len(jars)} JARs)...")
         result = subprocess.run(
             ["javac", "-cp", classpath, java_file],
-            capture_output=True, text=True
+            capture_output=True, text=True,
+            shell=False
         )
         if result.returncode == 0:
             print("MppToJson.java compiled successfully!")
