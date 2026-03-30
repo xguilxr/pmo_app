@@ -44,11 +44,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#0c0e1c]">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#132a4a]">
       {/* Background gradient orbs */}
-      <div className="absolute top-[-30%] left-[-15%] w-[700px] h-[700px] rounded-full bg-gradient-to-br from-indigo-600/15 to-transparent blur-3xl" />
-      <div className="absolute bottom-[-30%] right-[-15%] w-[700px] h-[700px] rounded-full bg-gradient-to-tl from-violet-600/10 to-transparent blur-3xl" />
-      <div className="absolute top-[40%] left-[50%] w-[400px] h-[400px] rounded-full bg-indigo-500/5 blur-3xl" />
+      <div className="absolute top-[-30%] left-[-15%] w-[700px] h-[700px] rounded-full bg-gradient-to-br from-blue-500/15 to-transparent blur-3xl" />
+      <div className="absolute bottom-[-30%] right-[-15%] w-[700px] h-[700px] rounded-full bg-gradient-to-tl from-blue-600/10 to-transparent blur-3xl" />
+      <div className="absolute top-[40%] left-[50%] w-[400px] h-[400px] rounded-full bg-blue-400/5 blur-3xl" />
 
       {/* Grid pattern overlay */}
       <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
