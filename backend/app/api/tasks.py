@@ -370,7 +370,7 @@ def _parse_csv(content: bytes) -> list[dict]:
 
 
 def _find_mpxj_jars() -> str:
-    """Find mpxj JAR files - check pip package or local lib directory."""
+    """Find mpxj JAR directory and return wildcard classpath (e.g. '/path/lib/*')."""
     import glob
     import subprocess as _sp
 
@@ -382,34 +382,20 @@ def _find_mpxj_jars() -> str:
         for line in result.stdout.splitlines():
             if line.startswith("Location:"):
                 loc = line.split(":", 1)[1].strip()
+                lib_dir = os.path.join(loc, "mpxj", "lib")
+                if os.path.isdir(lib_dir) and glob.glob(os.path.join(lib_dir, "*.jar")):
+                    return os.path.join(lib_dir, "*")
                 mpxj_dir = os.path.join(loc, "mpxj")
-                jars = glob.glob(os.path.join(mpxj_dir, "lib", "*.jar"))
-                if not jars:
-                    jars = glob.glob(os.path.join(mpxj_dir, "*.jar"))
-                if jars:
-                    return os.pathsep.join(jars)
+                if os.path.isdir(mpxj_dir) and glob.glob(os.path.join(mpxj_dir, "*.jar")):
+                    return os.path.join(mpxj_dir, "*")
     except Exception:
         pass
 
-    # Option 2: try direct import (works if jpype1 is installed)
-    try:
-        import mpxj as mpxj_mod
-        mpxj_dir = os.path.dirname(mpxj_mod.__file__)
-        jars = glob.glob(os.path.join(mpxj_dir, "lib", "*.jar"))
-        if not jars:
-            jars = glob.glob(os.path.join(mpxj_dir, "*.jar"))
-        if jars:
-            return os.pathsep.join(jars)
-    except ImportError:
-        pass
-
-    # Option 3: local lib/ directory next to backend
+    # Option 2: local lib/ directory next to backend
     backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     lib_dir = os.path.join(backend_dir, "lib")
-    if os.path.isdir(lib_dir):
-        jars = glob.glob(os.path.join(lib_dir, "*.jar"))
-        if jars:
-            return os.pathsep.join(jars)
+    if os.path.isdir(lib_dir) and glob.glob(os.path.join(lib_dir, "*.jar")):
+        return os.path.join(lib_dir, "*")
 
     return ""
 
