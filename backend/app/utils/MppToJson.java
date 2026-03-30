@@ -1,5 +1,6 @@
 import java.io.*;
-import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import net.sf.mpxj.*;
 import net.sf.mpxj.reader.*;
@@ -16,7 +17,7 @@ public class MppToJson {
         }
 
         ProjectFile project = new UniversalProjectReader().read(args[0]);
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
         StringBuilder sb = new StringBuilder();
         sb.append("[");
@@ -37,10 +38,10 @@ public class MppToJson {
             sb.append(",\"wbs\":").append(jsonStr(wbs));
 
             // Dates
-            Date start = task.getStart();
-            Date finish = task.getFinish();
-            sb.append(",\"start_date\":").append(start != null ? jsonStr(sdf.format(start)) : "null");
-            sb.append(",\"end_date\":").append(finish != null ? jsonStr(sdf.format(finish)) : "null");
+            LocalDateTime start = task.getStart();
+            LocalDateTime finish = task.getFinish();
+            sb.append(",\"start_date\":").append(start != null ? jsonStr(dtf.format(start)) : "null");
+            sb.append(",\"end_date\":").append(finish != null ? jsonStr(dtf.format(finish)) : "null");
 
             // Duration
             Duration dur = task.getDuration();
@@ -56,7 +57,7 @@ public class MppToJson {
             sb.append(",\"progress\":").append(pct != null ? pct.doubleValue() : 0);
 
             // Milestone
-            sb.append(",\"is_milestone\":").append(task.getMilestone() != null && task.getMilestone());
+            sb.append(",\"is_milestone\":").append(task.getMilestone());
 
             // Outline level
             Integer ol = task.getOutlineLevel();
