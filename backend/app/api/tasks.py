@@ -482,12 +482,29 @@ def _parse_mpp(content: bytes, filename: str) -> list[dict]:
 
         if result.returncode != 0:
             err_msg = result.stderr.strip()[:500] if result.stderr else "Error desconocido"
+            stdout_msg = result.stdout.strip()[:200] if result.stdout else ""
             raise HTTPException(
                 status_code=400,
                 detail=f"Error al leer archivo MS Project: {err_msg}"
+                       + (f" | stdout: {stdout_msg}" if stdout_msg else "")
             )
 
-        raw_tasks = json.loads(result.stdout)
+        # mpxj may write log/warning messages to stdout before the JSON array.
+        # Extract just the JSON array portion.
+        stdout = result.stdout
+        json_start = stdout.find("[")
+        json_end = stdout.rfind("]")
+        if json_start == -1 or json_end == -1 or json_end <= json_start:
+            # No JSON array found — show what we got for debugging
+            preview = stdout[:300] if stdout else "(empty)"
+            stderr_preview = result.stderr[:300] if result.stderr else ""
+            raise HTTPException(
+                status_code=400,
+                detail=f"El archivo MS Project no produjo datos válidos. stdout: {preview}"
+                       + (f" | stderr: {stderr_preview}" if stderr_preview else "")
+            )
+
+        raw_tasks = json.loads(stdout[json_start:json_end + 1])
 
         tasks = []
         for t in raw_tasks:
@@ -508,10 +525,11 @@ def _parse_mpp(content: bytes, filename: str) -> list[dict]:
 
         return tasks
 
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
+        preview = result.stdout[:300] if result.stdout else "(empty)"
         raise HTTPException(
             status_code=400,
-            detail="Error al procesar la salida del archivo MS Project"
+            detail=f"Error al procesar JSON del archivo MS Project: {exc}. stdout: {preview}"
         )
     finally:
         try:
