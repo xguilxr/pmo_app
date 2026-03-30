@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  Info, Users, AlertTriangle, Bug, RefreshCw,
+  Info, Users, Shield, RefreshCw,
   Files, Lightbulb, ClipboardList, DollarSign,
   Calendar, Building2, TrendingUp, ListTree, ListChecks, BarChart3
 } from 'lucide-react';
@@ -15,8 +15,7 @@ import ProjectInfoTab from '../components/project/ProjectInfoTab';
 import ProjectCharterTab from '../components/project/ProjectCharterTab';
 import ProjectBacklogTab from '../components/project/ProjectBacklogTab';
 import ProjectAreasTab from '../components/project/ProjectAreasTab';
-import ProjectRisksTab from '../components/project/ProjectRisksTab';
-import ProjectIssuesTab from '../components/project/ProjectIssuesTab';
+import ProjectRaidTab from '../components/project/ProjectRaidTab';
 import ProjectChangesTab from '../components/project/ProjectChangesTab';
 import ProjectDocumentsTab from '../components/project/ProjectDocumentsTab';
 import ProjectLessonsTab from '../components/project/ProjectLessonsTab';
@@ -48,8 +47,7 @@ const tabs = [
   { id: 'charter', icon: ListTree, labelKey: 'projectDetail.charter' },
   { id: 'backlog', icon: ListChecks, labelKey: 'projectDetail.backlog' },
   { id: 'areas', icon: Users, labelKey: 'projectDetail.areas' },
-  { id: 'risks', icon: AlertTriangle, labelKey: 'nav.risks' },
-  { id: 'issues', icon: Bug, labelKey: 'nav.issues' },
+  { id: 'raid', icon: Shield, label: 'RAID' },
   { id: 'changes', icon: RefreshCw, labelKey: 'nav.changes' },
   { id: 'documents', icon: Files, labelKey: 'nav.documents' },
   { id: 'lessons', icon: Lightbulb, labelKey: 'nav.lessons' },
@@ -110,8 +108,7 @@ export default function ProjectDetailPage() {
       case 'charter': return <ProjectCharterTab projectId={project.id} />;
       case 'backlog': return <ProjectBacklogTab projectId={project.id} />;
       case 'areas': return <ProjectAreasTab projectId={project.id} />;
-      case 'risks': return <ProjectRisksTab projectId={project.id} />;
-      case 'issues': return <ProjectIssuesTab projectId={project.id} />;
+      case 'raid': return <ProjectRaidTab projectId={project.id} />;
       case 'changes': return <ProjectChangesTab projectId={project.id} />;
       case 'documents': return <ProjectDocumentsTab projectId={project.id} />;
       case 'lessons': return <ProjectLessonsTab projectId={project.id} />;
@@ -188,7 +185,7 @@ export default function ProjectDetailPage() {
                 }`}
               >
                 <Icon className="w-4 h-4" />
-                {t(tab.labelKey)}
+                {'label' in tab ? tab.label : t(tab.labelKey)}
               </button>
             );
           })}
