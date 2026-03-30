@@ -7,6 +7,7 @@ from app.models.modules import Issue
 from app.schemas.issue import IssueCreate, IssueUpdate, IssueResponse
 from app.auth.security import get_current_user
 from app.services.folio import generate_folio
+from app.services import notifications as notif_svc
 
 router = APIRouter(prefix="/issues", tags=["Issues"])
 
@@ -52,6 +53,8 @@ def create_issue(
     db.add(issue)
     db.commit()
     db.refresh(issue)
+    notif_svc.on_issue_created(db, issue, project_id, current_user.id)
+    db.commit()
     return issue
 
 

@@ -14,6 +14,7 @@ from app.models.task import Task
 from app.models.modules import Document
 from app.auth.security import get_current_user
 from app.services.folio import generate_folio
+from app.services import notifications as notif_svc
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
@@ -160,10 +161,16 @@ def update_task(
     task = db.query(Task).filter(Task.id == task_id, Task.deleted_at.is_(None)).first()
     if not task:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
-    for field, value in data.model_dump(exclude_unset=True).items():
+    old_responsible = task.responsible_id
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
         setattr(task, field, value)
     db.commit()
     db.refresh(task)
+    # Notify if responsible changed
+    if "responsible_id" in update_data and task.responsible_id and task.responsible_id != old_responsible:
+        notif_svc.on_task_assigned(db, task, task.responsible_id, task.project_id, current_user.id)
+        db.commit()
     return task
 
 

@@ -7,6 +7,7 @@ from app.models.modules import Document
 from app.schemas.document import DocumentCreate, DocumentUpdate, DocumentResponse
 from app.auth.security import get_current_user
 from app.services.folio import generate_folio
+from app.services import notifications as notif_svc
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
@@ -49,6 +50,8 @@ def create_document(
     db.add(doc)
     db.commit()
     db.refresh(doc)
+    notif_svc.on_document_uploaded(db, doc, project_id, current_user.id)
+    db.commit()
     return doc
 
 
