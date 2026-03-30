@@ -11,7 +11,9 @@ from pydantic import BaseModel
 from app.database import get_db
 from app.models.user import User
 from app.models.task import Task
+from app.models.modules import Document
 from app.auth.security import get_current_user
+from app.services.folio import generate_folio
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
@@ -220,6 +222,7 @@ async def import_tasks_from_file(
     Avance/Progress/%, Hito/Milestone, Nivel/Level/Outline, Responsable/Resource
     """
     filename = (file.filename or "").lower()
+    original_filename = file.filename or "imported_file"
     content = await file.read()
 
     if filename.endswith(".mpp") or filename.endswith(".mpx") or filename.endswith(".xml") and b"<Project" in content[:500]:
@@ -233,6 +236,15 @@ async def import_tasks_from_file(
 
     if not rows:
         raise HTTPException(status_code=400, detail="No se encontraron tareas en el archivo")
+
+    # Save the imported file as a project document
+    _save_import_as_document(
+        content=content,
+        original_filename=original_filename,
+        project_id=project_id,
+        user_id=current_user.id,
+        db=db,
+    )
 
     created = []
     for row in rows:
@@ -257,6 +269,48 @@ async def import_tasks_from_file(
     for t in created:
         db.refresh(t)
     return created
+
+
+def _save_import_as_document(
+    content: bytes,
+    original_filename: str,
+    project_id: int,
+    user_id: int,
+    db,
+) -> None:
+    """Save an imported file (mpp/xlsx/csv) as a project document."""
+    import uuid
+    from datetime import datetime, timezone
+
+    upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "uploads")
+    date_dir = datetime.now(timezone.utc).strftime("%Y/%m")
+    full_dir = os.path.join(upload_dir, date_dir)
+    os.makedirs(full_dir, exist_ok=True)
+
+    ext = os.path.splitext(original_filename)[1] or ""
+    unique_name = f"{uuid.uuid4().hex}{ext.lower()}"
+    file_path = os.path.join(full_dir, unique_name)
+
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    relative_path = f"{date_dir}/{unique_name}"
+    folio = generate_folio(db, "DOC")
+
+    doc = Document(
+        folio=folio,
+        name=original_filename,
+        description=f"Archivo importado: {original_filename}",
+        category="artefacto",
+        file_path=relative_path,
+        file_type=ext.lstrip(".").lower(),
+        file_size=len(content),
+        project_id=project_id,
+        uploaded_by_id=user_id,
+        created_by_id=user_id,
+    )
+    db.add(doc)
+    db.commit()
 
 
 def _normalize_header(h: str) -> str:

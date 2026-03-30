@@ -28,6 +28,8 @@ class ProjectUpdate(BaseModel):
     real_budget: float | None = None
     progress: float | None = None
     planned_progress: float | None = None
+    organization_id: int | None = None
+    program_id: int | None = None
 
 
 class ProjectResponse(BaseModel):
@@ -48,6 +50,8 @@ class ProjectResponse(BaseModel):
     planned_progress: float
     organization_id: int
     program_id: int | None
+    organization_name: str | None = None
+    program_name: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -68,6 +72,7 @@ class ProjectListResponse(BaseModel):
     start_date: date | None = None
     end_date: date | None = None
     program_id: int | None = None
+    program_name: str | None = None
 
 
 class DashboardKPIs(BaseModel):
