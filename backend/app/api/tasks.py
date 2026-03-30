@@ -372,12 +372,29 @@ def _parse_csv(content: bytes) -> list[dict]:
 def _find_mpxj_jars() -> str:
     """Find mpxj JAR files - check pip package or local lib directory."""
     import glob
+    import subprocess as _sp
 
-    # Option 1: mpxj pip package (installed with --no-deps)
+    # Option 1: locate mpxj pip package via 'pip show' (works even without jpype1)
+    try:
+        result = _sp.run(
+            ["pip", "show", "mpxj"], capture_output=True, text=True, timeout=10
+        )
+        for line in result.stdout.splitlines():
+            if line.startswith("Location:"):
+                loc = line.split(":", 1)[1].strip()
+                mpxj_dir = os.path.join(loc, "mpxj")
+                jars = glob.glob(os.path.join(mpxj_dir, "lib", "*.jar"))
+                if not jars:
+                    jars = glob.glob(os.path.join(mpxj_dir, "*.jar"))
+                if jars:
+                    return os.pathsep.join(jars)
+    except Exception:
+        pass
+
+    # Option 2: try direct import (works if jpype1 is installed)
     try:
         import mpxj as mpxj_mod
         mpxj_dir = os.path.dirname(mpxj_mod.__file__)
-        # JARs are in mpxj/lib/ subdirectory
         jars = glob.glob(os.path.join(mpxj_dir, "lib", "*.jar"))
         if not jars:
             jars = glob.glob(os.path.join(mpxj_dir, "*.jar"))
@@ -386,7 +403,7 @@ def _find_mpxj_jars() -> str:
     except ImportError:
         pass
 
-    # Option 2: local lib/ directory next to backend
+    # Option 3: local lib/ directory next to backend
     backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     lib_dir = os.path.join(backend_dir, "lib")
     if os.path.isdir(lib_dir):
