@@ -402,6 +402,9 @@ def _find_mpxj_jars() -> str:
 
 def _ensure_mpp_helper_compiled(utils_dir: str, classpath: str) -> str:
     """Compile MppToJson.java if .class doesn't exist yet. Returns utils_dir."""
+    import glob
+    import subprocess
+
     class_file = os.path.join(utils_dir, "MppToJson.class")
     java_file = os.path.join(utils_dir, "MppToJson.java")
 
@@ -414,9 +417,16 @@ def _ensure_mpp_helper_compiled(utils_dir: str, classpath: str) -> str:
             detail="Archivo MppToJson.java no encontrado en el servidor"
         )
 
-    import subprocess
+    # javac does NOT support wildcard classpath - expand "dir/*" to individual JARs
+    if classpath.endswith("*"):
+        jar_dir = classpath[:-1]  # remove trailing *
+        jars = glob.glob(os.path.join(jar_dir, "*.jar"))
+        javac_cp = os.pathsep.join(jars)
+    else:
+        javac_cp = classpath
+
     result = subprocess.run(
-        ["javac", "-cp", classpath, java_file],
+        ["javac", "-cp", javac_cp, java_file],
         capture_output=True, text=True, timeout=30
     )
     if result.returncode != 0:
