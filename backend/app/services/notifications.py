@@ -67,6 +67,7 @@ def on_project_created(db: Session, project: Project, actor_id: int):
         message=f'El proyecto "{project.name}" ({project.folio}) ha sido creado.',
         project_id=project.id,
         actor_id=actor_id,
+        exclude_actor=False,
     )
 
 
@@ -79,6 +80,7 @@ def on_project_phase_changed(db: Session, project: Project, old_phase: str, acto
         message=f'"{project.name}" cambió de {old_phase} a {project.phase}.',
         project_id=project.id,
         actor_id=actor_id,
+        exclude_actor=False,
     )
 
 
@@ -92,6 +94,7 @@ def on_project_health_changed(db: Session, project: Project, old_health: str, ac
         message=f'"{project.name}" cambió de {labels.get(old_health, old_health)} a {labels.get(project.health, project.health)}.',
         project_id=project.id,
         actor_id=actor_id,
+        exclude_actor=False,
     )
 
 
@@ -123,6 +126,7 @@ def on_risk_created(db: Session, risk, project_id: int, actor_id: int):
             entity_type="risk",
             entity_id=risk.id,
             actor_id=actor_id,
+            exclude_actor=False,
         )
     else:
         notify_users(
@@ -134,6 +138,7 @@ def on_risk_created(db: Session, risk, project_id: int, actor_id: int):
             entity_type="risk",
             entity_id=risk.id,
             actor_id=actor_id,
+            exclude_actor=False,
         )
 
 
@@ -150,6 +155,7 @@ def on_issue_created(db: Session, issue, project_id: int, actor_id: int):
         entity_type="issue",
         entity_id=issue.id,
         actor_id=actor_id,
+        exclude_actor=False,
     )
 
 
@@ -166,6 +172,7 @@ def on_change_status_changed(db: Session, change, old_status: str, project_id: i
         entity_type="change",
         entity_id=change.id,
         actor_id=actor_id,
+        exclude_actor=False,
     )
 
 
@@ -180,4 +187,5 @@ def on_document_uploaded(db: Session, doc, project_id: int, actor_id: int):
         entity_type="document",
         entity_id=doc.id,
         actor_id=actor_id,
+        exclude_actor=False,
     )
