@@ -137,8 +137,8 @@ export default function OrganizationsPage() {
 
       {/* Create Organization Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-elevated rounded-2xl w-full max-w-lg border border-border shadow-2xl shadow-black/10 dark:shadow-black/40 animate-fade-in">
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="liquid-modal rounded-2xl w-full max-w-lg animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
               <h3 className="text-[15px] font-bold text-text-primary">{t('admin.newOrg')}</h3>
               <button onClick={() => setShowCreateModal(false)} className="p-1.5 hover:bg-surface-hover rounded-xl transition-colors">
@@ -196,7 +196,7 @@ export default function OrganizationsPage() {
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-border-light">
               <button onClick={() => setShowCreateModal(false)} className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl transition-all">Cancelar</button>
               <button onClick={handleCreateOrg} disabled={saving}
-                className="px-5 py-2.5 text-[13px] font-semibold bg-accent text-white rounded-xl hover:bg-accent-hover transition-all shadow-sm shadow-accent/25 disabled:opacity-50">
+                className="px-5 py-2.5 text-[13px] font-semibold btn-glow text-white rounded-xl transition-all shadow-sm shadow-accent/25 disabled:opacity-50">
                 {saving ? 'Creando...' : 'Crear'}
               </button>
             </div>

@@ -97,7 +97,7 @@ export default function AdminPermissionsPage() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
+      <div className="liquid-glass-border rounded-xl p-5">
         <div className="mb-5">
           <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.selectRole')}</label>
           <select

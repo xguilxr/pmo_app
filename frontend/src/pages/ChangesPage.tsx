@@ -96,7 +96,7 @@ export default function ChangesPage() {
       )}
 
       {/* Filter Panel */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className="liquid-glass-border rounded-xl p-4">
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">{t('minutes.project')}</label>
@@ -127,7 +127,7 @@ export default function ChangesPage() {
           </div>
         </div>
       </div>
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="liquid-glass-border rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>

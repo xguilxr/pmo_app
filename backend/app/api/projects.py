@@ -16,6 +16,7 @@ from app.models.objective import ProjectObjective
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse, ProjectListResponse
 from app.auth.security import get_current_user
 from app.services.folio import generate_folio
+from app.services import notifications as notif_svc
 
 
 def _project_to_response(p: Project) -> ProjectResponse:
@@ -69,7 +70,7 @@ def list_projects(
     if program_id:
         query = query.filter(Project.program_id == program_id)
 
-    projects = query.all()
+    projects = query.order_by(Project.name.asc()).all()
     return [
         ProjectListResponse(
             id=p.id, folio=p.folio, name=p.name, type=p.type, priority=p.priority,
@@ -108,6 +109,8 @@ def create_project(data: ProjectCreate, db: Session = Depends(get_db), current_u
         db.rollback()
         raise HTTPException(status_code=400, detail="Error de integridad al crear el proyecto")
     db.refresh(project)
+    notif_svc.on_project_created(db, project, current_user.id)
+    db.commit()
     return _project_to_response(project)
 
 
@@ -125,11 +128,24 @@ def update_project(project_id: int, data: ProjectUpdate, db: Session = Depends(g
     if not project:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
 
-    for field, value in data.model_dump(exclude_unset=True).items():
+    old_phase = project.phase
+    old_health = project.health
+    update_data = data.model_dump(exclude_unset=True)
+
+    for field, value in update_data.items():
         setattr(project, field, value)
 
     db.commit()
     db.refresh(project)
+
+    # Notifications for significant changes
+    if "phase" in update_data and project.phase != old_phase:
+        notif_svc.on_project_phase_changed(db, project, old_phase, current_user.id)
+        db.commit()
+    if "health" in update_data and project.health != old_health:
+        notif_svc.on_project_health_changed(db, project, old_health, current_user.id)
+        db.commit()
+
     return _project_to_response(project)
 
 

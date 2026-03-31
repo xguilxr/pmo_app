@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  Info, Users, Shield, RefreshCw,
+  Users, Shield, RefreshCw,
   Files, Lightbulb, ClipboardList, DollarSign,
   Calendar, Building2, TrendingUp, ListTree, ListChecks, BarChart3,
   Layers, Edit2, X, Save
@@ -13,8 +13,8 @@ import { useToast } from '../context/ToastContext';
 import PhaseBadge from '../components/common/PhaseBadge';
 import HealthBadge from '../components/common/HealthBadge';
 import ProgressBar from '../components/common/ProgressBar';
-import ProjectInfoTab from '../components/project/ProjectInfoTab';
-import ProjectCharterTab from '../components/project/ProjectCharterTab';
+import ProjectCharterInfoTab from '../components/project/ProjectCharterInfoTab';
+import ProjectPlanTab from '../components/project/ProjectPlanTab';
 import ProjectBacklogTab from '../components/project/ProjectBacklogTab';
 import ProjectAreasTab from '../components/project/ProjectAreasTab';
 import ProjectRaidTab from '../components/project/ProjectRaidTab';
@@ -56,16 +56,16 @@ const PHASES = ['Planificación', 'Ejecución', 'Soporte', 'Cerrado'];
 const HEALTHS = ['green', 'yellow', 'red'];
 
 const tabs = [
-  { id: 'info', icon: Info, labelKey: 'projectDetail.info' },
-  { id: 'charter', icon: ListTree, labelKey: 'projectDetail.charter' },
+  { id: 'charter', icon: ListTree, label: 'Charter' },
+  { id: 'plan', icon: Calendar, label: 'Plan' },
   { id: 'backlog', icon: ListChecks, labelKey: 'projectDetail.backlog' },
-  { id: 'areas', icon: Users, labelKey: 'projectDetail.areas' },
   { id: 'raid', icon: Shield, label: 'RAID' },
   { id: 'changes', icon: RefreshCw, labelKey: 'nav.changes' },
   { id: 'documents', icon: Files, labelKey: 'nav.documents' },
   { id: 'lessons', icon: Lightbulb, labelKey: 'nav.lessons' },
   { id: 'minutes', icon: ClipboardList, labelKey: 'nav.minutes' },
   { id: 'reports', icon: BarChart3, labelKey: 'nav.reports' },
+  { id: 'areas', icon: Users, labelKey: 'projectDetail.areas' },
 ];
 
 export default function ProjectDetailPage() {
@@ -74,7 +74,7 @@ export default function ProjectDetailPage() {
   const location = useLocation();
   const { t } = useTranslation();
   const { toastSuccess, toastError } = useToast();
-  const [activeTab, setActiveTab] = useState('info');
+  const [activeTab, setActiveTab] = useState('charter');
   const [showEditModal, setShowEditModal] = useState(false);
 
   const projectId = Number(id);
@@ -150,8 +150,8 @@ export default function ProjectDetailPage() {
 
   const renderTab = () => {
     switch (activeTab) {
-      case 'info': return <ProjectInfoTab project={project} />;
-      case 'charter': return <ProjectCharterTab projectId={project.id} />;
+      case 'charter': return <ProjectCharterInfoTab project={project} projectId={project.id} />;
+      case 'plan': return <ProjectPlanTab projectId={project.id} />;
       case 'backlog': return <ProjectBacklogTab projectId={project.id} />;
       case 'areas': return <ProjectAreasTab projectId={project.id} />;
       case 'raid': return <ProjectRaidTab projectId={project.id} />;
@@ -186,28 +186,28 @@ export default function ProjectDetailPage() {
 
       {/* Quick stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="bg-surface rounded-2xl border border-border p-4 card-glow">
+        <div className="liquid-glass-border rounded-2xl p-4 card-glow">
           <div className="flex items-center gap-2 text-[11px] text-text-tertiary uppercase tracking-widest mb-1.5">
             <Building2 className="w-3.5 h-3.5" />
             Organización
           </div>
           <p className="font-medium text-text-primary text-[13px]">{project.company || '-'}</p>
         </div>
-        <div className="bg-surface rounded-2xl border border-border p-4 card-glow">
+        <div className="liquid-glass-border rounded-2xl p-4 card-glow">
           <div className="flex items-center gap-2 text-[11px] text-text-tertiary uppercase tracking-widest mb-1.5">
             <Layers className="w-3.5 h-3.5" />
             Programa
           </div>
           <p className="font-medium text-text-primary text-[13px]">{project.programName || '-'}</p>
         </div>
-        <div className="bg-surface rounded-2xl border border-border p-4 card-glow">
+        <div className="liquid-glass-border rounded-2xl p-4 card-glow">
           <div className="flex items-center gap-2 text-[11px] text-text-tertiary uppercase tracking-widest mb-1.5">
             <Calendar className="w-3.5 h-3.5" />
             {t('projectDetail.timeline')}
           </div>
           <p className="font-medium text-text-primary text-[13px]">{project.startDate} → {project.endDate}</p>
         </div>
-        <div className="bg-surface rounded-2xl border border-border p-4 card-glow">
+        <div className="liquid-glass-border rounded-2xl p-4 card-glow">
           <div className="flex items-center gap-2 text-[11px] text-text-tertiary uppercase tracking-widest mb-1.5">
             <DollarSign className="w-3.5 h-3.5" />
             {t('projects.budget')}
@@ -215,7 +215,7 @@ export default function ProjectDetailPage() {
           <p className="font-medium text-text-primary">{formatCurrency(project.budget)}</p>
           <p className="text-[11px] text-text-tertiary font-light mt-0.5">Real: {formatCurrency(project.realBudget)}</p>
         </div>
-        <div className="bg-surface rounded-2xl border border-border p-4 card-glow">
+        <div className="liquid-glass-border rounded-2xl p-4 card-glow">
           <div className="flex items-center gap-2 text-[11px] text-text-tertiary uppercase tracking-widest mb-1.5">
             <TrendingUp className="w-3.5 h-3.5" />
             {t('projects.progress')}
@@ -225,7 +225,7 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-border">
+      <div className="liquid-glass rounded-xl p-1">
         <div className="flex gap-0.5 overflow-x-auto">
           {tabs.map(tab => {
             const Icon = tab.icon;
@@ -233,10 +233,10 @@ export default function ProjectDetailPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 text-[13px] font-normal border-b-2 transition-all whitespace-nowrap ${
+                className={`flex items-center gap-2 px-4 py-2.5 text-[13px] font-medium rounded-lg transition-all whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'border-accent text-accent'
-                    : 'border-transparent text-text-tertiary hover:text-text-secondary hover:border-border'
+                    ? 'bg-accent/10 text-accent shadow-sm'
+                    : 'text-text-tertiary hover:text-text-secondary hover:bg-surface-hover'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -328,9 +328,9 @@ function EditProjectModal({
   const labelCls = "block text-[12px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5";
 
   return (
-    <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-surface-elevated rounded-2xl w-full max-w-2xl border border-border shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border-light sticky top-0 bg-surface-elevated z-10">
+    <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-md flex items-center justify-center z-50 p-4">
+      <div className="liquid-modal rounded-2xl w-full max-w-2xl animate-fade-in max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border-light sticky top-0 bg-transparent z-10">
           <h3 className="text-[15px] font-bold text-text-primary">Editar Proyecto</h3>
           <button onClick={onClose} className="p-1.5 hover:bg-surface-hover rounded-xl"><X className="w-4 h-4 text-text-tertiary" /></button>
         </div>
@@ -431,9 +431,9 @@ function EditProjectModal({
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-border-light sticky bottom-0 bg-surface-elevated">
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-border-light sticky bottom-0 bg-transparent">
           <button onClick={onClose} className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl">Cancelar</button>
-          <button onClick={handleSubmit} disabled={saving} className="inline-flex items-center gap-2 px-5 py-2.5 text-[13px] font-semibold bg-accent text-white rounded-xl hover:bg-accent-hover shadow-sm shadow-accent/25 disabled:opacity-50">
+          <button onClick={handleSubmit} disabled={saving} className="inline-flex items-center gap-2 px-5 py-2.5 text-[13px] font-semibold btn-glow text-white rounded-xl disabled:opacity-50">
             <Save className="w-3.5 h-3.5" />
             {saving ? 'Guardando...' : 'Guardar Cambios'}
           </button>

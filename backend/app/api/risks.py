@@ -7,6 +7,7 @@ from app.models.modules import Risk
 from app.schemas.risk import RiskCreate, RiskUpdate, RiskResponse
 from app.auth.security import get_current_user
 from app.services.folio import generate_folio
+from app.services import notifications as notif_svc
 
 router = APIRouter(prefix="/risks", tags=["Risks"])
 
@@ -52,6 +53,8 @@ def create_risk(
     db.add(risk)
     db.commit()
     db.refresh(risk)
+    notif_svc.on_risk_created(db, risk, project_id, current_user.id)
+    db.commit()
     return risk
 
 

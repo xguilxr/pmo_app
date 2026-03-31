@@ -54,7 +54,7 @@ class OrganizationResponse(BaseModel):
 
 @router.get("", response_model=list[OrganizationResponse])
 def list_organizations(db: Session = Depends(get_db)):
-    return db.query(Organization).filter(Organization.deleted_at.is_(None)).all()
+    return db.query(Organization).filter(Organization.deleted_at.is_(None)).order_by(Organization.name.asc()).all()
 
 
 @router.get("/{org_id}", response_model=OrganizationResponse)

@@ -11,7 +11,7 @@ const config = {
 export default function HealthBadge({ health }: HealthBadgeProps) {
   const c = config[health];
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[11px] font-normal border ${c.cls}`}>
+    <span className={`liquid-pill inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[11px] font-medium border ${c.cls}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
       {c.label}
     </span>

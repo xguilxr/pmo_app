@@ -14,6 +14,7 @@ from app.models.task import Task
 from app.models.modules import Document
 from app.auth.security import get_current_user
 from app.services.folio import generate_folio
+from app.services import notifications as notif_svc
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
@@ -160,10 +161,16 @@ def update_task(
     task = db.query(Task).filter(Task.id == task_id, Task.deleted_at.is_(None)).first()
     if not task:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
-    for field, value in data.model_dump(exclude_unset=True).items():
+    old_responsible = task.responsible_id
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
         setattr(task, field, value)
     db.commit()
     db.refresh(task)
+    # Notify if responsible changed
+    if "responsible_id" in update_data and task.responsible_id and task.responsible_id != old_responsible:
+        notif_svc.on_task_assigned(db, task, task.responsible_id, task.project_id, current_user.id)
+        db.commit()
     return task
 
 
@@ -183,29 +190,54 @@ def import_tasks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Bulk create/update tasks from an imported file (e.g. MS Project)."""
-    created = []
+    """Bulk create/update tasks from an imported file (e.g. MS Project).
+
+    Matches by WBS or name to avoid duplicates — updates existing tasks.
+    """
+    existing_tasks = db.query(Task).filter(
+        Task.project_id == project_id, Task.deleted_at.is_(None)
+    ).all()
+    by_wbs: dict[str, Task] = {t.wbs: t for t in existing_tasks if t.wbs}
+    by_name: dict[str, Task] = {t.name.strip().lower(): t for t in existing_tasks}
+
+    result = []
     for item in payload.items:
-        task = Task(
-            name=item.name,
-            wbs=item.wbs,
-            start_date=item.start_date,
-            end_date=item.end_date,
-            duration_days=item.duration_days,
-            progress=item.progress,
-            outline_level=item.outline_level,
-            is_milestone=item.is_milestone,
-            responsible_id=item.responsible_id,
-            project_id=project_id,
-            source="ms_project_import",
-            created_by_id=current_user.id,
-        )
-        db.add(task)
-        created.append(task)
+        existing = by_wbs.get(item.wbs) if item.wbs else None
+        if not existing:
+            existing = by_name.get(item.name.strip().lower())
+
+        if existing:
+            existing.wbs = item.wbs or existing.wbs
+            existing.start_date = item.start_date or existing.start_date
+            existing.end_date = item.end_date or existing.end_date
+            existing.duration_days = item.duration_days or existing.duration_days
+            existing.progress = item.progress
+            existing.outline_level = item.outline_level
+            existing.is_milestone = item.is_milestone
+            existing.responsible_id = item.responsible_id or existing.responsible_id
+            existing.source = "ms_project_import"
+            result.append(existing)
+        else:
+            task = Task(
+                name=item.name,
+                wbs=item.wbs,
+                start_date=item.start_date,
+                end_date=item.end_date,
+                duration_days=item.duration_days,
+                progress=item.progress,
+                outline_level=item.outline_level,
+                is_milestone=item.is_milestone,
+                responsible_id=item.responsible_id,
+                project_id=project_id,
+                source="ms_project_import",
+                created_by_id=current_user.id,
+            )
+            db.add(task)
+            result.append(task)
     db.commit()
-    for t in created:
+    for t in result:
         db.refresh(t)
-    return created
+    return result
 
 
 @router.post("/import-file", response_model=list[TaskResponse], status_code=status.HTTP_201_CREATED)
@@ -246,29 +278,65 @@ async def import_tasks_from_file(
         db=db,
     )
 
-    created = []
+    # Auto-assign WBS codes when missing
+    rows = _auto_assign_wbs(rows)
+
+    # Upsert: update existing tasks (matched by WBS or name) instead of duplicating
+    existing_tasks = db.query(Task).filter(
+        Task.project_id == project_id,
+        Task.deleted_at.is_(None),
+    ).all()
+    # Build lookup maps for matching
+    by_wbs: dict[str, Task] = {}
+    by_name: dict[str, Task] = {}
+    for t in existing_tasks:
+        if t.wbs:
+            by_wbs[t.wbs] = t
+        by_name[t.name.strip().lower()] = t
+
+    result = []
     for row in rows:
-        task = Task(
-            name=row["name"],
-            wbs=row.get("wbs"),
-            start_date=row.get("start_date"),
-            end_date=row.get("end_date"),
-            duration_days=row.get("duration_days"),
-            progress=row.get("progress", 0),
-            outline_level=row.get("outline_level", 1),
-            is_milestone=row.get("is_milestone", False),
-            responsible_name=row.get("responsible_name"),
-            status="pending",
-            project_id=project_id,
-            source="file_import",
-            created_by_id=current_user.id,
-        )
-        db.add(task)
-        created.append(task)
+        wbs = row.get("wbs")
+        name = row["name"]
+        # Try to find existing task: first by WBS, then by name
+        existing = by_wbs.get(wbs) if wbs else None
+        if not existing:
+            existing = by_name.get(name.strip().lower())
+
+        if existing:
+            # Update existing task with imported data
+            existing.wbs = wbs or existing.wbs
+            existing.start_date = row.get("start_date") or existing.start_date
+            existing.end_date = row.get("end_date") or existing.end_date
+            existing.duration_days = row.get("duration_days") or existing.duration_days
+            existing.progress = row.get("progress", existing.progress)
+            existing.outline_level = row.get("outline_level", existing.outline_level)
+            existing.is_milestone = row.get("is_milestone", existing.is_milestone)
+            existing.responsible_name = row.get("responsible_name") or existing.responsible_name
+            existing.source = "file_import"
+            result.append(existing)
+        else:
+            task = Task(
+                name=name,
+                wbs=wbs,
+                start_date=row.get("start_date"),
+                end_date=row.get("end_date"),
+                duration_days=row.get("duration_days"),
+                progress=row.get("progress", 0),
+                outline_level=row.get("outline_level", 1),
+                is_milestone=row.get("is_milestone", False),
+                responsible_name=row.get("responsible_name"),
+                status="pending",
+                project_id=project_id,
+                source="file_import",
+                created_by_id=current_user.id,
+            )
+            db.add(task)
+            result.append(task)
     db.commit()
-    for t in created:
+    for t in result:
         db.refresh(t)
-    return created
+    return result
 
 
 def _save_import_as_document(
@@ -311,6 +379,46 @@ def _save_import_as_document(
     )
     db.add(doc)
     db.commit()
+
+
+def _auto_assign_wbs(rows: list[dict]) -> list[dict]:
+    """Assign WBS codes to rows that don't have one, based on outline_level hierarchy."""
+    counters: dict[int, int] = {}  # level -> counter
+    parent_wbs: dict[int, str] = {}  # level -> last wbs at that level
+
+    for row in rows:
+        if row.get("wbs"):
+            # Already has WBS — update tracking state
+            level = row.get("outline_level", 1)
+            parent_wbs[level] = row["wbs"]
+            # Reset counters for deeper levels
+            for k in list(counters.keys()):
+                if k > level:
+                    del counters[k]
+            continue
+
+        level = row.get("outline_level", 1)
+
+        if level == 1:
+            counters[1] = counters.get(1, 0) + 1
+            row["wbs"] = str(counters[1])
+            parent_wbs[1] = row["wbs"]
+            # Reset deeper levels
+            for k in list(counters.keys()):
+                if k > 1:
+                    del counters[k]
+        else:
+            counters[level] = counters.get(level, 0) + 1
+            # Find parent WBS
+            p_wbs = parent_wbs.get(level - 1, str(level - 1))
+            row["wbs"] = f"{p_wbs}.{counters[level]}"
+            parent_wbs[level] = row["wbs"]
+            # Reset deeper levels
+            for k in list(counters.keys()):
+                if k > level:
+                    del counters[k]
+
+    return rows
 
 
 def _normalize_header(h: str) -> str:

@@ -32,7 +32,7 @@ export default function Sidebar() {
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-normal transition-all duration-200 ${
       isActive
-        ? 'bg-gradient-to-r from-accent/20 to-accent/10 text-white shadow-sm shadow-accent/10'
+        ? 'bg-gradient-to-r from-accent/20 to-accent/10 text-white shadow-sm shadow-accent/10 backdrop-blur-sm'
         : 'text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-active'
     }`;
 

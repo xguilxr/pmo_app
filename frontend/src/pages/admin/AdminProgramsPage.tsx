@@ -120,7 +120,7 @@ export default function AdminProgramsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-surface rounded-2xl border border-border p-4 flex flex-wrap gap-3 items-center">
+      <div className="liquid-glass-border rounded-2xl p-4 flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="w-4 h-4 text-text-tertiary absolute left-3 top-1/2 -translate-y-1/2" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar programa..." className={`${inputCls} pl-9`} />
@@ -132,7 +132,7 @@ export default function AdminProgramsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+      <div className="liquid-glass-border rounded-2xl overflow-hidden">
         <table className="w-full text-[13px]">
           <thead>
             <tr className="bg-surface-tertiary border-b border-border">
@@ -182,8 +182,8 @@ export default function AdminProgramsPage() {
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-elevated rounded-2xl w-full max-w-lg border border-border shadow-2xl animate-fade-in">
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="liquid-modal rounded-2xl w-full max-w-lg animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
               <h3 className="text-[15px] font-bold text-text-primary">{editing ? 'Editar Programa' : 'Nuevo Programa'}</h3>
               <button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-surface-hover rounded-xl"><X className="w-4 h-4 text-text-tertiary" /></button>
@@ -215,7 +215,7 @@ export default function AdminProgramsPage() {
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-border-light">
               <button onClick={() => setShowModal(false)} className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl">Cancelar</button>
-              <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 text-[13px] font-semibold bg-accent text-white rounded-xl hover:bg-accent-hover shadow-sm shadow-accent/25 disabled:opacity-50">{saving ? 'Guardando...' : 'Guardar'}</button>
+              <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 text-[13px] font-semibold btn-glow text-white rounded-xl shadow-sm shadow-accent/25 disabled:opacity-50">{saving ? 'Guardando...' : 'Guardar'}</button>
             </div>
           </div>
         </div>
@@ -223,8 +223,8 @@ export default function AdminProgramsPage() {
 
       {/* Delete Confirmation */}
       {deleteTarget && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-elevated rounded-2xl w-full max-w-sm border border-border shadow-2xl animate-fade-in p-6">
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="liquid-modal rounded-2xl w-full max-w-sm animate-fade-in p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950/50 flex items-center justify-center">
                 <Trash2 className="w-5 h-5 text-red-600" />

@@ -7,6 +7,7 @@ from app.models.modules import Change
 from app.schemas.change import ChangeCreate, ChangeUpdate, ChangeResponse
 from app.auth.security import get_current_user
 from app.services.folio import generate_folio
+from app.services import notifications as notif_svc
 
 router = APIRouter(prefix="/changes", tags=["Changes"])
 
@@ -56,10 +57,15 @@ def update_change(change_id: int, data: ChangeUpdate, db: Session = Depends(get_
     change = db.query(Change).filter(Change.id == change_id, Change.deleted_at.is_(None)).first()
     if not change:
         raise HTTPException(status_code=404, detail="Cambio no encontrado")
-    for field, value in data.model_dump(exclude_unset=True).items():
+    old_status = change.status
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
         setattr(change, field, value)
     db.commit()
     db.refresh(change)
+    if "status" in update_data and change.status != old_status and change.status in ("approved", "rejected", "implemented"):
+        notif_svc.on_change_status_changed(db, change, old_status, change.project_id, current_user.id)
+        db.commit()
     return change
 
 

@@ -169,7 +169,7 @@ export default function AdminVariablesPage() {
       <div className="flex gap-5">
         {/* Left sidebar - categories */}
         <div className="w-64 flex-shrink-0">
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="liquid-glass-border rounded-xl overflow-hidden">
             <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
               <h3 className="text-sm font-medium text-gray-700">{t('admin.variableCategory')}</h3>
             </div>
@@ -192,7 +192,7 @@ export default function AdminVariablesPage() {
 
         {/* Right panel - values */}
         <div className="flex-1">
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="liquid-glass-border rounded-xl overflow-hidden">
             <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
               <h3 className="text-sm font-medium text-gray-700">
                 {selectedCategory.label} ({selectedCategory.values.length})
@@ -255,7 +255,7 @@ export default function AdminVariablesPage() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-xl">
+          <div className="liquid-modal rounded-2xl w-full max-w-lg p-6">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-semibold text-gray-900">{editing ? t('admin.editValue') : t('admin.newValue')}</h3>
               <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-100 rounded-lg">

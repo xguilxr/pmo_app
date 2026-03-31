@@ -29,7 +29,7 @@ def list_programs(
     query = db.query(Program).filter(Program.deleted_at.is_(None))
     if organization_id:
         query = query.filter(Program.organization_id == organization_id)
-    programs = query.order_by(Program.created_at.desc()).all()
+    programs = query.order_by(Program.name.asc()).all()
     return [
         ProgramResponse(
             id=p.id, name=p.name, description=p.description, status=p.status,

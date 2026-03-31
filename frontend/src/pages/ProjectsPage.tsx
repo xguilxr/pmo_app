@@ -117,7 +117,7 @@ export default function ProjectsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-surface rounded-2xl border border-border p-4">
+      <div className="liquid-glass-border rounded-2xl p-4">
         <div className="grid grid-cols-4 gap-3">
           <div>
             <label className="block text-[10px] font-semibold text-text-tertiary uppercase tracking-wider mb-1.5">{t('projects.company')}</label>
@@ -187,7 +187,7 @@ export default function ProjectsPage() {
           <p className="text-[13px] text-text-secondary">Crea tu primer proyecto para comenzar</p>
         </div>
       ) : (
-        <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+        <div className="liquid-glass-border rounded-2xl overflow-hidden">
           <table className="w-full text-[13px]">
             <thead>
               <tr className="bg-surface-tertiary border-b border-border">
@@ -270,8 +270,8 @@ function CreateProjectModal({ onClose, onCreated }: { onClose: () => void; onCre
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-surface-elevated rounded-2xl w-full max-w-lg border border-border shadow-2xl animate-fade-in">
+    <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-md flex items-center justify-center z-50 p-4">
+      <div className="liquid-modal rounded-2xl w-full max-w-lg animate-fade-in">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
           <h3 className="text-[15px] font-bold text-text-primary">{t('projects.newProject')}</h3>
           <button onClick={onClose} className="p-1.5 hover:bg-surface-hover rounded-xl transition-colors"><X className="w-4 h-4 text-text-tertiary" /></button>

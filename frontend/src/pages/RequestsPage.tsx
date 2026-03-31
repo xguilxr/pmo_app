@@ -46,7 +46,8 @@ export default function RequestsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [viewDetail, setViewDetail] = useState<ProjectRequest | null>(null);
-  const [form, setForm] = useState({ projectName: '', description: '', businessCase: '', requestedBy: '', organization: '', estimatedBudget: 0, priority: 'Media', startDate: '' });
+  const [form, setForm] = useState({ projectName: '', description: '', objective: '', businessCase: '', requestedBy: '', organization: '', organizationId: 0, estimatedBudget: 0, priority: 'Media', startDate: '', strategic_alignment: '', what_if_not_done: '', key_stakeholders: '', expected_deliverables: '' });
+  const { data: orgs } = useApi(() => api.get<{id: number; name: string}[]>('/organizations').catch(() => []), []);
 
   // Fetch from API with fallback to mock
   const { data: apiRequests, loading, refetch } = useApi(async () => {
@@ -80,22 +81,21 @@ export default function RequestsPage() {
       await api.post('/requests', {
         title: form.projectName,
         description: form.description,
-        objective: form.businessCase,
+        objective: form.objective || form.businessCase,
         benefits: form.businessCase,
         business_unit: form.organization,
         department: form.organization,
         sponsor_name: form.requestedBy,
         sponsor_email: '',
-        strategic_alignment: '',
-        what_if_not_done: '',
-        key_stakeholders: form.requestedBy,
-        expected_deliverables: '',
+        strategic_alignment: form.strategic_alignment,
+        what_if_not_done: form.what_if_not_done,
+        key_stakeholders: form.key_stakeholders || form.requestedBy,
+        expected_deliverables: form.expected_deliverables,
         budget: form.estimatedBudget,
-        organization_id: 1,
+        organization_id: form.organizationId || 1,
       });
       refetch();
     } catch {
-      // Fallback to local
       const newReq: ProjectRequest = {
         id: Date.now(),
         folio: `REQ-2026-${(requests.length + 1).toString().padStart(3, '0')}`,
@@ -107,13 +107,18 @@ export default function RequestsPage() {
       setRequests([newReq, ...requests]);
     }
     setShowModal(false);
-    setForm({ projectName: '', description: '', businessCase: '', requestedBy: '', organization: '', estimatedBudget: 0, priority: 'Media', startDate: '' });
+    setForm({ projectName: '', description: '', objective: '', businessCase: '', requestedBy: '', organization: '', organizationId: 0, estimatedBudget: 0, priority: 'Media', startDate: '', strategic_alignment: '', what_if_not_done: '', key_stakeholders: '', expected_deliverables: '' });
   };
 
   const handleStatusChange = async (id: number, newStatus: string, notes: string = '') => {
     if (newStatus === 'approved') {
       const req = requests.find(r => r.id === id);
-      if (req && !window.confirm(`El proyecto "${req.projectName}" sera creado en la organizacion "${req.organization}". ¿Desea continuar?`)) {
+      if (req && !window.confirm(
+        `Aprobar solicitud "${req.projectName}".\n\n` +
+        `Se creará un proyecto en la organización "${req.organization}".\n` +
+        `El Project Charter estará disponible en la pestaña Charter del proyecto.\n\n` +
+        `¿Desea continuar?`
+      )) {
         return;
       }
     }
@@ -182,7 +187,7 @@ export default function RequestsPage() {
       {/* Requests list */}
       <div className="space-y-3">
         {filtered.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+          <div className="text-center py-12 liquid-glass-border rounded-xl">
             <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500">{t('requests.noRequests')}</p>
           </div>
@@ -191,7 +196,7 @@ export default function RequestsPage() {
             const st = statusConfig[req.status] || statusConfig.in_review;
             const StatusIcon = st.icon;
             return (
-              <div key={req.id} onClick={() => setViewDetail(req)} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow cursor-pointer">
+              <div key={req.id} onClick={() => setViewDetail(req)} className="liquid-glass-border rounded-xl p-5 hover:shadow-md transition-shadow cursor-pointer">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
@@ -220,8 +225,8 @@ export default function RequestsPage() {
 
       {/* Detail/Review Modal */}
       {viewDetail && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl w-full max-w-2xl p-6 shadow-xl max-h-[85vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50">
+          <div className="liquid-modal rounded-2xl w-full max-w-2xl p-6 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -262,40 +267,57 @@ export default function RequestsPage() {
 
       {/* Create Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-xl">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="liquid-modal rounded-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-semibold text-gray-900">{t('requests.newRequest')}</h3>
               <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('requests.projectName')}</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('requests.projectName')} *</label>
                 <input value={form.projectName} onChange={e => setForm({...form, projectName: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectDetail.description')}</label>
-                <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectDetail.description')} *</label>
+                <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Describa el proyecto propuesto..." />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('requests.businessCase')}</label>
-                <textarea value={form.businessCase} onChange={e => setForm({...form, businessCase: e.target.value})} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Objetivo *</label>
+                <textarea value={form.objective} onChange={e => setForm({...form, objective: e.target.value})} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="¿Qué se espera lograr?" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('requests.businessCase')} / Beneficios *</label>
+                <textarea value={form.businessCase} onChange={e => setForm({...form, businessCase: e.target.value})} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Beneficios esperados del proyecto..." />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Alineación Estratégica</label>
+                <input value={form.strategic_alignment} onChange={e => setForm({...form, strategic_alignment: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="¿Con qué objetivo estratégico se alinea?" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">¿Qué pasa si no se hace?</label>
+                <textarea value={form.what_if_not_done} onChange={e => setForm({...form, what_if_not_done: e.target.value})} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Impacto de no realizar el proyecto..." />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('requests.requestedBy')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Sponsor / Solicitante *</label>
                   <input value={form.requestedBy} onChange={e => setForm({...form, requestedBy: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('requests.organization')}</label>
-                  <select value={form.organization} onChange={e => setForm({...form, organization: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">Seleccionar...</option>
-                    <option value="Grupo Alfa">Grupo Alfa</option>
-                    <option value="TechNova">TechNova</option>
-                    <option value="Distribuidora MX">Distribuidora MX</option>
-                    <option value="Servicios Global">Servicios Global</option>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('requests.organization')} *</label>
+                  <select value={form.organizationId} onChange={e => { const orgId = Number(e.target.value); const org = (orgs || []).find(o => o.id === orgId); setForm({...form, organizationId: orgId, organization: org?.name || ''}); }} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value={0}>Seleccionar...</option>
+                    {(orgs || []).map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                   </select>
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Interesados Clave</label>
+                <input value={form.key_stakeholders} onChange={e => setForm({...form, key_stakeholders: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Nombres de los principales interesados..." />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Entregables Esperados</label>
+                <textarea value={form.expected_deliverables} onChange={e => setForm({...form, expected_deliverables: e.target.value})} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Lista de entregables principales..." />
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
@@ -305,9 +327,7 @@ export default function RequestsPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{t('projects.priority')}</label>
                   <select value={form.priority} onChange={e => setForm({...form, priority: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="Alta">Alta</option>
-                    <option value="Media">Media</option>
-                    <option value="Baja">Baja</option>
+                    <option value="Alta">Alta</option><option value="Media">Media</option><option value="Baja">Baja</option>
                   </select>
                 </div>
                 <div>

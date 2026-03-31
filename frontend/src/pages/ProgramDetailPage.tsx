@@ -48,7 +48,7 @@ export default function ProgramDetailPage() {
   if (loading) return <LoadingSpinner />;
   if (!program) {
     return (
-      <div className="text-center py-16 bg-surface rounded-2xl border border-border">
+      <div className="text-center py-16 liquid-glass-border rounded-2xl">
         <Layers className="w-12 h-12 text-text-tertiary mx-auto mb-3" />
         <p className="text-text-secondary">Programa no encontrado</p>
       </div>
@@ -96,7 +96,7 @@ export default function ProgramDetailPage() {
           { label: 'Avance Promedio', value: `${stats.avgProgress}%`, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/50' },
           { label: 'Presupuesto Total', value: formatMXN(stats.totalBudget), icon: Calendar, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-950/50' },
         ].map((kpi, i) => (
-          <div key={i} className="bg-surface rounded-2xl border border-border p-5">
+          <div key={i} className="liquid-glass-border rounded-2xl p-5">
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-xl ${kpi.bg} flex items-center justify-center`}>
                 <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
@@ -112,14 +112,14 @@ export default function ProgramDetailPage() {
 
       {/* Timeline */}
       {(program.start_date || program.end_date) && (
-        <div className="bg-surface rounded-2xl border border-border p-5">
+        <div className="liquid-glass-border rounded-2xl p-5">
           <h3 className="text-[13px] font-semibold text-text-secondary mb-2">Cronograma del Programa</h3>
           <p className="text-[13px] text-text-primary">{program.start_date || '—'} → {program.end_date || '—'}</p>
         </div>
       )}
 
       {/* Projects Table */}
-      <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+      <div className="liquid-glass-border rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
           <h3 className="text-[15px] font-bold text-text-primary">Proyectos del Programa</h3>
         </div>
@@ -222,8 +222,8 @@ function CreateProjectInProgramModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-surface-elevated rounded-2xl w-full max-w-lg border border-border shadow-2xl animate-fade-in">
+    <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-md flex items-center justify-center z-50 p-4">
+      <div className="liquid-modal rounded-2xl w-full max-w-lg animate-fade-in">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
           <h3 className="text-[15px] font-bold text-text-primary">Nuevo Proyecto</h3>
           <button onClick={onClose} className="p-1.5 hover:bg-surface-hover rounded-xl"><X className="w-4 h-4 text-text-tertiary" /></button>

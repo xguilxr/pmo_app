@@ -132,11 +132,11 @@ export default function AdminUsersPage() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className="liquid-glass-border rounded-xl p-4">
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('common.search') + '...'} className="w-full md:w-80 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="liquid-glass-border rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
@@ -198,7 +198,7 @@ export default function AdminUsersPage() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl">
+          <div className="liquid-modal rounded-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-semibold text-gray-900">{editing ? t('admin.editUser') : t('admin.newUser')}</h3>
               <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
@@ -267,7 +267,7 @@ export default function AdminUsersPage() {
 
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl">
+          <div className="liquid-modal rounded-2xl w-full max-w-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirmar eliminación</h3>
             <p className="text-sm text-gray-600 mb-6">¿Estás seguro de que deseas eliminar al usuario <strong>{deleteTarget.fullName}</strong>? Esta acción no se puede deshacer.</p>
             <div className="flex justify-end gap-3">

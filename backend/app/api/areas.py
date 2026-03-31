@@ -36,20 +36,26 @@ def create_area(project_id: int, data: AreaCreate, db: Session = Depends(get_db)
     project = db.query(Project).filter(Project.id == project_id, Project.deleted_at.is_(None)).first()
     if not project:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-    area = ProjectArea(
-        name=data.name,
-        description=data.description,
-        role_in_project=data.role_in_project,
-        responsible_name_text=data.responsible_name,
-        project_id=project_id,
-        responsible_id=data.responsible_id,
-    )
-    db.add(area)
-    db.commit()
-    db.refresh(area)
+    try:
+        area = ProjectArea(
+            name=data.name,
+            description=data.description,
+            role_in_project=data.role_in_project,
+            responsible_name_text=data.responsible_name,
+            project_id=project_id,
+            responsible_id=data.responsible_id,
+        )
+        db.add(area)
+        db.commit()
+        db.refresh(area)
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Error al crear el área. Verifique que la base de datos esté sincronizada.")
     resp = AreaResponse.model_validate(area)
     if area.responsible:
         resp.responsible_name = area.responsible.full_name
+    elif area.responsible_name_text:
+        resp.responsible_name = area.responsible_name_text
     return resp
 
 
