@@ -116,7 +116,7 @@ export default function OrganizationDetailPage() {
     return (
       <div className="space-y-6">
         <PageHeader breadcrumb={[{ label: 'Inicio', href: '/' }, { label: t('nav.organizations'), href: '/organizations' }, { label: decodedName }]} title={decodedName} />
-        <div className="text-center py-16 bg-surface rounded-2xl border border-border">
+        <div className="text-center py-16 liquid-glass-border rounded-2xl">
           <Building2 className="w-12 h-12 text-text-tertiary mx-auto mb-3" />
           <p className="text-text-secondary">No se encontró la organización "{decodedName}"</p>
         </div>
@@ -152,7 +152,7 @@ export default function OrganizationDetailPage() {
           { label: t('projects.progress'), value: `${stats.avgProgress}%`, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/50' },
           { label: t('projects.budget'), value: formatMXN(stats.totalBudget), icon: AlertTriangle, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-950/50' },
         ].map((kpi, i) => (
-          <div key={i} className="bg-surface rounded-2xl border border-border p-5">
+          <div key={i} className="liquid-glass-border rounded-2xl p-5">
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-xl ${kpi.bg} flex items-center justify-center`}>
                 <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
@@ -168,7 +168,7 @@ export default function OrganizationDetailPage() {
 
       {/* Programs Section */}
       {programs.length > 0 && (
-        <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+        <div className="liquid-glass-border rounded-2xl overflow-hidden">
           <div className="px-6 py-4 border-b border-border-light flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-accent" />
@@ -194,7 +194,7 @@ export default function OrganizationDetailPage() {
       )}
 
       {/* Projects Table */}
-      <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+      <div className="liquid-glass-border rounded-2xl overflow-hidden">
         <div className="px-6 py-4 border-b border-border-light">
           <h3 className="text-[15px] font-bold text-text-primary">{t('nav.projects')}</h3>
         </div>
@@ -233,8 +233,8 @@ export default function OrganizationDetailPage() {
 
       {/* Create Program Modal */}
       {showProgramModal && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-elevated rounded-2xl w-full max-w-lg border border-border shadow-2xl animate-fade-in">
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="liquid-modal rounded-2xl w-full max-w-lg animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
               <h3 className="text-[15px] font-bold text-text-primary">Nuevo Programa</h3>
               <button onClick={() => setShowProgramModal(false)} className="p-1.5 hover:bg-surface-hover rounded-xl"><X className="w-4 h-4 text-text-tertiary" /></button>
@@ -249,7 +249,7 @@ export default function OrganizationDetailPage() {
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-border-light">
               <button onClick={() => setShowProgramModal(false)} className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl">Cancelar</button>
-              <button onClick={handleCreateProgram} disabled={saving} className="px-5 py-2.5 text-[13px] font-semibold bg-accent text-white rounded-xl hover:bg-accent-hover shadow-sm shadow-accent/25 disabled:opacity-50">
+              <button onClick={handleCreateProgram} disabled={saving} className="px-5 py-2.5 text-[13px] font-semibold btn-glow text-white rounded-xl shadow-sm shadow-accent/25 disabled:opacity-50">
                 {saving ? 'Creando...' : 'Crear Programa'}
               </button>
             </div>
@@ -259,8 +259,8 @@ export default function OrganizationDetailPage() {
 
       {/* Create Project Modal */}
       {showProjectModal && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-elevated rounded-2xl w-full max-w-lg border border-border shadow-2xl animate-fade-in">
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="liquid-modal rounded-2xl w-full max-w-lg animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
               <h3 className="text-[15px] font-bold text-text-primary">Nuevo Proyecto</h3>
               <button onClick={() => setShowProjectModal(false)} className="p-1.5 hover:bg-surface-hover rounded-xl"><X className="w-4 h-4 text-text-tertiary" /></button>
@@ -295,7 +295,7 @@ export default function OrganizationDetailPage() {
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-border-light">
               <button onClick={() => setShowProjectModal(false)} className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl">Cancelar</button>
-              <button onClick={handleCreateProject} disabled={saving} className="px-5 py-2.5 text-[13px] font-semibold bg-accent text-white rounded-xl hover:bg-accent-hover shadow-sm shadow-accent/25 disabled:opacity-50">
+              <button onClick={handleCreateProject} disabled={saving} className="px-5 py-2.5 text-[13px] font-semibold btn-glow text-white rounded-xl shadow-sm shadow-accent/25 disabled:opacity-50">
                 {saving ? 'Creando...' : 'Crear Proyecto'}
               </button>
             </div>

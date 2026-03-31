@@ -79,7 +79,7 @@ export default function LessonsPage() {
       )}
 
       {/* Filter Panel */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className="liquid-glass-border rounded-xl p-4">
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">{t('minutes.project')}</label>

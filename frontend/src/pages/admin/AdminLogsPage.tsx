@@ -65,7 +65,7 @@ export default function AdminLogsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className="liquid-glass-border rounded-xl p-4">
         <div className="flex items-center gap-2 mb-3">
           <Filter className="w-4 h-4 text-gray-400" />
           <span className="text-sm font-medium text-gray-700">Filtros</span>
@@ -121,7 +121,7 @@ export default function AdminLogsPage() {
       </div>
 
       {/* Logs Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="liquid-glass-border rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>

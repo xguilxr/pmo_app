@@ -217,12 +217,12 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
       </div>
 
       {(tasks || []).length === 0 ? (
-        <div className="text-center py-12 bg-surface rounded-2xl border border-border">
+        <div className="text-center py-12 liquid-glass-border rounded-2xl">
           <ListTree className="w-12 h-12 text-text-tertiary mx-auto mb-3 opacity-40" />
           <p className="text-[13px] text-text-tertiary">Sin tareas registradas</p>
         </div>
       ) : (
-        <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+        <div className="liquid-glass-border rounded-2xl overflow-hidden">
           <table className="w-full text-[13px]">
             <thead>
               <tr className="bg-surface-tertiary border-b border-border">
@@ -272,8 +272,8 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
 
       {/* Import Plan Modal */}
       {showImport && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-elevated rounded-2xl w-full max-w-md border border-border shadow-2xl animate-fade-in">
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="liquid-modal rounded-2xl w-full max-w-md animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
               <h3 className="text-[15px] font-bold text-text-primary">Importar Plan</h3>
               <button onClick={() => setShowImport(false)} className="p-1.5 hover:bg-surface-hover rounded-xl"><X className="w-4 h-4 text-text-tertiary" /></button>
@@ -319,8 +319,8 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
 
       {/* Create/Edit Task Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-elevated rounded-2xl w-full max-w-lg border border-border shadow-2xl animate-fade-in">
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="liquid-modal rounded-2xl w-full max-w-lg animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
               <h3 className="text-[15px] font-bold text-text-primary">{editing ? 'Editar Tarea' : 'Nueva Tarea'}</h3>
               <button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-surface-hover rounded-xl"><X className="w-4 h-4 text-text-tertiary" /></button>
@@ -355,7 +355,7 @@ export default function ProjectCharterTab({ projectId }: { projectId: number }) 
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-border-light">
               <button onClick={() => setShowModal(false)} className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl">Cancelar</button>
-              <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 text-[13px] font-semibold bg-accent text-white rounded-xl hover:bg-accent-hover shadow-sm shadow-accent/25 disabled:opacity-50">{saving ? 'Guardando...' : 'Guardar'}</button>
+              <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 text-[13px] font-semibold btn-glow text-white rounded-xl shadow-sm shadow-accent/25 disabled:opacity-50">{saving ? 'Guardando...' : 'Guardar'}</button>
             </div>
           </div>
         </div>

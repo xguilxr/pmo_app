@@ -162,7 +162,7 @@ export default function TopBar() {
           </button>
 
           {notifOpen && (
-            <div className="absolute right-0 top-[48px] w-[380px] bg-surface-elevated rounded-2xl border border-border shadow-xl shadow-black/8 dark:shadow-black/30 animate-fade-in overflow-hidden">
+            <div className="absolute right-0 top-[48px] w-[380px] liquid-modal rounded-2xl animate-fade-in overflow-hidden">
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-border-light">
                 <h3 className="text-[14px] font-semibold text-text-primary">Notificaciones</h3>
@@ -237,7 +237,7 @@ export default function TopBar() {
           </button>
 
           {userMenuOpen && (
-            <div className="absolute right-0 top-[52px] w-56 bg-surface-elevated rounded-2xl border border-border shadow-xl shadow-black/8 dark:shadow-black/30 py-1 animate-fade-in">
+            <div className="absolute right-0 top-[52px] w-56 liquid-modal rounded-2xl py-1 animate-fade-in">
               <div className="px-4 py-3 border-b border-border-light">
                 <p className="text-[13px] font-medium text-text-primary">{user?.fullName || 'Usuario'}</p>
                 <p className="text-[11px] text-text-tertiary font-light">{user?.roles?.join(', ') || ''}</p>

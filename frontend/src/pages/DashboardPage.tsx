@@ -140,8 +140,8 @@ export default function DashboardPage() {
 
       {/* Charts */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-surface rounded-2xl border border-border p-5 card-glow">
-          <h3 className="text-[12px] font-normal text-text-tertiary uppercase tracking-widest mb-4">{t('dashboard.projectsByPhase')}</h3>
+        <div className="liquid-glass-border rounded-2xl p-5 card-glow">
+          <h3 className="text-[12px] font-medium text-text-tertiary uppercase tracking-widest mb-4">{t('dashboard.projectsByPhase')}</h3>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
               <Pie data={computedProjectsByPhase} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, value }) => `${name}: ${value}`}>
@@ -153,8 +153,8 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-surface rounded-2xl border border-border p-5 card-glow">
-          <h3 className="text-[12px] font-normal text-text-tertiary uppercase tracking-widest mb-4">{t('dashboard.avgProgressByPhase')}</h3>
+        <div className="liquid-glass-border rounded-2xl p-5 card-glow">
+          <h3 className="text-[12px] font-medium text-text-tertiary uppercase tracking-widest mb-4">{t('dashboard.avgProgressByPhase')}</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={computedAvgProgressByPhase}>
               <XAxis dataKey="phase" tick={{ fontSize: 11, fill: 'var(--color-text-tertiary)' }} />
@@ -165,8 +165,8 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-surface rounded-2xl border border-border p-5 card-glow">
-          <h3 className="text-[12px] font-normal text-text-tertiary uppercase tracking-widest mb-4">{t('dashboard.budgetByType')}</h3>
+        <div className="liquid-glass-border rounded-2xl p-5 card-glow">
+          <h3 className="text-[12px] font-medium text-text-tertiary uppercase tracking-widest mb-4">{t('dashboard.budgetByType')}</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={computedBudgetByType} layout="vertical">
               <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} tickFormatter={(v: number) => formatMXN(v)} />
@@ -177,8 +177,8 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-surface rounded-2xl border border-border p-5 card-glow">
-          <h3 className="text-[12px] font-normal text-text-tertiary uppercase tracking-widest mb-4">{t('dashboard.portfolioHealth')}</h3>
+        <div className="liquid-glass-border rounded-2xl p-5 card-glow">
+          <h3 className="text-[12px] font-medium text-text-tertiary uppercase tracking-widest mb-4">{t('dashboard.portfolioHealth')}</h3>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
               <Pie data={computedPortfolioHealth} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90} label={({ name, value }) => `${name}: ${value}`}>
@@ -192,8 +192,8 @@ export default function DashboardPage() {
       </div>
 
       {/* Plan vs Real Matrix */}
-      <div className="bg-surface rounded-2xl border border-border p-5 card-glow">
-        <h3 className="text-[12px] font-normal text-text-tertiary uppercase tracking-widest mb-4">{t('dashboard.planVsReal')}</h3>
+      <div className="liquid-glass-border rounded-2xl p-5 card-glow">
+        <h3 className="text-[12px] font-medium text-text-tertiary uppercase tracking-widest mb-4">{t('dashboard.planVsReal')}</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-[13px]">
             <thead>

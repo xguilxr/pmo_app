@@ -180,7 +180,7 @@ export default function ProjectInfoTab({ project }: { project: Project }) {
       {/* Project Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* General Info */}
-        <div className="bg-surface rounded-2xl border border-border p-5">
+        <div className="liquid-glass-border rounded-2xl p-5">
           <h3 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
             <Calendar className="w-4 h-4 text-blue-600" />
             {t('projectDetail.generalInfo')}
@@ -210,7 +210,7 @@ export default function ProjectInfoTab({ project }: { project: Project }) {
         </div>
 
         {/* Cost Breakdown */}
-        <div className="bg-surface rounded-2xl border border-border p-5">
+        <div className="liquid-glass-border rounded-2xl p-5">
           <h3 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
             <DollarSign className="w-4 h-4 text-green-600" />
             {t('projectDetail.costs')}
@@ -253,7 +253,7 @@ export default function ProjectInfoTab({ project }: { project: Project }) {
         </div>
 
         {/* Progress & Timeline */}
-        <div className="bg-surface rounded-2xl border border-border p-5">
+        <div className="liquid-glass-border rounded-2xl p-5">
           <h3 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-purple-600" />
             {t('projectDetail.progressTimeline')}
@@ -292,7 +292,7 @@ export default function ProjectInfoTab({ project }: { project: Project }) {
       </div>
 
       {/* Objectives */}
-      <div className="bg-surface rounded-2xl border border-border p-5">
+      <div className="liquid-glass-border rounded-2xl p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
             <Target className="w-4 h-4 text-blue-600" />
@@ -368,8 +368,8 @@ export default function ProjectInfoTab({ project }: { project: Project }) {
 
       {/* Objective Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-elevated rounded-2xl w-full max-w-lg border border-border shadow-2xl animate-fade-in">
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="liquid-modal rounded-2xl w-full max-w-lg animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <h3 className="text-[15px] font-bold text-text-primary">{editing ? 'Editar Objetivo' : 'Nuevo Objetivo'}</h3>
               <button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-surface-hover rounded-xl">
@@ -427,7 +427,7 @@ export default function ProjectInfoTab({ project }: { project: Project }) {
               <button
                 onClick={handleSave}
                 disabled={saving || !form.description.trim()}
-                className="px-5 py-2.5 text-[13px] font-semibold bg-accent text-white rounded-xl hover:bg-accent-hover shadow-sm shadow-accent/25 disabled:opacity-50"
+                className="px-5 py-2.5 text-[13px] font-semibold btn-glow text-white rounded-xl shadow-sm shadow-accent/25 disabled:opacity-50"
               >
                 {saving ? 'Guardando...' : 'Guardar'}
               </button>

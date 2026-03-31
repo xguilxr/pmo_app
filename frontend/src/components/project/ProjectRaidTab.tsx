@@ -151,7 +151,7 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
   const createLabel = section === 'risks' ? 'Nuevo Riesgo' : section === 'actions' ? 'Nueva Accion' : section === 'issues' ? 'Nueva Incidencia' : section === 'decisions' ? 'Nueva Decision' : 'Nuevo';
 
   const renderRisksTable = (items: Risk[]) => items.length === 0 ? null : (
-    <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+    <div className="liquid-glass-border rounded-2xl overflow-hidden">
       <table className="w-full text-[13px]">
         <thead>
           <tr className="bg-red-50 dark:bg-red-950/30 border-b border-border">
@@ -192,7 +192,7 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
   );
 
   const renderIssuesTable = (items: Issue[], sectionKey: string, sectionLabel: string, Icon: typeof Bug, headerBg: string, headerColor: string) => items.length === 0 ? null : (
-    <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+    <div className="liquid-glass-border rounded-2xl overflow-hidden">
       <table className="w-full text-[13px]">
         <thead>
           <tr className={`${headerBg} border-b border-border`}>
@@ -269,7 +269,7 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
       </div>
 
       {noItems ? (
-        <div className="text-center py-12 bg-surface rounded-2xl border border-border">
+        <div className="text-center py-12 liquid-glass-border rounded-2xl">
           <p className="text-[13px] text-text-tertiary">Sin elementos RAID registrados</p>
         </div>
       ) : (
@@ -283,8 +283,8 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
 
       {/* Risk Modal */}
       {showRiskModal && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-elevated rounded-2xl w-full max-w-lg border border-border shadow-2xl animate-fade-in">
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="liquid-modal rounded-2xl w-full max-w-lg animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
               <h3 className="text-[15px] font-bold text-text-primary">{editingRisk ? 'Editar Riesgo' : 'Nuevo Riesgo'}</h3>
               <button onClick={() => setShowRiskModal(false)} className="p-1.5 hover:bg-surface-hover rounded-xl"><X className="w-4 h-4 text-text-tertiary" /></button>
@@ -314,7 +314,7 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-border-light">
               <button onClick={() => setShowRiskModal(false)} className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl">Cancelar</button>
-              <button onClick={handleSaveRisk} disabled={saving} className="px-5 py-2.5 text-[13px] font-semibold bg-accent text-white rounded-xl hover:bg-accent-hover shadow-sm shadow-accent/25 disabled:opacity-50">{saving ? 'Guardando...' : 'Guardar'}</button>
+              <button onClick={handleSaveRisk} disabled={saving} className="px-5 py-2.5 text-[13px] font-semibold btn-glow text-white rounded-xl shadow-sm shadow-accent/25 disabled:opacity-50">{saving ? 'Guardando...' : 'Guardar'}</button>
             </div>
           </div>
         </div>
@@ -322,8 +322,8 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
 
       {/* Issue/Action/Decision Modal */}
       {showIssueModal && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-elevated rounded-2xl w-full max-w-lg border border-border shadow-2xl animate-fade-in">
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="liquid-modal rounded-2xl w-full max-w-lg animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
               <h3 className="text-[15px] font-bold text-text-primary">{editingIssue ? `Editar ${typeLabel[issueForm.type] || 'Elemento'}` : `Nuevo: ${typeLabel[issueForm.type] || 'Elemento'}`}</h3>
               <button onClick={() => setShowIssueModal(false)} className="p-1.5 hover:bg-surface-hover rounded-xl"><X className="w-4 h-4 text-text-tertiary" /></button>
@@ -358,7 +358,7 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-border-light">
               <button onClick={() => setShowIssueModal(false)} className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl">Cancelar</button>
-              <button onClick={handleSaveIssue} disabled={saving} className="px-5 py-2.5 text-[13px] font-semibold bg-accent text-white rounded-xl hover:bg-accent-hover shadow-sm shadow-accent/25 disabled:opacity-50">{saving ? 'Guardando...' : 'Guardar'}</button>
+              <button onClick={handleSaveIssue} disabled={saving} className="px-5 py-2.5 text-[13px] font-semibold btn-glow text-white rounded-xl shadow-sm shadow-accent/25 disabled:opacity-50">{saving ? 'Guardando...' : 'Guardar'}</button>
             </div>
           </div>
         </div>

@@ -126,7 +126,7 @@ export default function ProjectReportsTab({ projectId }: { projectId: number }) 
       </div>
 
       {!reports || reports.length === 0 ? (
-        <div className="text-center py-12 bg-surface rounded-2xl border border-border">
+        <div className="text-center py-12 liquid-glass-border rounded-2xl">
           <FileBarChart className="w-12 h-12 text-text-tertiary mx-auto mb-3 opacity-30" />
           <p className="text-[13px] text-text-tertiary">{t('reports.noReports')}</p>
         </div>
@@ -137,7 +137,7 @@ export default function ProjectReportsTab({ projectId }: { projectId: number }) 
             return (
               <div
                 key={report.id}
-                className="bg-surface rounded-2xl border border-border p-5 flex items-center justify-between hover:bg-surface-hover transition-all animate-fade-in"
+                className="liquid-glass-border rounded-2xl p-5 flex items-center justify-between hover:bg-surface-hover transition-all animate-fade-in"
               >
                 <div className="flex items-center gap-4">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
@@ -210,8 +210,8 @@ export default function ProjectReportsTab({ projectId }: { projectId: number }) 
 
       {/* Generate Report Modal */}
       {showGenerateModal && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-elevated rounded-2xl w-full max-w-lg border border-border shadow-2xl animate-fade-in">
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="liquid-modal rounded-2xl w-full max-w-lg animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <h3 className="text-[15px] font-bold text-text-primary">{t('reports.generate')}</h3>
               <button onClick={() => { setShowGenerateModal(false); resetForm(); }} className="p-1.5 hover:bg-surface-hover rounded-xl">
@@ -285,8 +285,8 @@ export default function ProjectReportsTab({ projectId }: { projectId: number }) 
 
       {/* Preview Modal */}
       {showPreviewModal && previewReport && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-elevated rounded-2xl w-full max-w-3xl border border-border shadow-2xl animate-fade-in max-h-[80vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="liquid-modal rounded-2xl w-full max-w-3xl animate-fade-in max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <h3 className="text-[15px] font-bold text-text-primary">{previewReport.title}</h3>
               <button onClick={() => setShowPreviewModal(false)} className="p-1.5 hover:bg-surface-hover rounded-xl">
@@ -309,7 +309,7 @@ export default function ProjectReportsTab({ projectId }: { projectId: number }) 
               </button>
               <button
                 onClick={() => setShowPreviewModal(false)}
-                className="px-4 py-2.5 text-[13px] font-medium bg-accent text-white rounded-xl hover:bg-accent-hover shadow-sm shadow-accent/25"
+                className="px-4 py-2.5 text-[13px] font-medium btn-glow text-white rounded-xl shadow-sm shadow-accent/25"
               >
                 Cerrar
               </button>

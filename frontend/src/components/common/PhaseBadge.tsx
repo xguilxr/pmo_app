@@ -13,7 +13,7 @@ const phaseColors: Record<string, string> = {
 
 export default function PhaseBadge({ phase }: PhaseBadgeProps) {
   return (
-    <span className={`inline-flex px-2.5 py-0.5 rounded-lg text-[11px] font-normal border ${phaseColors[phase] || 'bg-slate-500/10 text-slate-500 border-slate-500/20'}`}>
+    <span className={`liquid-pill inline-flex px-2.5 py-0.5 rounded-lg text-[11px] font-medium border ${phaseColors[phase] || 'bg-slate-500/10 text-slate-500 border-slate-500/20'}`}>
       {phase}
     </span>
   );

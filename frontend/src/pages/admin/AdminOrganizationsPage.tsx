@@ -126,7 +126,7 @@ export default function AdminOrganizationsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {orgs.map(org => (
-          <div key={org.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
+          <div key={org.id} className="liquid-glass-border rounded-xl p-5 hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
@@ -157,7 +157,7 @@ export default function AdminOrganizationsPage() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl">
+          <div className="liquid-modal rounded-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-semibold text-gray-900">{editing ? t('admin.editOrg') : t('admin.newOrg')}</h3>
               <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
@@ -216,7 +216,7 @@ export default function AdminOrganizationsPage() {
 
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl">
+          <div className="liquid-modal rounded-2xl w-full max-w-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirmar eliminación</h3>
             <p className="text-sm text-gray-600 mb-6">¿Estás seguro de que deseas eliminar <strong>{deleteTarget.name}</strong>? Esta acción no se puede deshacer.</p>
             <div className="flex justify-end gap-3">

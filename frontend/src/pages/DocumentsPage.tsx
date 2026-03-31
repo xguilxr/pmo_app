@@ -82,7 +82,7 @@ export default function DocumentsPage() {
       )}
 
       {/* Filter Panel */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className="liquid-glass-border rounded-xl p-4">
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">{t('minutes.project')}</label>
@@ -110,7 +110,7 @@ export default function DocumentsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filtered.map(d => (
-          <div key={d.id} className="bg-white rounded-xl border border-gray-200 p-4 flex gap-4 hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate(`/projects/${d.projectId}`)}>
+          <div key={d.id} className="liquid-glass-border rounded-xl p-4 flex gap-4 hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate(`/projects/${d.projectId}`)}>
             {fileIcon(d.fileType)}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">

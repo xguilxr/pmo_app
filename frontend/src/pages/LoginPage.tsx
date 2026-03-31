@@ -81,7 +81,7 @@ export default function LoginPage() {
         </div>
 
         {/* Login card */}
-        <form onSubmit={handleLogin} className="rounded-2xl border border-white/[0.06] bg-white/[0.04] backdrop-blur-xl p-8 space-y-5 shadow-2xl shadow-black/20">
+        <form onSubmit={handleLogin} className="liquid-glass-border rounded-2xl p-8 space-y-5" style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(20px) saturate(180%)', boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.08), 0 8px 40px rgba(0,0,0,0.2)' }}>
           {error && (
             <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-[13px] rounded-xl px-4 py-3 font-light">
               {error}
@@ -127,7 +127,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full btn-gradient text-white rounded-xl py-3 text-[13px] font-normal tracking-wide disabled:opacity-50 transition-all"
+            className="w-full btn-gradient text-white rounded-xl py-3 text-[13px] font-medium tracking-wide disabled:opacity-50 transition-all"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : t('login.login')}
           </button>
