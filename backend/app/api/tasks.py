@@ -190,50 +190,36 @@ def import_tasks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Bulk create/update tasks from an imported file (e.g. MS Project).
+    """Bulk import tasks from JSON payload (e.g. MS Project).
 
-    Matches by WBS or name to avoid duplicates — updates existing tasks.
+    Overwrites all existing tasks for the project.
     """
+    # Soft-delete all existing tasks
     existing_tasks = db.query(Task).filter(
         Task.project_id == project_id, Task.deleted_at.is_(None)
     ).all()
-    by_wbs: dict[str, Task] = {t.wbs: t for t in existing_tasks if t.wbs}
-    by_name: dict[str, Task] = {t.name.strip().lower(): t for t in existing_tasks}
+    now = datetime.now(timezone.utc)
+    for t in existing_tasks:
+        t.deleted_at = now
 
     result = []
     for item in payload.items:
-        existing = by_wbs.get(item.wbs) if item.wbs else None
-        if not existing:
-            existing = by_name.get(item.name.strip().lower())
-
-        if existing:
-            existing.wbs = item.wbs or existing.wbs
-            existing.start_date = item.start_date or existing.start_date
-            existing.end_date = item.end_date or existing.end_date
-            existing.duration_days = item.duration_days or existing.duration_days
-            existing.progress = item.progress
-            existing.outline_level = item.outline_level
-            existing.is_milestone = item.is_milestone
-            existing.responsible_id = item.responsible_id or existing.responsible_id
-            existing.source = "ms_project_import"
-            result.append(existing)
-        else:
-            task = Task(
-                name=item.name,
-                wbs=item.wbs,
-                start_date=item.start_date,
-                end_date=item.end_date,
-                duration_days=item.duration_days,
-                progress=item.progress,
-                outline_level=item.outline_level,
-                is_milestone=item.is_milestone,
-                responsible_id=item.responsible_id,
-                project_id=project_id,
-                source="ms_project_import",
-                created_by_id=current_user.id,
-            )
-            db.add(task)
-            result.append(task)
+        task = Task(
+            name=item.name,
+            wbs=item.wbs,
+            start_date=item.start_date,
+            end_date=item.end_date,
+            duration_days=item.duration_days,
+            progress=item.progress,
+            outline_level=item.outline_level,
+            is_milestone=item.is_milestone,
+            responsible_id=item.responsible_id,
+            project_id=project_id,
+            source="ms_project_import",
+            created_by_id=current_user.id,
+        )
+        db.add(task)
+        result.append(task)
     db.commit()
     for t in result:
         db.refresh(t)
@@ -248,6 +234,9 @@ async def import_tasks_from_file(
     current_user: User = Depends(get_current_user),
 ):
     """Import tasks from a CSV or XLSX file.
+
+    Overwrites ALL existing tasks for the project — the imported file is the
+    single source of truth (e.g. an .mpp export).
 
     Expected columns (case-insensitive, flexible matching):
     WBS, Nombre/Name/Task, Inicio/Start, Fin/End/Finish, Duracion/Duration,
@@ -281,58 +270,35 @@ async def import_tasks_from_file(
     # Auto-assign WBS codes when missing
     rows = _auto_assign_wbs(rows)
 
-    # Upsert: update existing tasks (matched by WBS or name) instead of duplicating
+    # OVERWRITE: soft-delete all existing tasks for this project
     existing_tasks = db.query(Task).filter(
         Task.project_id == project_id,
         Task.deleted_at.is_(None),
     ).all()
-    # Build lookup maps for matching
-    by_wbs: dict[str, Task] = {}
-    by_name: dict[str, Task] = {}
+    now = datetime.now(timezone.utc)
     for t in existing_tasks:
-        if t.wbs:
-            by_wbs[t.wbs] = t
-        by_name[t.name.strip().lower()] = t
+        t.deleted_at = now
 
+    # Insert all imported rows as new tasks
     result = []
     for row in rows:
-        wbs = row.get("wbs")
-        name = row["name"]
-        # Try to find existing task: first by WBS, then by name
-        existing = by_wbs.get(wbs) if wbs else None
-        if not existing:
-            existing = by_name.get(name.strip().lower())
-
-        if existing:
-            # Update existing task with imported data
-            existing.wbs = wbs or existing.wbs
-            existing.start_date = row.get("start_date") or existing.start_date
-            existing.end_date = row.get("end_date") or existing.end_date
-            existing.duration_days = row.get("duration_days") or existing.duration_days
-            existing.progress = row.get("progress", existing.progress)
-            existing.outline_level = row.get("outline_level", existing.outline_level)
-            existing.is_milestone = row.get("is_milestone", existing.is_milestone)
-            existing.responsible_name = row.get("responsible_name") or existing.responsible_name
-            existing.source = "file_import"
-            result.append(existing)
-        else:
-            task = Task(
-                name=name,
-                wbs=wbs,
-                start_date=row.get("start_date"),
-                end_date=row.get("end_date"),
-                duration_days=row.get("duration_days"),
-                progress=row.get("progress", 0),
-                outline_level=row.get("outline_level", 1),
-                is_milestone=row.get("is_milestone", False),
-                responsible_name=row.get("responsible_name"),
-                status="pending",
-                project_id=project_id,
-                source="file_import",
-                created_by_id=current_user.id,
-            )
-            db.add(task)
-            result.append(task)
+        task = Task(
+            name=row["name"],
+            wbs=row.get("wbs"),
+            start_date=row.get("start_date"),
+            end_date=row.get("end_date"),
+            duration_days=row.get("duration_days"),
+            progress=row.get("progress", 0),
+            outline_level=row.get("outline_level", 1),
+            is_milestone=row.get("is_milestone", False),
+            responsible_name=row.get("responsible_name"),
+            status="pending",
+            project_id=project_id,
+            source="file_import",
+            created_by_id=current_user.id,
+        )
+        db.add(task)
+        result.append(task)
     db.commit()
     for t in result:
         db.refresh(t)

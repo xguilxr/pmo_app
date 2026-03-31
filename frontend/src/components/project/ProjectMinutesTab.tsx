@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Plus, Edit2, Trash2, X, ClipboardList, Sparkles, FileText, Upload, AlertTriangle, Target, Bug, CheckCircle2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, ClipboardList, Sparkles, FileText, Upload, AlertTriangle, Target, Bug, CheckCircle2, Copy, ClipboardCheck } from 'lucide-react';
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
@@ -41,6 +41,125 @@ export default function ProjectMinutesTab({ projectId }: { projectId: number }) 
   const [transcriptDate, setTranscriptDate] = useState(new Date().toISOString().split('T')[0]);
   const [transcriptFileName, setTranscriptFileName] = useState('');
   const transcriptFileRef = useRef<HTMLInputElement>(null);
+
+  // LLM Prompt generator state
+  const [showPromptModal, setShowPromptModal] = useState(false);
+  const [promptCopied, setPromptCopied] = useState(false);
+  const [promptTranscript, setPromptTranscript] = useState('');
+  const [promptLang, setPromptLang] = useState<'es' | 'en'>('es');
+  const promptFileRef = useRef<HTMLInputElement>(null);
+  const [promptFileName, setPromptFileName] = useState('');
+
+  const handlePromptFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPromptFileName(file.name);
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const text = ev.target?.result;
+        if (typeof text === 'string') setPromptTranscript(text.substring(0, 10000));
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const generatePrompt = () => {
+    const template = promptLang === 'es'
+      ? `Eres un asistente de PMO experto. A partir de la siguiente transcripción de reunión, genera una minuta estructurada en español con el siguiente formato exacto:
+
+## Minuta de Reunión
+
+### Resumen Ejecutivo
+[2-3 párrafos resumiendo los puntos más importantes de la reunión]
+
+### Participantes Detectados
+[Lista de nombres mencionados en la transcripción, uno por línea con viñeta]
+
+### Temas Tratados
+1. [Tema] - [Resumen breve de lo discutido]
+2. ...
+
+### Acuerdos y Compromisos
+| # | Acuerdo/Compromiso | Responsable | Fecha Compromiso |
+|---|-------------------|-------------|------------------|
+| 1 | ... | ... | ... |
+
+### Decisiones Tomadas
+- [Decisión 1]
+- [Decisión 2]
+- ...
+
+### Próximos Pasos
+- [Paso] - [Responsable] - [Fecha tentativa]
+- ...
+
+### Riesgos o Bloqueos Mencionados
+- [Riesgo/bloqueo 1] - [Impacto potencial]
+- ...
+
+### Elementos RAID Identificados
+**Riesgos:** Listar riesgos identificados durante la reunión
+**Acciones:** Listar acciones pendientes con responsable
+**Issues/Problemas:** Listar problemas reportados
+**Decisiones:** Listar decisiones finales tomadas
+
+---
+TRANSCRIPCIÓN:
+${promptTranscript}
+
+Genera la minuta completa ahora:`
+      : `You are an expert PMO assistant. From the following meeting transcript, generate a structured meeting minutes in English with this exact format:
+
+## Meeting Minutes
+
+### Executive Summary
+[2-3 paragraphs summarizing the key points of the meeting]
+
+### Detected Participants
+[List of names mentioned in the transcript, one per line with bullet]
+
+### Topics Discussed
+1. [Topic] - [Brief summary of what was discussed]
+2. ...
+
+### Agreements and Commitments
+| # | Agreement/Commitment | Responsible | Due Date |
+|---|---------------------|-------------|----------|
+| 1 | ... | ... | ... |
+
+### Decisions Made
+- [Decision 1]
+- [Decision 2]
+- ...
+
+### Next Steps
+- [Step] - [Responsible] - [Tentative date]
+- ...
+
+### Risks or Blockers Mentioned
+- [Risk/blocker 1] - [Potential impact]
+- ...
+
+### RAID Items Identified
+**Risks:** List risks identified during the meeting
+**Actions:** List pending actions with responsible party
+**Issues:** List reported problems
+**Decisions:** List final decisions made
+
+---
+TRANSCRIPT:
+${promptTranscript}
+
+Generate the complete minutes now:`;
+    return template;
+  };
+
+  const handleCopyPrompt = () => {
+    navigator.clipboard.writeText(generatePrompt());
+    setPromptCopied(true);
+    toastSuccess('Prompt copiado al portapapeles');
+    setTimeout(() => setPromptCopied(false), 3000);
+  };
 
   const openCreate = () => {
     setEditing(null);
@@ -143,6 +262,9 @@ export default function ProjectMinutesTab({ projectId }: { projectId: number }) 
           {(minutes || []).length} {(minutes || []).length === 1 ? 'minuta' : 'minutas'}
         </div>
         <div className="flex gap-2">
+          <button onClick={() => { setPromptTranscript(''); setPromptFileName(''); setPromptCopied(false); setShowPromptModal(true); }} className="inline-flex items-center gap-2 px-3 py-2 border border-border rounded-xl text-[12px] font-medium text-text-secondary hover:bg-surface-hover transition-all">
+            <Copy className="w-3.5 h-3.5" /> Prompt LLM
+          </button>
           <button onClick={openTranscriptModal} className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 dark:bg-purple-500 text-white rounded-xl text-[12px] font-semibold hover:bg-purple-700 dark:hover:bg-purple-600 shadow-sm shadow-purple-600/25">
             <FileText className="w-3.5 h-3.5" /> Generar con IA
           </button>
@@ -324,6 +446,69 @@ export default function ProjectMinutesTab({ projectId }: { projectId: number }) 
               <button onClick={() => setShowTranscriptModal(false)} className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl">Cancelar</button>
               <button onClick={handleGenerateFromTranscript} disabled={generating || !transcriptTitle.trim() || !transcriptText.trim()} className="px-5 py-2.5 text-[13px] font-semibold bg-purple-600 dark:bg-purple-500 text-white rounded-xl hover:bg-purple-700 dark:hover:bg-purple-600 shadow-sm shadow-purple-600/25 disabled:opacity-50">
                 {generating ? 'Generando...' : 'Generar Minuta'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LLM Prompt Generator Modal */}
+      {showPromptModal && (
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="liquid-modal rounded-2xl w-full max-w-2xl animate-fade-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
+              <div>
+                <h3 className="text-[15px] font-bold text-text-primary">Generador de Prompt para Minutas</h3>
+                <p className="text-[11px] text-text-tertiary mt-0.5">Pega tu transcripción, genera el prompt y cópialo a tu LLM favorito</p>
+              </div>
+              <button onClick={() => setShowPromptModal(false)} className="p-1.5 hover:bg-surface-hover rounded-xl"><X className="w-4 h-4 text-text-tertiary" /></button>
+            </div>
+            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+              <div>
+                <label className={labelCls}>Idioma del Prompt</label>
+                <div className="flex gap-2">
+                  <button onClick={() => setPromptLang('es')} className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${promptLang === 'es' ? 'bg-accent text-white shadow-sm' : 'bg-surface-tertiary text-text-secondary hover:text-text-primary'}`}>Español</button>
+                  <button onClick={() => setPromptLang('en')} className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${promptLang === 'en' ? 'bg-accent text-white shadow-sm' : 'bg-surface-tertiary text-text-secondary hover:text-text-primary'}`}>English</button>
+                </div>
+              </div>
+              <div>
+                <label className={labelCls}>Transcripción de la Reunión *</label>
+                <textarea value={promptTranscript} onChange={e => setPromptTranscript(e.target.value)} rows={8} placeholder="Pega aquí la transcripción de la reunión..." className={inputCls} />
+              </div>
+              <div>
+                <p className="text-[12px] text-text-tertiary mb-2">O sube un archivo de texto</p>
+                <input ref={promptFileRef} type="file" accept=".txt,.srt,.docx" className="hidden" onChange={handlePromptFileSelect} />
+                <button onClick={() => promptFileRef.current?.click()} className="inline-flex items-center gap-2 px-3 py-2 border border-border rounded-xl text-[12px] font-medium text-text-secondary hover:bg-surface-hover transition-all">
+                  <Upload className="w-3.5 h-3.5" />
+                  {promptFileName || 'Seleccionar archivo'}
+                </button>
+              </div>
+              {promptTranscript.trim() && (
+                <div className="p-3 bg-surface-tertiary rounded-xl border border-border-light">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Vista previa del prompt</span>
+                    <span className="text-[11px] text-text-tertiary">{generatePrompt().length.toLocaleString()} caracteres</span>
+                  </div>
+                  <pre className="text-[11px] text-text-tertiary max-h-32 overflow-y-auto whitespace-pre-wrap font-mono leading-relaxed">{generatePrompt().substring(0, 500)}...</pre>
+                </div>
+              )}
+              <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-900/50">
+                <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                <div className="text-[12px] text-blue-700 dark:text-blue-300">
+                  <p className="font-semibold mb-1">¿Cómo usar?</p>
+                  <ol className="list-decimal list-inside space-y-0.5 text-[11px] text-blue-600 dark:text-blue-400">
+                    <li>Pega la transcripción de tu reunión arriba</li>
+                    <li>Haz clic en "Copiar Prompt"</li>
+                    <li>Pégalo en ChatGPT, Claude, Gemini o tu LLM favorito</li>
+                    <li>Copia el resultado y créalo como nueva minuta aquí</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border-light">
+              <button onClick={() => setShowPromptModal(false)} className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl">Cerrar</button>
+              <button onClick={handleCopyPrompt} disabled={!promptTranscript.trim()} className="inline-flex items-center gap-2 px-5 py-2.5 text-[13px] font-semibold btn-glow text-white rounded-xl disabled:opacity-50">
+                {promptCopied ? <><ClipboardCheck className="w-3.5 h-3.5" /> Copiado!</> : <><Copy className="w-3.5 h-3.5" /> Copiar Prompt</>}
               </button>
             </div>
           </div>
