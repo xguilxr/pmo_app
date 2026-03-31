@@ -201,6 +201,111 @@ def export_project_xlsx(
     )
 
 
+@router.get("/task-template")
+def download_task_template(
+    current_user: User = Depends(get_current_user),
+):
+    """Download a blank XLSX template for importing project tasks."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Plan de Proyecto"
+
+    headers = [
+        ("WBS", 10),
+        ("Nombre", 40),
+        ("Nivel", 8),
+        ("Hito", 8),
+        ("Fecha Inicio", 14),
+        ("Fecha Fin", 14),
+        ("Duración (días)", 16),
+        ("Avance (%)", 12),
+        ("Responsable", 25),
+    ]
+
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_fill = PatternFill(start_color="2563EB", end_color="2563EB", fill_type="solid")
+    thin_border = Border(
+        left=Side(style='thin', color='D1D5DB'),
+        right=Side(style='thin', color='D1D5DB'),
+        top=Side(style='thin', color='D1D5DB'),
+        bottom=Side(style='thin', color='D1D5DB'),
+    )
+
+    for col_idx, (name, width) in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_idx, value=name)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = thin_border
+        ws.column_dimensions[get_column_letter(col_idx)].width = width
+
+    # Add example rows
+    examples = [
+        ("1", "Fase 1 - Planificación", 1, "No", "2026-04-01", "2026-04-30", 30, 0, "PM"),
+        ("1.1", "Definir alcance", 2, "No", "2026-04-01", "2026-04-10", 10, 0, "Analista"),
+        ("1.2", "Aprobación de alcance", 2, "Sí", "2026-04-10", "2026-04-10", 0, 0, "Sponsor"),
+        ("2", "Fase 2 - Ejecución", 1, "No", "2026-05-01", "2026-07-31", 92, 0, ""),
+        ("2.1", "Diseño técnico", 2, "No", "2026-05-01", "2026-05-31", 31, 0, "Arquitecto"),
+        ("2.1.1", "Diseño de base de datos", 3, "No", "2026-05-01", "2026-05-15", 15, 0, "DBA"),
+        ("2.1.2", "Diseño de interfaces", 3, "No", "2026-05-16", "2026-05-31", 15, 0, "Diseñador"),
+        ("2.2", "Desarrollo", 2, "No", "2026-06-01", "2026-07-15", 45, 0, "Desarrollo"),
+        ("2.3", "Pruebas", 2, "No", "2026-07-16", "2026-07-31", 15, 0, "QA"),
+        ("3", "Fase 3 - Cierre", 1, "No", "2026-08-01", "2026-08-15", 15, 0, "PM"),
+        ("3.1", "Entrega a producción", 2, "Sí", "2026-08-15", "2026-08-15", 0, 0, ""),
+    ]
+
+    example_font = Font(color="9CA3AF", italic=True, size=10)
+    for row_idx, vals in enumerate(examples, 2):
+        for col_idx, val in enumerate(vals, 1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.font = example_font
+            cell.border = thin_border
+
+    # Instructions sheet
+    ws_help = wb.create_sheet("Instrucciones")
+    instructions = [
+        "PLANTILLA DE PLAN DE PROYECTO - PMO Platform",
+        "",
+        "COLUMNAS DISPONIBLES:",
+        "• WBS - Código de estructura de desglose (ej: 1, 1.1, 2.1.3). Si se deja vacío, se asigna automáticamente.",
+        "• Nombre - Nombre de la tarea (obligatorio)",
+        "• Nivel - Nivel jerárquico (1=fase, 2=tarea, 3=subtarea). Se calcula del WBS si se omite.",
+        "• Hito - Marcar 'Sí' para hitos (duración 0)",
+        "• Fecha Inicio - Formato: YYYY-MM-DD o DD/MM/YYYY",
+        "• Fecha Fin - Formato: YYYY-MM-DD o DD/MM/YYYY",
+        "• Duración (días) - Se calcula automáticamente si hay fechas",
+        "• Avance (%) - Porcentaje de avance (0-100)",
+        "• Responsable - Nombre de la persona o área responsable",
+        "",
+        "NOTAS:",
+        "• La primera hoja contiene ejemplos editables. Bórrelos y reemplace con sus datos.",
+        "• Si importa un archivo que ya fue importado, las tareas existentes se actualizarán (no se duplicarán).",
+        "• Las columnas son flexibles: puede usar 'Name' en lugar de 'Nombre', 'Start' en lugar de 'Inicio', etc.",
+        "• Formatos de archivo soportados: .xlsx, .csv, .mpp (MS Project)",
+    ]
+    for row_idx, line in enumerate(instructions, 1):
+        cell = ws_help.cell(row=row_idx, column=1, value=line)
+        if row_idx == 1:
+            cell.font = Font(bold=True, size=14, color="2563EB")
+        elif line.startswith("COLUMNAS") or line.startswith("NOTAS"):
+            cell.font = Font(bold=True, size=11)
+    ws_help.column_dimensions['A'].width = 100
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=plantilla_plan_proyecto.xlsx"}
+    )
+
+
 @router.get("/lessons")
 def export_lessons(
     project_id: int,

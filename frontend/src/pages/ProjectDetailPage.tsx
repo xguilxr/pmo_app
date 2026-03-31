@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  Info, Users, Shield, RefreshCw,
+  Users, Shield, RefreshCw,
   Files, Lightbulb, ClipboardList, DollarSign,
   Calendar, Building2, TrendingUp, ListTree, ListChecks, BarChart3,
   Layers, Edit2, X, Save
@@ -13,8 +13,8 @@ import { useToast } from '../context/ToastContext';
 import PhaseBadge from '../components/common/PhaseBadge';
 import HealthBadge from '../components/common/HealthBadge';
 import ProgressBar from '../components/common/ProgressBar';
-import ProjectInfoTab from '../components/project/ProjectInfoTab';
-import ProjectCharterTab from '../components/project/ProjectCharterTab';
+import ProjectCharterInfoTab from '../components/project/ProjectCharterInfoTab';
+import ProjectPlanTab from '../components/project/ProjectPlanTab';
 import ProjectBacklogTab from '../components/project/ProjectBacklogTab';
 import ProjectAreasTab from '../components/project/ProjectAreasTab';
 import ProjectRaidTab from '../components/project/ProjectRaidTab';
@@ -56,16 +56,16 @@ const PHASES = ['Planificación', 'Ejecución', 'Soporte', 'Cerrado'];
 const HEALTHS = ['green', 'yellow', 'red'];
 
 const tabs = [
-  { id: 'info', icon: Info, labelKey: 'projectDetail.info' },
-  { id: 'charter', icon: ListTree, labelKey: 'projectDetail.charter' },
+  { id: 'charter', icon: ListTree, label: 'Charter' },
+  { id: 'plan', icon: Calendar, label: 'Plan' },
   { id: 'backlog', icon: ListChecks, labelKey: 'projectDetail.backlog' },
-  { id: 'areas', icon: Users, labelKey: 'projectDetail.areas' },
   { id: 'raid', icon: Shield, label: 'RAID' },
   { id: 'changes', icon: RefreshCw, labelKey: 'nav.changes' },
   { id: 'documents', icon: Files, labelKey: 'nav.documents' },
   { id: 'lessons', icon: Lightbulb, labelKey: 'nav.lessons' },
   { id: 'minutes', icon: ClipboardList, labelKey: 'nav.minutes' },
   { id: 'reports', icon: BarChart3, labelKey: 'nav.reports' },
+  { id: 'areas', icon: Users, labelKey: 'projectDetail.areas' },
 ];
 
 export default function ProjectDetailPage() {
@@ -74,7 +74,7 @@ export default function ProjectDetailPage() {
   const location = useLocation();
   const { t } = useTranslation();
   const { toastSuccess, toastError } = useToast();
-  const [activeTab, setActiveTab] = useState('info');
+  const [activeTab, setActiveTab] = useState('charter');
   const [showEditModal, setShowEditModal] = useState(false);
 
   const projectId = Number(id);
@@ -150,8 +150,8 @@ export default function ProjectDetailPage() {
 
   const renderTab = () => {
     switch (activeTab) {
-      case 'info': return <ProjectInfoTab project={project} />;
-      case 'charter': return <ProjectCharterTab projectId={project.id} />;
+      case 'charter': return <ProjectCharterInfoTab project={project} projectId={project.id} />;
+      case 'plan': return <ProjectPlanTab projectId={project.id} />;
       case 'backlog': return <ProjectBacklogTab projectId={project.id} />;
       case 'areas': return <ProjectAreasTab projectId={project.id} />;
       case 'raid': return <ProjectRaidTab projectId={project.id} />;
