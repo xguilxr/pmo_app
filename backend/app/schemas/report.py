@@ -4,9 +4,11 @@ from datetime import date, datetime
 
 class ReportCreate(BaseModel):
     title: str
+    report_type: str = "avance"  # avance, seguimiento, ejecutivo, cierre
     period_start: date | None = None
     period_end: date | None = None
     status: str = "draft"
+    use_ai: bool = False
 
 
 class ReportUpdate(BaseModel):

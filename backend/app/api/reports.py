@@ -1,5 +1,6 @@
 from datetime import date, datetime, timezone
 from io import BytesIO
+import json
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -9,10 +10,12 @@ from app.database import get_db
 from app.models.user import User
 from app.models.project import Project
 from app.models.report import ProgressReport
-from app.models.modules import Risk, Issue, Change
+from app.models.modules import Risk, Issue, Change, Lesson
 from app.models.task import Task
+from app.models.backlog import BacklogItem
 from app.schemas.report import ReportCreate, ReportUpdate, ReportResponse
 from app.auth.security import get_current_user
+from app.services.ai_engine import generate_report
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -38,7 +41,7 @@ def get_report(report_id: int, db: Session = Depends(get_db), current_user: User
 
 
 @router.post("", response_model=ReportResponse, status_code=status.HTTP_201_CREATED)
-def create_report(
+async def create_report(
     project_id: int,
     data: ReportCreate,
     db: Session = Depends(get_db),
@@ -48,8 +51,20 @@ def create_report(
     if not project:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
 
-    # Auto-generate report content from project data
-    content_html = _generate_report_html(db, project, data.period_start, data.period_end)
+    ai_model_used = None
+
+    if data.use_ai:
+        # Collect project data for AI prompt
+        project_data = _collect_project_data(db, project, data.period_start, data.period_end)
+        try:
+            result = await generate_report(data.report_type, project_data)
+            content_html = result["text"]
+            ai_model_used = result["model"]
+        except RuntimeError as e:
+            raise HTTPException(status_code=503, detail=str(e))
+    else:
+        # Fallback to template-based report
+        content_html = _generate_report_html(db, project, data.period_start, data.period_end)
 
     report = ProgressReport(
         title=data.title,
@@ -57,6 +72,7 @@ def create_report(
         period_start=data.period_start,
         period_end=data.period_end,
         status=data.status,
+        ai_model_used=ai_model_used,
         project_id=project_id,
         generated_by_id=current_user.id,
         created_by_id=current_user.id,
@@ -142,6 +158,88 @@ def download_report(report_id: int, db: Session = Depends(get_db), current_user:
         media_type="text/html",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+def _collect_project_data(db: Session, project: Project, period_start: date | None, period_end: date | None) -> str:
+    """Collect project data into a structured text block for AI prompt context."""
+    tasks = db.query(Task).filter(Task.project_id == project.id, Task.deleted_at.is_(None)).all()
+    risks = db.query(Risk).filter(Risk.project_id == project.id, Risk.deleted_at.is_(None)).all()
+    issues = db.query(Issue).filter(Issue.project_id == project.id, Issue.deleted_at.is_(None)).all()
+    changes = db.query(Change).filter(Change.project_id == project.id, Change.deleted_at.is_(None)).all()
+    lessons = db.query(Lesson).filter(Lesson.project_id == project.id, Lesson.deleted_at.is_(None)).all()
+    backlog = db.query(BacklogItem).filter(BacklogItem.project_id == project.id, BacklogItem.deleted_at.is_(None)).all()
+
+    total_tasks = len(tasks)
+    completed_tasks = sum(1 for t in tasks if t.status == "completed")
+    in_progress_tasks = sum(1 for t in tasks if t.status == "in_progress")
+    delayed_tasks = sum(1 for t in tasks if t.was_delayed)
+    avg_progress = round(sum(t.progress for t in tasks) / total_tasks, 1) if total_tasks else 0
+
+    open_risks = [r for r in risks if r.status in ("open", "Abierto")]
+    open_issues = [i for i in issues if i.status in ("open", "Abierto")]
+    pending_changes = [c for c in changes if c.status in ("in_review", "Pendiente")]
+
+    data = f"""
+PROYECTO: {project.name}
+FOLIO: {project.folio}
+FASE: {project.phase}
+SALUD: {project.health}
+PRIORIDAD: {project.priority}
+TIPO: {project.type}
+FECHA INICIO: {project.start_date or 'N/A'}
+FECHA FIN: {project.end_date or 'N/A'}
+AVANCE REAL: {project.progress}%
+AVANCE PLANEADO: {project.planned_progress or 0}%
+PRESUPUESTO PLANEADO: ${project.budget:,.0f}
+PRESUPUESTO REAL: ${project.real_budget:,.0f}
+PERÍODO REPORTE: {period_start or 'N/A'} a {period_end or 'N/A'}
+
+TAREAS ({total_tasks} total):
+- Completadas: {completed_tasks}
+- En progreso: {in_progress_tasks}
+- Pendientes: {total_tasks - completed_tasks - in_progress_tasks}
+- Retrasadas: {delayed_tasks}
+- Avance promedio: {avg_progress}%
+"""
+
+    # Add task details (limit to 40)
+    if tasks:
+        data += "\nDETALLE DE TAREAS:\n"
+        for t in tasks[:40]:
+            delay_flag = " [RETRASADA]" if t.was_delayed else ""
+            data += f"  - WBS:{t.wbs or '-'} | {t.name} | Estado:{t.status} | Avance:{t.progress}% | Fin:{t.end_date or '-'} | Responsable:{t.responsible_name or '-'}{delay_flag}\n"
+
+    # Risks
+    if risks:
+        data += f"\nRIESGOS ({len(risks)} total, {len(open_risks)} abiertos):\n"
+        for r in risks:
+            data += f"  - [{r.status}] {r.title} | Severidad:{r.severity} | Probabilidad:{r.probability} | Impacto:{r.impact} | Mitigación:{r.mitigation_strategy or 'N/A'}\n"
+
+    # Issues
+    if issues:
+        data += f"\nISSUES ({len(issues)} total, {len(open_issues)} abiertos):\n"
+        for i in issues:
+            data += f"  - [{i.status}] {i.title} | Prioridad:{i.priority or '-'} | Tipo:{i.type or '-'}\n"
+
+    # Changes
+    if changes:
+        data += f"\nCAMBIOS ({len(changes)} total, {len(pending_changes)} pendientes):\n"
+        for c in changes:
+            data += f"  - [{c.status}] {c.title} | Impacto:{c.impact or '-'} | Solicitado por:{c.requested_by or '-'}\n"
+
+    # Backlog
+    if backlog:
+        data += f"\nBACKLOG ({len(backlog)} elementos):\n"
+        for b in backlog:
+            data += f"  - [{b.status}] {b.title} | Área:{b.area or '-'} | Prioridad:{b.priority or '-'} | Avance:{b.progress}%\n"
+
+    # Lessons
+    if lessons:
+        data += f"\nLECCIONES APRENDIDAS ({len(lessons)}):\n"
+        for l in lessons:
+            data += f"  - {l.title} | Categoría:{l.category or '-'} | Fase:{l.project_phase or '-'}\n"
+
+    return data
 
 
 def _generate_report_html(db: Session, project: Project, period_start: date | None, period_end: date | None) -> str:
