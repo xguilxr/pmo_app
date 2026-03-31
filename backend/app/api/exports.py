@@ -306,6 +306,102 @@ def download_task_template(
     )
 
 
+@router.get("/backlog-template")
+def download_backlog_template(
+    current_user: User = Depends(get_current_user),
+):
+    """Download a blank XLSX template for importing backlog items."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Backlog"
+
+    headers = [
+        ("Título", 40),
+        ("Descripción", 50),
+        ("Área", 20),
+        ("Prioridad", 12),
+        ("Estado", 16),
+        ("Avance (%)", 12),
+        ("Fecha Inicio", 14),
+        ("Fecha Fin", 14),
+    ]
+
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_fill = PatternFill(start_color="2563EB", end_color="2563EB", fill_type="solid")
+    thin_border = Border(
+        left=Side(style='thin', color='D1D5DB'),
+        right=Side(style='thin', color='D1D5DB'),
+        top=Side(style='thin', color='D1D5DB'),
+        bottom=Side(style='thin', color='D1D5DB'),
+    )
+
+    for col_idx, (name, width) in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_idx, value=name)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = thin_border
+        ws.column_dimensions[get_column_letter(col_idx)].width = width
+
+    # Example rows
+    examples = [
+        ("Migración de base de datos", "Migrar datos del sistema anterior al nuevo esquema", "Tecnología", "Alta", "En Progreso", 40, "2026-04-01", "2026-04-15"),
+        ("Diseño de interfaces de usuario", "Crear mockups y prototipos para el módulo de reportes", "Diseño", "Media", "Pendiente", 0, "2026-04-10", "2026-04-25"),
+        ("Capacitación equipo soporte", "Sesiones de entrenamiento para el equipo de soporte L1", "Operaciones", "Media", "Pendiente", 0, "2026-05-01", "2026-05-10"),
+        ("Integración API pagos", "Conectar con pasarela de pagos externa", "Desarrollo", "Alta", "Bloqueado", 20, "2026-04-05", "2026-04-30"),
+        ("Documentación técnica", "Actualizar wiki con arquitectura del nuevo módulo", "Documentación", "Baja", "Pendiente", 0, "", ""),
+    ]
+
+    example_font = Font(color="9CA3AF", italic=True, size=10)
+    for row_idx, vals in enumerate(examples, 2):
+        for col_idx, val in enumerate(vals, 1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.font = example_font
+            cell.border = thin_border
+
+    # Instructions sheet
+    ws_help = wb.create_sheet("Instrucciones")
+    instructions = [
+        "PLANTILLA DE BACKLOG - PMO Platform",
+        "",
+        "COLUMNAS DISPONIBLES:",
+        "• Título - Nombre del elemento del backlog (obligatorio)",
+        "• Descripción - Detalle del elemento",
+        "• Área - Área funcional o equipo responsable",
+        "• Prioridad - Alta, Media, Baja",
+        "• Estado - Pendiente, En Progreso, Completado, Bloqueado",
+        "• Avance (%) - Porcentaje de avance (0-100)",
+        "• Fecha Inicio - Formato: YYYY-MM-DD o DD/MM/YYYY",
+        "• Fecha Fin - Formato: YYYY-MM-DD o DD/MM/YYYY",
+        "",
+        "NOTAS:",
+        "• La primera hoja contiene ejemplos editables. Bórrelos y reemplace con sus datos.",
+        "• Al importar, los elementos se agregarán al backlog existente.",
+        "• Los campos vacíos se dejarán en blanco o con valores por defecto.",
+    ]
+    for row_idx, line in enumerate(instructions, 1):
+        cell = ws_help.cell(row=row_idx, column=1, value=line)
+        if row_idx == 1:
+            cell.font = Font(bold=True, size=14, color="2563EB")
+        elif line.startswith("COLUMNAS") or line.startswith("NOTAS"):
+            cell.font = Font(bold=True, size=11)
+    ws_help.column_dimensions['A'].width = 100
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=plantilla_backlog.xlsx"}
+    )
+
+
 @router.get("/lessons")
 def export_lessons(
     project_id: int,

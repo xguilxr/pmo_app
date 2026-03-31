@@ -141,7 +141,7 @@ export default function ProjectPlanTab({ projectId }: { projectId: number }) {
       const res = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData });
       if (!res.ok) { const err = await res.json().catch(() => ({ detail: 'Error al importar' })); throw new Error(err.detail || `Error ${res.status}`); }
       const imported = await res.json();
-      toastSuccess(`${imported.length} tareas importadas/actualizadas de ${file.name}`);
+      toastSuccess(`${imported.length} tareas importadas de ${file.name} (plan reemplazado)`);
       setShowImport(false); refetch();
     } catch (err) { toastError(err instanceof Error ? err.message : 'Error al importar'); }
     setImporting(false);
