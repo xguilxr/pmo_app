@@ -81,6 +81,150 @@ CREATE TABLE IF NOT EXISTS task_dependencies (
 -- -------------------------------------------------------
 -- project_requests: create table if not exists
 -- -------------------------------------------------------
+-- -------------------------------------------------------
+-- resources: create table if not exists (G1)
+-- -------------------------------------------------------
+CREATE TABLE IF NOT EXISTS resources (
+    id SERIAL PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMP,
+    folio VARCHAR(50) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
+    position VARCHAR(255),
+    department VARCHAR(255),
+    location VARCHAR(255),
+    phone VARCHAR(50),
+    mobile_phone VARCHAR(50),
+    company_name VARCHAR(255),
+    resource_type VARCHAR(50) DEFAULT 'human',
+    is_internal BOOLEAN DEFAULT TRUE,
+    is_active BOOLEAN DEFAULT TRUE,
+    hourly_rate FLOAT DEFAULT 0,
+    cost_period VARCHAR(20) DEFAULT 'hour',
+    hours_worked FLOAT DEFAULT 0,
+    user_id INTEGER REFERENCES users(id),
+    organization_id INTEGER REFERENCES organizations(id),
+    created_by_id INTEGER REFERENCES users(id)
+);
+
+-- -------------------------------------------------------
+-- project_resources: pivot table (G1)
+-- -------------------------------------------------------
+CREATE TABLE IF NOT EXISTS project_resources (
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    resource_id INTEGER NOT NULL REFERENCES resources(id),
+    allocation FLOAT DEFAULT 100,
+    role VARCHAR(100),
+    PRIMARY KEY (project_id, resource_id)
+);
+
+-- -------------------------------------------------------
+-- resource_work_logs: time tracking (G2)
+-- -------------------------------------------------------
+CREATE TABLE IF NOT EXISTS resource_work_logs (
+    id SERIAL PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMP,
+    resource_id INTEGER NOT NULL REFERENCES resources(id),
+    project_id INTEGER REFERENCES projects(id),
+    task_id INTEGER REFERENCES tasks(id),
+    work_date DATE NOT NULL,
+    hours FLOAT NOT NULL,
+    notes TEXT,
+    created_by_id INTEGER REFERENCES users(id)
+);
+
+-- -------------------------------------------------------
+-- resource_availabilities: availability (G3)
+-- -------------------------------------------------------
+CREATE TABLE IF NOT EXISTS resource_availabilities (
+    id SERIAL PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMP,
+    resource_id INTEGER NOT NULL REFERENCES resources(id),
+    available_date DATE NOT NULL,
+    available_hours FLOAT NOT NULL,
+    notes TEXT
+);
+
+-- -------------------------------------------------------
+-- project_statuses: periodic snapshots (G4)
+-- -------------------------------------------------------
+CREATE TABLE IF NOT EXISTS project_statuses (
+    id SERIAL PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMP,
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    status_date DATE NOT NULL,
+    health VARCHAR(20) NOT NULL,
+    progress_plan FLOAT DEFAULT 0,
+    progress_actual FLOAT DEFAULT 0,
+    summary TEXT,
+    risks_summary TEXT,
+    blockers TEXT,
+    next_steps TEXT,
+    created_by_id INTEGER REFERENCES users(id)
+);
+
+-- -------------------------------------------------------
+-- project_closures: formal closure (G5)
+-- -------------------------------------------------------
+CREATE TABLE IF NOT EXISTS project_closures (
+    id SERIAL PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMP,
+    project_id INTEGER NOT NULL REFERENCES projects(id) UNIQUE,
+    closure_date DATE NOT NULL,
+    summary TEXT NOT NULL,
+    outcomes TEXT,
+    pending_actions TEXT,
+    approved_by VARCHAR(255),
+    approved_by_id INTEGER REFERENCES users(id),
+    status VARCHAR(50) DEFAULT 'draft',
+    comments TEXT,
+    created_by_id INTEGER REFERENCES users(id)
+);
+
+-- -------------------------------------------------------
+-- dashboard_share_links: shared dashboards (G6)
+-- -------------------------------------------------------
+CREATE TABLE IF NOT EXISTS dashboard_share_links (
+    id SERIAL PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMP,
+    organization_id INTEGER NOT NULL REFERENCES organizations(id),
+    created_by_user_id INTEGER NOT NULL REFERENCES users(id),
+    label VARCHAR(255) NOT NULL,
+    token VARCHAR(128) UNIQUE NOT NULL,
+    pin_hash VARCHAR(255),
+    expires_at TIMESTAMP,
+    last_accessed_at TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE
+);
+
+-- -------------------------------------------------------
+-- approval_logs: polymorphic approval history (G13)
+-- -------------------------------------------------------
+CREATE TABLE IF NOT EXISTS approval_logs (
+    id SERIAL PRIMARY KEY,
+    approvable_type VARCHAR(100) NOT NULL,
+    approvable_id INTEGER NOT NULL,
+    approved_by_user_id INTEGER NOT NULL REFERENCES users(id),
+    status VARCHAR(50) NOT NULL,
+    comments TEXT,
+    approved_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- -------------------------------------------------------
+-- project_requests: create table if not exists
+-- -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS project_requests (
     id SERIAL PRIMARY KEY,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),

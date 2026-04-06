@@ -14,3 +14,8 @@ from app.models.backlog import BacklogItem  # noqa: F401
 from app.models.area import ProjectArea  # noqa: F401
 from app.models.objective import ProjectObjective  # noqa: F401
 from app.models.notification import Notification  # noqa: F401
+from app.models.resource import Resource, ResourceWorkLog, ResourceAvailability  # noqa: F401
+from app.models.project_status import ProjectStatus  # noqa: F401
+from app.models.project_closure import ProjectClosure  # noqa: F401
+from app.models.dashboard_share import DashboardShareLink  # noqa: F401
+from app.models.approval_log import ApprovalLog  # noqa: F401

@@ -13,6 +13,7 @@ def generate_folio(db: Session, prefix: str) -> str:
     from app.models.modules import Risk, Issue, Change, Document, Lesson, Minute
     from app.models.project_request import ProjectRequest
     from app.models.area import ProjectArea
+    from app.models.resource import Resource
     model_map = {
         "PRJ": Project,
         "REQ": ProjectRequest,
@@ -23,6 +24,7 @@ def generate_folio(db: Session, prefix: str) -> str:
         "LEC": Lesson,
         "MIN": Minute,
         "ARE": ProjectArea,
+        "REC": Resource,
     }
 
     model = model_map.get(prefix)
