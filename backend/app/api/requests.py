@@ -180,6 +180,11 @@ def approve_request(
     req.status = "approved"
     req.reviewed_by_id = current_user.id
     req.review_date = date.today()
+    # Approval log
+    from app.models.approval_log import ApprovalLog
+    db.add(ApprovalLog(approvable_type="project_request", approvable_id=req.id, approved_by_user_id=current_user.id, status="approved"))
+    from app.services.audit import log_action
+    log_action(db, user_id=current_user.id, action="approve", module="requests", record_id=req.id)
     db.commit()
     db.refresh(req)
     return req
@@ -201,6 +206,10 @@ def reject_request(
     req.rejection_reason = payload.reason
     req.reviewed_by_id = current_user.id
     req.review_date = date.today()
+    from app.models.approval_log import ApprovalLog
+    db.add(ApprovalLog(approvable_type="project_request", approvable_id=req.id, approved_by_user_id=current_user.id, status="rejected", comments=payload.reason))
+    from app.services.audit import log_action
+    log_action(db, user_id=current_user.id, action="reject", module="requests", record_id=req.id)
     db.commit()
     db.refresh(req)
     return req

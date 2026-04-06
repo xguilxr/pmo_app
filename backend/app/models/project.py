@@ -4,6 +4,7 @@ from sqlalchemy.orm import relationship
 from app.database import Base
 from app.models.base import TimestampMixin
 from app.models.user import user_projects
+from app.models.resource import project_resources
 
 
 class Project(TimestampMixin, Base):
@@ -51,3 +52,6 @@ class Project(TimestampMixin, Base):
     backlog_items = relationship("BacklogItem", back_populates="project", lazy="dynamic")
     areas = relationship("ProjectArea", back_populates="project", lazy="dynamic")
     objectives = relationship("ProjectObjective", back_populates="project", lazy="dynamic")
+    resources = relationship("Resource", secondary=project_resources, back_populates="projects")
+    statuses = relationship("ProjectStatus", lazy="dynamic")
+    closure = relationship("ProjectClosure", uselist=False)

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.api import auth, users, projects, dashboard, minutes, risks, issues, changes, documents, lessons, areas, objectives, organizations, tasks, backlog, requests, uploads, programs, exports, reports, notifications
+from app.api import auth, users, projects, dashboard, minutes, risks, issues, changes, documents, lessons, areas, objectives, organizations, tasks, backlog, requests, uploads, programs, exports, reports, notifications, resources, project_statuses, project_closures, dashboard_share, audit, approval_logs
 import app.models  # noqa: F401 - register all models with SQLAlchemy mapper
 
 settings = get_settings()
@@ -45,6 +45,12 @@ app.include_router(programs.router, prefix="/api")
 app.include_router(exports.router, prefix="/api")
 app.include_router(reports.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
+app.include_router(resources.router, prefix="/api")
+app.include_router(project_statuses.router, prefix="/api")
+app.include_router(project_closures.router, prefix="/api")
+app.include_router(dashboard_share.router, prefix="/api")
+app.include_router(audit.router, prefix="/api")
+app.include_router(approval_logs.router, prefix="/api")
 
 
 from fastapi.staticfiles import StaticFiles
