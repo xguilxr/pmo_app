@@ -7,16 +7,48 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from sqlalchemy import text
 
 from app.database import get_db
 from app.models.user import User
 from app.models.task import Task
+from app.models.project import Project
 from app.models.modules import Document
 from app.auth.security import get_current_user
 from app.services.folio import generate_folio
 from app.services import notifications as notif_svc
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
+
+VALID_TASK_STATUSES = {"pending", "in_progress", "completed", "delayed"}
+
+
+def _get_project_or_404(db: Session, project_id: int) -> Project:
+    """Verify that the project exists and is not deleted."""
+    project = db.query(Project).filter(
+        Project.id == project_id, Project.deleted_at.is_(None)
+    ).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    return project
+
+
+def _validate_dates(start_date: date | None, end_date: date | None) -> None:
+    """Ensure end_date is not before start_date."""
+    if start_date and end_date and end_date < start_date:
+        raise HTTPException(
+            status_code=422,
+            detail="La fecha fin no puede ser anterior a la fecha inicio",
+        )
+
+
+def _validate_status(status_value: str | None) -> None:
+    """Ensure status is one of the allowed values."""
+    if status_value and status_value not in VALID_TASK_STATUSES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Estado inválido: '{status_value}'. Valores válidos: {', '.join(sorted(VALID_TASK_STATUSES))}",
+        )
 
 
 class TaskCreate(BaseModel):
@@ -104,10 +136,15 @@ def list_tasks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    _get_project_or_404(db, project_id)
     query = db.query(Task).filter(Task.deleted_at.is_(None), Task.project_id == project_id)
     if status_filter:
         query = query.filter(Task.status == status_filter)
-    return query.order_by(Task.wbs, Task.id).all()
+    # Sort WBS numerically (e.g. 1.2 before 1.10) using PostgreSQL array cast
+    return query.order_by(
+        text("string_to_array(COALESCE(tasks.wbs, '999999'), '.')::int[]"),
+        Task.id,
+    ).all()
 
 
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
@@ -117,6 +154,9 @@ def create_task(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    _get_project_or_404(db, project_id)
+    _validate_dates(data.start_date, data.end_date)
+    _validate_status(data.status)
     task = Task(
         name=data.name,
         description=data.description,
@@ -163,6 +203,13 @@ def update_task(
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
     old_responsible = task.responsible_id
     update_data = data.model_dump(exclude_unset=True)
+    # Validate status if provided
+    if "status" in update_data:
+        _validate_status(update_data["status"])
+    # Validate date range (merge with existing values for partial updates)
+    effective_start = update_data.get("start_date", task.start_date)
+    effective_end = update_data.get("end_date", task.end_date)
+    _validate_dates(effective_start, effective_end)
     for field, value in update_data.items():
         setattr(task, field, value)
     db.commit()
@@ -194,6 +241,7 @@ def import_tasks(
 
     Overwrites all existing tasks for the project.
     """
+    _get_project_or_404(db, project_id)
     # Soft-delete all existing tasks
     existing_tasks = db.query(Task).filter(
         Task.project_id == project_id, Task.deleted_at.is_(None)
@@ -242,6 +290,7 @@ async def import_tasks_from_file(
     WBS, Nombre/Name/Task, Inicio/Start, Fin/End/Finish, Duracion/Duration,
     Avance/Progress/%, Hito/Milestone, Nivel/Level/Outline, Responsable/Resource
     """
+    _get_project_or_404(db, project_id)
     filename = (file.filename or "").lower()
     original_filename = file.filename or "imported_file"
     content = await file.read()
