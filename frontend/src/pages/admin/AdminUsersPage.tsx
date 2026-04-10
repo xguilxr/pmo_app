@@ -15,6 +15,16 @@ interface UserItem {
   lastLogin: string;
 }
 
+interface RoleOption {
+  id: number;
+  name: string;
+}
+
+interface OrgOption {
+  id: number;
+  name: string;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapApiUser(raw: any): UserItem {
   return {
@@ -34,16 +44,17 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<UserItem | null>(null);
-  const [form, setForm] = useState({ username: '', email: '', fullName: '', password: '', roles: [] as string[], organizations: [] as string[], isActive: true });
+  const [form, setForm] = useState({ username: '', email: '', fullName: '', password: '', roleIds: [] as number[], orgIds: [] as number[], isActive: true });
   const [search, setSearch] = useState('');
-  const [availableOrgs, setAvailableOrgs] = useState<string[]>([]);
-  const [availableRoles, setAvailableRoles] = useState<string[]>([]);
+  const [availableOrgs, setAvailableOrgs] = useState<OrgOption[]>([]);
+  const [availableRoles, setAvailableRoles] = useState<RoleOption[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<UserItem | null>(null);
 
   // Fetch available orgs and roles
   useEffect(() => {
-    api.get<any[]>('/organizations').then(orgs => setAvailableOrgs(orgs.map((o: any) => o.name))).catch(() => {});
-    api.get<Array<{id: number; name: string}>>('/users/roles').then(r => setAvailableRoles(r.map(role => role.name))).catch(() => setAvailableRoles(['Administrador', 'PMO Manager', 'Project Manager', 'Viewer']));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    api.get<any[]>('/organizations').then(orgs => setAvailableOrgs(orgs.map((o: any) => ({ id: o.id, name: o.name })))).catch(() => {});
+    api.get<Array<{id: number; name: string}>>('/users/roles').then(r => setAvailableRoles(r.map(role => ({ id: role.id, name: role.name })))).catch(() => {});
   }, []);
 
   // Fetch users from API
@@ -59,22 +70,25 @@ export default function AdminUsersPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ username: '', email: '', fullName: '', password: '', roles: [], organizations: [], isActive: true });
+    setForm({ username: '', email: '', fullName: '', password: '', roleIds: [], orgIds: [], isActive: true });
     setShowModal(true);
   };
 
   const openEdit = (u: UserItem) => {
     setEditing(u);
-    setForm({ username: u.username, email: u.email, fullName: u.fullName, password: '', roles: [...u.roles], organizations: [...u.organizations], isActive: u.isActive });
+    // Resolve names back to IDs using the available lists
+    const roleIds = availableRoles.filter(r => u.roles.includes(r.name)).map(r => r.id);
+    const orgIds = availableOrgs.filter(o => u.organizations.includes(o.name)).map(o => o.id);
+    setForm({ username: u.username, email: u.email, fullName: u.fullName, password: '', roleIds, orgIds, isActive: u.isActive });
     setShowModal(true);
   };
 
-  const toggleRole = (role: string) => {
-    setForm({ ...form, roles: form.roles.includes(role) ? form.roles.filter(r => r !== role) : [...form.roles, role] });
+  const toggleRole = (roleId: number) => {
+    setForm({ ...form, roleIds: form.roleIds.includes(roleId) ? form.roleIds.filter(r => r !== roleId) : [...form.roleIds, roleId] });
   };
 
-  const toggleOrganization = (org: string) => {
-    setForm({ ...form, organizations: form.organizations.includes(org) ? form.organizations.filter(o => o !== org) : [...form.organizations, org] });
+  const toggleOrganization = (orgId: number) => {
+    setForm({ ...form, orgIds: form.orgIds.includes(orgId) ? form.orgIds.filter(o => o !== orgId) : [...form.orgIds, orgId] });
   };
 
   const handleSave = async () => {
@@ -86,8 +100,8 @@ export default function AdminUsersPage() {
           email: form.email,
           full_name: form.fullName,
           is_active: form.isActive,
-          role_ids: [],
-          organization_ids: [],
+          role_ids: form.roleIds,
+          organization_ids: form.orgIds,
         });
       } else {
         await api.post('/users', {
@@ -95,8 +109,8 @@ export default function AdminUsersPage() {
           email: form.email,
           full_name: form.fullName,
           password: form.password,
-          role_ids: [],
-          organization_ids: [],
+          role_ids: form.roleIds,
+          organization_ids: form.orgIds,
         });
       }
       refetch();
@@ -228,11 +242,11 @@ export default function AdminUsersPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">{t('admin.roles')}</label>
                 <div className="space-y-2">
                   {availableRoles.map(role => (
-                    <button key={role} type="button" onClick={() => toggleRole(role)} className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm border transition-colors ${form.roles.includes(role) ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${form.roles.includes(role) ? 'bg-blue-600 border-blue-600' : 'border-gray-300'}`}>
-                        {form.roles.includes(role) && <Check className="w-3 h-3 text-white" />}
+                    <button key={role.id} type="button" onClick={() => toggleRole(role.id)} className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm border transition-colors ${form.roleIds.includes(role.id) ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${form.roleIds.includes(role.id) ? 'bg-blue-600 border-blue-600' : 'border-gray-300'}`}>
+                        {form.roleIds.includes(role.id) && <Check className="w-3 h-3 text-white" />}
                       </div>
-                      {role}
+                      {role.name}
                     </button>
                   ))}
                 </div>
@@ -241,11 +255,11 @@ export default function AdminUsersPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">{t('admin.organizations')}</label>
                 <div className="space-y-2">
                   {availableOrgs.map(org => (
-                    <button key={org} type="button" onClick={() => toggleOrganization(org)} className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm border transition-colors ${form.organizations.includes(org) ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${form.organizations.includes(org) ? 'bg-green-600 border-green-600' : 'border-gray-300'}`}>
-                        {form.organizations.includes(org) && <Check className="w-3 h-3 text-white" />}
+                    <button key={org.id} type="button" onClick={() => toggleOrganization(org.id)} className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm border transition-colors ${form.orgIds.includes(org.id) ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${form.orgIds.includes(org.id) ? 'bg-green-600 border-green-600' : 'border-gray-300'}`}>
+                        {form.orgIds.includes(org.id) && <Check className="w-3 h-3 text-white" />}
                       </div>
-                      {org}
+                      {org.name}
                     </button>
                   ))}
                 </div>

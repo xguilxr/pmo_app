@@ -163,6 +163,16 @@
     "forgotPassword": "¿Olvidaste tu contraseña?",
     "invalidCredentials": "Credenciales incorrectas"
   },
+  "forgotPassword": {
+    "title": "Recuperar Contraseña",
+    "subtitle": "Te enviaremos un enlace para restablecerla",
+    "instructions": "Ingresa el correo asociado a tu cuenta y te enviaremos las instrucciones para restablecer tu contraseña.",
+    "email": "Correo Electrónico",
+    "emailRequired": "El correo es obligatorio",
+    "sendLink": "Enviar Enlace",
+    "backToLogin": "Volver al inicio de sesión",
+    "successMessage": "Si el correo está registrado, recibirás un enlace para restablecer tu contraseña en los próximos minutos."
+  },
   "minutes": {
     "title": "Minutas",
     "newMinute": "Nueva Minuta",
@@ -217,10 +227,14 @@
     "inReview": "En Revisión",
     "approved": "Aprobada",
     "rejected": "Rechazada",
+    "cancelled": "Cancelada",
     "infoRequested": "Info Solicitada",
     "noRequests": "No hay solicitudes registradas",
     "requestedBy": "Solicitado por",
+    "sponsor": "Sponsor",
+    "sponsorEmail": "Correo del Sponsor",
     "organization": "Organización",
+    "selectOrganization": "Seleccionar organización",
     "estimatedBudget": "Presupuesto Estimado",
     "desiredStart": "Inicio Deseado",
     "businessCase": "Caso de Negocio",
@@ -228,6 +242,10 @@
     "reject": "Rechazar",
     "requestInfo": "Solicitar Info",
     "approve": "Aprobar",
+    "cancelRequest": "Cancelar Solicitud",
+    "cancelConfirm": "¿Estás seguro de cancelar esta solicitud?",
+    "approveConfirm": "Al aprobar esta solicitud se creará un nuevo proyecto. ¿Deseas continuar?",
+    "projectCreated": "Proyecto creado exitosamente desde la solicitud.",
     "projectName": "Nombre del Proyecto",
     "submit": "Enviar Solicitud"
   },

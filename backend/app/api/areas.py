@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -7,6 +8,8 @@ from app.models.project import Project
 from app.models.area import ProjectArea
 from app.schemas.area import AreaCreate, AreaUpdate, AreaResponse
 from app.auth.security import get_current_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/projects/{project_id}/areas", tags=["Project Areas"])
 
@@ -48,9 +51,10 @@ def create_area(project_id: int, data: AreaCreate, db: Session = Depends(get_db)
         db.add(area)
         db.commit()
         db.refresh(area)
-    except Exception:
+    except Exception as exc:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Error al crear el área. Verifique que la base de datos esté sincronizada.")
+        logger.exception("Failed to create project area for project_id=%s", project_id)
+        raise HTTPException(status_code=500, detail=f"Error al crear el área: {exc}")
     resp = AreaResponse.model_validate(area)
     if area.responsible:
         resp.responsible_name = area.responsible.full_name

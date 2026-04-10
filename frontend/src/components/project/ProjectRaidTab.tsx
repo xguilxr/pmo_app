@@ -9,13 +9,17 @@ interface Risk {
   category: string | null; probability: number; impact: number; severity: number;
   mitigation_strategy: string | null; status: string;
   identification_date: string | null; deadline: string | null;
+  responsible_id: number | null;
 }
 
 interface Issue {
   id: number; folio: string; title: string; description: string | null;
   type: string; priority: string; status: string;
   resolution: string | null; report_date: string | null; commitment_date: string | null;
+  responsible_id: number | null;
 }
+
+interface UserOption { id: number; full_name: string; }
 
 type RaidSection = 'all' | 'risks' | 'actions' | 'issues' | 'decisions';
 
@@ -46,6 +50,10 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
   const { toastSuccess, toastError } = useToast();
   const { data: risks, loading: loadingR, refetch: refetchR } = useApi(() => api.get<Risk[]>(`/risks?project_id=${projectId}`), [projectId]);
   const { data: allIssues, loading: loadingI, refetch: refetchI } = useApi(() => api.get<Issue[]>(`/issues?project_id=${projectId}`), [projectId]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: users } = useApi(() => api.get<any[]>('/users').then(arr => arr.map(u => ({ id: u.id, full_name: u.full_name })) as UserOption[]).catch(() => [] as UserOption[]), []);
+
+  const userById = (id: number | null) => (users || []).find(u => u.id === id)?.full_name || '-';
 
   const [section, setSection] = useState<RaidSection>('all');
   const [showRiskModal, setShowRiskModal] = useState(false);
@@ -54,8 +62,8 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
   const [editingIssue, setEditingIssue] = useState<Issue | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const [riskForm, setRiskForm] = useState({ title: '', description: '', category: 'Tecnico', probability: 3, impact: 3, mitigation_strategy: '', status: 'Abierto', identification_date: '', deadline: '' });
-  const [issueForm, setIssueForm] = useState({ title: '', description: '', type: 'issue', priority: 'Media', status: 'Abierto', resolution: '', report_date: '', commitment_date: '' });
+  const [riskForm, setRiskForm] = useState({ title: '', description: '', category: 'Tecnico', probability: 3, impact: 3, mitigation_strategy: '', status: 'Abierto', identification_date: '', deadline: '', responsible_id: 0 });
+  const [issueForm, setIssueForm] = useState({ title: '', description: '', type: 'issue', priority: 'Media', status: 'Abierto', resolution: '', report_date: '', commitment_date: '', responsible_id: 0 });
 
   const actions = (allIssues || []).filter(i => i.type === 'action');
   const issues = (allIssues || []).filter(i => i.type === 'issue');
@@ -72,19 +80,19 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
   // Risk CRUD
   const openCreateRisk = () => {
     setEditingRisk(null);
-    setRiskForm({ title: '', description: '', category: 'Tecnico', probability: 3, impact: 3, mitigation_strategy: '', status: 'Abierto', identification_date: new Date().toISOString().slice(0, 10), deadline: '' });
+    setRiskForm({ title: '', description: '', category: 'Tecnico', probability: 3, impact: 3, mitigation_strategy: '', status: 'Abierto', identification_date: new Date().toISOString().slice(0, 10), deadline: '', responsible_id: 0 });
     setShowRiskModal(true);
   };
   const openEditRisk = (r: Risk) => {
     setEditingRisk(r);
-    setRiskForm({ title: r.title, description: r.description || '', category: r.category || 'Tecnico', probability: r.probability, impact: r.impact, mitigation_strategy: r.mitigation_strategy || '', status: r.status, identification_date: r.identification_date || '', deadline: r.deadline || '' });
+    setRiskForm({ title: r.title, description: r.description || '', category: r.category || 'Tecnico', probability: r.probability, impact: r.impact, mitigation_strategy: r.mitigation_strategy || '', status: r.status, identification_date: r.identification_date || '', deadline: r.deadline || '', responsible_id: r.responsible_id || 0 });
     setShowRiskModal(true);
   };
   const handleSaveRisk = async () => {
     if (!riskForm.title.trim()) return;
     setSaving(true);
     try {
-      const payload = { ...riskForm, identification_date: riskForm.identification_date || null, deadline: riskForm.deadline || null };
+      const payload = { ...riskForm, identification_date: riskForm.identification_date || null, deadline: riskForm.deadline || null, responsible_id: riskForm.responsible_id || null };
       if (editingRisk) { await api.patch(`/risks/${editingRisk.id}`, payload); toastSuccess('Riesgo actualizado'); }
       else { await api.post(`/risks?project_id=${projectId}`, payload); toastSuccess('Riesgo creado'); }
       setShowRiskModal(false); refetchR();
@@ -100,19 +108,19 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
   // Issue/Action/Decision CRUD
   const openCreateIssue = (type: string) => {
     setEditingIssue(null);
-    setIssueForm({ title: '', description: '', type, priority: 'Media', status: 'Abierto', resolution: '', report_date: new Date().toISOString().slice(0, 10), commitment_date: '' });
+    setIssueForm({ title: '', description: '', type, priority: 'Media', status: 'Abierto', resolution: '', report_date: new Date().toISOString().slice(0, 10), commitment_date: '', responsible_id: 0 });
     setShowIssueModal(true);
   };
   const openEditIssue = (i: Issue) => {
     setEditingIssue(i);
-    setIssueForm({ title: i.title, description: i.description || '', type: i.type, priority: i.priority, status: i.status, resolution: i.resolution || '', report_date: i.report_date || '', commitment_date: i.commitment_date || '' });
+    setIssueForm({ title: i.title, description: i.description || '', type: i.type, priority: i.priority, status: i.status, resolution: i.resolution || '', report_date: i.report_date || '', commitment_date: i.commitment_date || '', responsible_id: i.responsible_id || 0 });
     setShowIssueModal(true);
   };
   const handleSaveIssue = async () => {
     if (!issueForm.title.trim()) return;
     setSaving(true);
     try {
-      const payload = { ...issueForm, report_date: issueForm.report_date || null, commitment_date: issueForm.commitment_date || null };
+      const payload = { ...issueForm, report_date: issueForm.report_date || null, commitment_date: issueForm.commitment_date || null, responsible_id: issueForm.responsible_id || null };
       if (editingIssue) { await api.patch(`/issues/${editingIssue.id}`, payload); toastSuccess('Actualizado'); }
       else { await api.post(`/issues?project_id=${projectId}`, payload); toastSuccess('Creado'); }
       setShowIssueModal(false); refetchI();
@@ -155,7 +163,7 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
       <table className="w-full text-[13px]">
         <thead>
           <tr className="bg-red-50 dark:bg-red-950/30 border-b border-border">
-            <th className="text-left px-4 py-3 text-[11px] font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider" colSpan={8}>
+            <th className="text-left px-4 py-3 text-[11px] font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider" colSpan={9}>
               <div className="flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> Riesgos ({items.length})</div>
             </th>
           </tr>
@@ -167,6 +175,7 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
             <th className="text-center px-4 py-2.5 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">I</th>
             <th className="text-center px-4 py-2.5 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Severidad</th>
             <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Estado</th>
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Responsable</th>
             <th className="text-right px-4 py-2.5 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Acciones</th>
           </tr>
         </thead>
@@ -180,6 +189,7 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
               <td className="px-4 py-3 text-center text-text-secondary">{r.impact}</td>
               <td className="px-4 py-3 text-center"><span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold ${severityColor(r.severity)}`}>{r.severity}</span></td>
               <td className="px-4 py-3"><span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold ${r.status === 'Abierto' ? 'bg-red-100 dark:bg-red-950/50 text-red-600' : r.status === 'Mitigado' ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-600' : 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600'}`}>{r.status}</span></td>
+              <td className="px-4 py-3 text-text-secondary text-[12px]">{userById(r.responsible_id)}</td>
               <td className="px-4 py-3 text-right">
                 <button onClick={() => openEditRisk(r)} className="p-1.5 hover:bg-surface-tertiary rounded-lg transition-colors"><Edit2 className="w-3.5 h-3.5 text-text-tertiary" /></button>
                 <button onClick={() => handleDeleteRisk(r.id)} className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors ml-1"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
@@ -196,7 +206,7 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
       <table className="w-full text-[13px]">
         <thead>
           <tr className={`${headerBg} border-b border-border`}>
-            <th className={`text-left px-4 py-3 text-[11px] font-semibold ${headerColor} uppercase tracking-wider`} colSpan={7}>
+            <th className={`text-left px-4 py-3 text-[11px] font-semibold ${headerColor} uppercase tracking-wider`} colSpan={8}>
               <div className="flex items-center gap-1.5"><Icon className="w-3.5 h-3.5" /> {sectionLabel} ({items.length})</div>
             </th>
           </tr>
@@ -205,6 +215,7 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
             <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Titulo</th>
             <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Prioridad</th>
             <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Estado</th>
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Responsable</th>
             <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">F. Compromiso</th>
             <th className="text-right px-4 py-2.5 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Acciones</th>
           </tr>
@@ -219,6 +230,7 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
               </td>
               <td className="px-4 py-3"><span className={`font-semibold text-[12px] ${priorityColor[i.priority] || 'text-text-secondary'}`}>{i.priority}</span></td>
               <td className="px-4 py-3"><span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold ${i.status === 'Abierto' ? 'bg-red-100 dark:bg-red-950/50 text-red-600' : i.status === 'En Progreso' ? 'bg-blue-100 dark:bg-blue-950/50 text-blue-600' : i.status === 'Resuelto' ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600' : 'bg-gray-100 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400'}`}>{i.status}</span></td>
+              <td className="px-4 py-3 text-text-secondary text-[12px]">{userById(i.responsible_id)}</td>
               <td className="px-4 py-3 text-text-secondary text-[12px]">{i.commitment_date || '-'}</td>
               <td className="px-4 py-3 text-right">
                 <button onClick={() => openEditIssue(i)} className="p-1.5 hover:bg-surface-tertiary rounded-lg transition-colors"><Edit2 className="w-3.5 h-3.5 text-text-tertiary" /></button>
@@ -302,6 +314,13 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
                 <div><label className={labelCls}>Impacto (1-5)</label><input type="number" min={1} max={5} value={riskForm.impact} onChange={e => setRiskForm({ ...riskForm, impact: Number(e.target.value) })} className={inputCls} /></div>
               </div>
               <div><label className={labelCls}>Estrategia de Mitigacion</label><textarea value={riskForm.mitigation_strategy} onChange={e => setRiskForm({ ...riskForm, mitigation_strategy: e.target.value })} rows={2} className={inputCls} /></div>
+              <div>
+                <label className={labelCls}>Responsable</label>
+                <select value={riskForm.responsible_id} onChange={e => setRiskForm({ ...riskForm, responsible_id: Number(e.target.value) })} className={inputCls}>
+                  <option value={0}>-- Sin asignar --</option>
+                  {(users || []).map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                </select>
+              </div>
               <div className="grid grid-cols-3 gap-4">
                 <div><label className={labelCls}>Estado</label>
                   <select value={riskForm.status} onChange={e => setRiskForm({ ...riskForm, status: e.target.value })} className={inputCls}>
@@ -353,6 +372,13 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
               <div className="grid grid-cols-2 gap-4">
                 <div><label className={labelCls}>F. Reporte</label><input type="date" value={issueForm.report_date} onChange={e => setIssueForm({ ...issueForm, report_date: e.target.value })} className={inputCls} /></div>
                 <div><label className={labelCls}>F. Compromiso</label><input type="date" value={issueForm.commitment_date} onChange={e => setIssueForm({ ...issueForm, commitment_date: e.target.value })} className={inputCls} /></div>
+              </div>
+              <div>
+                <label className={labelCls}>Responsable</label>
+                <select value={issueForm.responsible_id} onChange={e => setIssueForm({ ...issueForm, responsible_id: Number(e.target.value) })} className={inputCls}>
+                  <option value={0}>-- Sin asignar --</option>
+                  {(users || []).map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                </select>
               </div>
               <div><label className={labelCls}>Resolucion</label><textarea value={issueForm.resolution} onChange={e => setIssueForm({ ...issueForm, resolution: e.target.value })} rows={2} className={inputCls} /></div>
             </div>

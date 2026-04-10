@@ -46,7 +46,7 @@ export default function RequestsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [viewDetail, setViewDetail] = useState<ProjectRequest | null>(null);
-  const [form, setForm] = useState({ projectName: '', description: '', objective: '', businessCase: '', requestedBy: '', organization: '', organizationId: 0, estimatedBudget: 0, priority: 'Media', startDate: '', strategic_alignment: '', what_if_not_done: '', key_stakeholders: '', expected_deliverables: '' });
+  const [form, setForm] = useState({ projectName: '', description: '', objective: '', businessCase: '', requestedBy: '', sponsorEmail: '', organization: '', organizationId: 0, estimatedBudget: 0, priority: 'Media', startDate: '', strategic_alignment: '', what_if_not_done: '', key_stakeholders: '', expected_deliverables: '' });
   const { data: orgs } = useApi(() => api.get<{id: number; name: string}[]>('/organizations').catch(() => []), []);
 
   // Fetch from API with fallback to mock
@@ -86,7 +86,7 @@ export default function RequestsPage() {
         business_unit: form.organization,
         department: form.organization,
         sponsor_name: form.requestedBy,
-        sponsor_email: '',
+        sponsor_email: form.sponsorEmail,
         strategic_alignment: form.strategic_alignment,
         what_if_not_done: form.what_if_not_done,
         key_stakeholders: form.key_stakeholders || form.requestedBy,
@@ -107,24 +107,24 @@ export default function RequestsPage() {
       setRequests([newReq, ...requests]);
     }
     setShowModal(false);
-    setForm({ projectName: '', description: '', objective: '', businessCase: '', requestedBy: '', organization: '', organizationId: 0, estimatedBudget: 0, priority: 'Media', startDate: '', strategic_alignment: '', what_if_not_done: '', key_stakeholders: '', expected_deliverables: '' });
+    setForm({ projectName: '', description: '', objective: '', businessCase: '', requestedBy: '', sponsorEmail: '', organization: '', organizationId: 0, estimatedBudget: 0, priority: 'Media', startDate: '', strategic_alignment: '', what_if_not_done: '', key_stakeholders: '', expected_deliverables: '' });
   };
 
   const handleStatusChange = async (id: number, newStatus: string, notes: string = '') => {
     if (newStatus === 'approved') {
-      const req = requests.find(r => r.id === id);
-      if (req && !window.confirm(
-        `Aprobar solicitud "${req.projectName}".\n\n` +
-        `Se creará un proyecto en la organización "${req.organization}".\n` +
-        `El Project Charter estará disponible en la pestaña Charter del proyecto.\n\n` +
-        `¿Desea continuar?`
-      )) {
+      if (!window.confirm(t('requests.approveConfirm'))) {
+        return;
+      }
+    }
+    if (newStatus === 'cancelled') {
+      if (!window.confirm(t('requests.cancelConfirm'))) {
         return;
       }
     }
     try {
       if (newStatus === 'approved') {
         await api.post(`/requests/${id}/approve`, {});
+        window.alert(t('requests.projectCreated'));
       } else if (newStatus === 'rejected') {
         await api.post(`/requests/${id}/reject`, { reason: notes });
       } else if (newStatus === 'cancelled') {
@@ -300,16 +300,20 @@ export default function RequestsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Sponsor / Solicitante *</label>
-                  <input value={form.requestedBy} onChange={e => setForm({...form, requestedBy: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('requests.sponsor')} *</label>
+                  <input value={form.requestedBy} onChange={e => setForm({...form, requestedBy: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Nombre del sponsor" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('requests.organization')} *</label>
-                  <select value={form.organizationId} onChange={e => { const orgId = Number(e.target.value); const org = (orgs || []).find(o => o.id === orgId); setForm({...form, organizationId: orgId, organization: org?.name || ''}); }} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option value={0}>Seleccionar...</option>
-                    {(orgs || []).map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-                  </select>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('requests.sponsorEmail')}</label>
+                  <input type="email" value={form.sponsorEmail} onChange={e => setForm({...form, sponsorEmail: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="sponsor@empresa.com" />
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('requests.organization')} *</label>
+                <select value={form.organizationId} onChange={e => { const orgId = Number(e.target.value); const org = (orgs || []).find(o => o.id === orgId); setForm({...form, organizationId: orgId, organization: org?.name || ''}); }} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                  <option value={0}>{t('requests.selectOrganization')}</option>
+                  {(orgs || []).map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Interesados Clave</label>

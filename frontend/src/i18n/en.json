@@ -163,6 +163,16 @@
     "forgotPassword": "Forgot your password?",
     "invalidCredentials": "Invalid credentials"
   },
+  "forgotPassword": {
+    "title": "Reset Password",
+    "subtitle": "We'll send you a link to reset it",
+    "instructions": "Enter the email associated with your account and we'll send you instructions to reset your password.",
+    "email": "Email",
+    "emailRequired": "Email is required",
+    "sendLink": "Send Link",
+    "backToLogin": "Back to sign in",
+    "successMessage": "If the email is registered, you'll receive a link to reset your password in the next few minutes."
+  },
   "minutes": {
     "title": "Minutes",
     "newMinute": "New Minute",
@@ -217,10 +227,14 @@
     "inReview": "In Review",
     "approved": "Approved",
     "rejected": "Rejected",
+    "cancelled": "Cancelled",
     "infoRequested": "Info Requested",
     "noRequests": "No requests recorded",
     "requestedBy": "Requested by",
+    "sponsor": "Sponsor",
+    "sponsorEmail": "Sponsor Email",
     "organization": "Organization",
+    "selectOrganization": "Select organization",
     "estimatedBudget": "Estimated Budget",
     "desiredStart": "Desired Start",
     "businessCase": "Business Case",
@@ -228,6 +242,10 @@
     "reject": "Reject",
     "requestInfo": "Request Info",
     "approve": "Approve",
+    "cancelRequest": "Cancel Request",
+    "cancelConfirm": "Are you sure you want to cancel this request?",
+    "approveConfirm": "Approving this request will create a new project. Do you want to continue?",
+    "projectCreated": "Project successfully created from the request.",
     "projectName": "Project Name",
     "submit": "Submit Request"
   },
