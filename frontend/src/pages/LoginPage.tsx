@@ -133,7 +133,11 @@ export default function LoginPage() {
           </button>
 
           <div className="text-center">
-            <button type="button" className="text-[12px] text-white/30 hover:text-accent transition-colors font-light">
+            <button
+              type="button"
+              onClick={() => navigate('/forgot-password')}
+              className="text-[12px] text-white/30 hover:text-accent transition-colors font-light"
+            >
               {t('login.forgotPassword')}
             </button>
           </div>

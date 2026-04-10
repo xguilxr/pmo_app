@@ -180,6 +180,37 @@ def approve_request(
     req.status = "approved"
     req.reviewed_by_id = current_user.id
     req.review_date = date.today()
+
+    # Create a Project from the approved request
+    from app.models.project import Project
+    existing_project = db.query(Project).filter(
+        Project.request_id == req.id,
+        Project.deleted_at.is_(None),
+    ).first()
+    if not existing_project:
+        project_folio = generate_folio(db, "PRJ")
+        project = Project(
+            folio=project_folio,
+            name=req.title,
+            description=req.description,
+            type=None,
+            priority="Media",
+            phase="Planificación",
+            status="active",
+            health="green",
+            start_date=None,
+            end_date=None,
+            budget=req.budget or 0,
+            real_budget=0,
+            progress=0,
+            planned_progress=0,
+            organization_id=req.organization_id,
+            request_id=req.id,
+            pm_id=current_user.id,
+            created_by_id=current_user.id,
+        )
+        db.add(project)
+
     # Approval log
     from app.models.approval_log import ApprovalLog
     db.add(ApprovalLog(approvable_type="project_request", approvable_id=req.id, approved_by_user_id=current_user.id, status="approved"))

@@ -14,6 +14,17 @@ ALTER TABLE tasks ADD COLUMN IF NOT EXISTS original_end_date DATE;
 -- project_areas: add missing columns
 -- -------------------------------------------------------
 ALTER TABLE project_areas ADD COLUMN IF NOT EXISTS responsible_name_text VARCHAR(255);
+ALTER TABLE project_areas ADD COLUMN IF NOT EXISTS responsible_id INTEGER REFERENCES users(id);
+
+-- -------------------------------------------------------
+-- risks: ensure responsible_id column exists
+-- -------------------------------------------------------
+ALTER TABLE risks ADD COLUMN IF NOT EXISTS responsible_id INTEGER REFERENCES users(id);
+
+-- -------------------------------------------------------
+-- issues: ensure responsible_id column exists
+-- -------------------------------------------------------
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS responsible_id INTEGER REFERENCES users(id);
 
 -- -------------------------------------------------------
 -- backlog_items: add missing columns

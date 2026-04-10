@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -5,8 +6,10 @@ from sqlalchemy import or_
 
 from app.database import get_db
 from app.models.user import User
-from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.auth import LoginRequest, TokenResponse, PasswordResetRequest, PasswordResetResponse
 from app.auth.security import verify_password, create_access_token
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -46,3 +49,29 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
         full_name=user.full_name,
         roles=[r.name for r in user.roles],
     )
+
+
+@router.post("/password-reset-request", response_model=PasswordResetResponse)
+def request_password_reset(payload: PasswordResetRequest, db: Session = Depends(get_db)):
+    """Request a password reset link.
+
+    Always returns success to avoid leaking which emails exist in the system.
+    SMTP delivery is not yet implemented; the request is logged so that
+    administrators can follow up manually until a mailer is configured.
+    """
+    user = db.query(User).filter(
+        User.email == payload.email,
+        User.deleted_at.is_(None),
+    ).first()
+
+    if user:
+        logger.info(
+            "Password reset requested for user_id=%s email=%s",
+            user.id,
+            user.email,
+        )
+        # TODO: generate reset token and send email when SMTP is configured.
+    else:
+        logger.info("Password reset requested for unknown email=%s", payload.email)
+
+    return PasswordResetResponse()

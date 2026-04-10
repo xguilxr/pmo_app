@@ -15,17 +15,24 @@ interface Area {
   created_at: string;
 }
 
+interface UserOption {
+  id: number;
+  full_name: string;
+}
+
 export default function ProjectAreasTab({ projectId }: { projectId: number }) {
   const { toastSuccess, toastError } = useToast();
   const { data: areas, loading, refetch } = useApi(() => api.get<Area[]>(`/projects/${projectId}/areas`), [projectId]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: users } = useApi(() => api.get<any[]>('/users').then(arr => arr.map(u => ({ id: u.id, full_name: u.full_name }))).catch(() => [] as UserOption[]), []);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Area | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', role_in_project: '', responsible_name: '' });
+  const [form, setForm] = useState({ name: '', description: '', role_in_project: '', responsible_id: 0, responsible_name: '' });
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ name: '', description: '', role_in_project: '', responsible_name: '' });
+    setForm({ name: '', description: '', role_in_project: '', responsible_id: 0, responsible_name: '' });
     setShowModal(true);
   };
 
@@ -35,7 +42,8 @@ export default function ProjectAreasTab({ projectId }: { projectId: number }) {
       name: area.name,
       description: area.description || '',
       role_in_project: area.role_in_project || '',
-      responsible_name: area.responsible_name || '',
+      responsible_id: area.responsible_id || 0,
+      responsible_name: area.responsible_id ? '' : (area.responsible_name || ''),
     });
     setShowModal(true);
   };
@@ -48,7 +56,8 @@ export default function ProjectAreasTab({ projectId }: { projectId: number }) {
         name: form.name,
         description: form.description || null,
         role_in_project: form.role_in_project || null,
-        responsible_name: form.responsible_name || null,
+        responsible_id: form.responsible_id || null,
+        responsible_name: form.responsible_id ? null : (form.responsible_name || null),
       };
       if (editing) {
         await api.patch(`/projects/${projectId}/areas/${editing.id}`, payload);
@@ -144,7 +153,18 @@ export default function ProjectAreasTab({ projectId }: { projectId: number }) {
               <div><label className={labelCls}>Nombre *</label><input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className={inputCls} placeholder="Ej: Desarrollo, QA, Infraestructura..." /></div>
               <div><label className={labelCls}>Descripcion</label><textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={2} className={inputCls} /></div>
               <div><label className={labelCls}>Rol en el Proyecto</label><input value={form.role_in_project} onChange={e => setForm({...form, role_in_project: e.target.value})} className={inputCls} placeholder="Ej: Líder Técnico, Sponsor, QA Lead..." /></div>
-              <div><label className={labelCls}>Responsable</label><input value={form.responsible_name} onChange={e => setForm({...form, responsible_name: e.target.value})} className={inputCls} placeholder="Nombre del responsable" /></div>
+              <div>
+                <label className={labelCls}>Responsable</label>
+                <select value={form.responsible_id} onChange={e => setForm({...form, responsible_id: Number(e.target.value), responsible_name: ''})} className={inputCls}>
+                  <option value={0}>-- Sin asignar --</option>
+                  {(users || []).map(u => (
+                    <option key={u.id} value={u.id}>{u.full_name}</option>
+                  ))}
+                </select>
+                {!form.responsible_id && (
+                  <input value={form.responsible_name} onChange={e => setForm({...form, responsible_name: e.target.value})} className={inputCls + ' mt-2'} placeholder="O escribe un nombre libre" />
+                )}
+              </div>
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-border-light">
               <button onClick={() => setShowModal(false)} className="px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:bg-surface-hover rounded-xl">Cancelar</button>
