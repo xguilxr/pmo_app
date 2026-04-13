@@ -15,6 +15,7 @@ from app.models.area import ProjectArea
 from app.models.objective import ProjectObjective
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse, ProjectListResponse
 from app.auth.security import get_current_user
+from app.dependencies import get_current_tenant
 from app.services.folio import generate_folio
 from app.services import notifications as notif_svc
 
@@ -48,8 +49,12 @@ def list_projects(
     program_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    query = db.query(Project).join(Organization).filter(Project.deleted_at.is_(None))
+    query = db.query(Project).join(Organization).filter(
+        Project.deleted_at.is_(None),
+        Project.organization_id == tenant.id,
+    )
 
     if phase and phase != "Todos":
         query = query.filter(Project.phase == phase)
@@ -84,7 +89,12 @@ def list_projects(
 
 
 @router.post("", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
-def create_project(data: ProjectCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_project(
+    data: ProjectCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
     folio = generate_folio(db, "PRJ")
     project = Project(
         folio=folio,
@@ -92,7 +102,7 @@ def create_project(data: ProjectCreate, db: Session = Depends(get_db), current_u
         description=data.description,
         type=data.type,
         priority=data.priority,
-        organization_id=data.organization_id,
+        organization_id=tenant.id,
         program_id=data.program_id,
         start_date=data.start_date,
         end_date=data.end_date,
@@ -115,16 +125,33 @@ def create_project(data: ProjectCreate, db: Session = Depends(get_db), current_u
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)
-def get_project(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    project = db.query(Project).filter(Project.id == project_id, Project.deleted_at.is_(None)).first()
+def get_project(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.organization_id == tenant.id,
+        Project.deleted_at.is_(None),
+    ).first()
     if not project:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
     return _project_to_response(project)
 
 
 @router.patch("/{project_id}", response_model=ProjectResponse)
-def update_project(project_id: int, data: ProjectUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    project = db.query(Project).filter(Project.id == project_id, Project.deleted_at.is_(None)).first()
+def update_project(
+    project_id: int,
+    data: ProjectUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    project = db.query(Project).filter(
+        Project.id == project_id, Project.organization_id == tenant.id, Project.deleted_at.is_(None),
+    ).first()
     if not project:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
 
@@ -154,8 +181,11 @@ def delete_project(
     project_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    project = db.query(Project).filter(Project.id == project_id, Project.deleted_at.is_(None)).first()
+    project = db.query(Project).filter(
+        Project.id == project_id, Project.organization_id == tenant.id, Project.deleted_at.is_(None),
+    ).first()
     if not project:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
 

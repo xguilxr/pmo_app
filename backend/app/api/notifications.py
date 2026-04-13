@@ -5,8 +5,10 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
+from app.models.organization import Organization
 from app.models.notification import Notification
 from app.auth.security import get_current_user
+from app.dependencies import get_current_tenant
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 

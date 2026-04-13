@@ -1,5 +1,6 @@
-from sqlalchemy import Boolean, Column, String, Integer, ForeignKey
+from sqlalchemy import Boolean, Column, String, Integer, ForeignKey, Text
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import JSONB
 
 from app.database import Base
 from app.models.base import TimestampMixin
@@ -18,6 +19,13 @@ class Organization(TimestampMixin, Base):
     logo_url = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    # Multi-tenant fields
+    slug = Column(String(100), unique=True, nullable=True, index=True)
+    domain = Column(String(255), unique=True, nullable=True)
+    primary_color = Column(String(7), nullable=True, default="#3B82F6")
+    secondary_color = Column(String(7), nullable=True, default="#6366F1")
+    config_json = Column(JSONB, nullable=True, default=dict)
 
     # Relationships
     programs = relationship("Program", back_populates="organization", lazy="selectin")

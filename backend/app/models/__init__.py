@@ -1,5 +1,6 @@
 # Import all models so SQLAlchemy registers them with the mapper
 from app.models.base import TimestampMixin  # noqa: F401
+from app.models.mixins import TenantScopedMixin  # noqa: F401
 from app.models.user import User  # noqa: F401
 from app.models.role import Role, Permission  # noqa: F401
 from app.models.organization import Organization  # noqa: F401

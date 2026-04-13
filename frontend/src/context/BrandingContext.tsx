@@ -1,10 +1,18 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
-import { type BrandingConfig, getBranding, setBranding as setGlobalBranding, getColors, colorMap } from '../config/branding';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import {
+  type BrandingConfig,
+  getBranding,
+  setBranding as setGlobalBranding,
+  getColors,
+  colorMap,
+  fetchAndApplyBranding,
+} from '../config/branding';
 
 interface BrandingContextType {
   branding: BrandingConfig;
   colors: typeof colorMap.blue;
   switchBranding: (orgId: string) => void;
+  loading: boolean;
 }
 
 const BrandingContext = createContext<BrandingContextType | null>(null);
@@ -12,6 +20,17 @@ const BrandingContext = createContext<BrandingContextType | null>(null);
 export function BrandingProvider({ children }: { children: ReactNode }) {
   const [branding, setBrandingState] = useState<BrandingConfig>(getBranding());
   const [colors, setColors] = useState(getColors());
+  const [loading, setLoading] = useState(true);
+
+  // Fetch branding from API on initial load (for subdomain/domain-based resolution)
+  useEffect(() => {
+    fetchAndApplyBranding()
+      .then(() => {
+        setBrandingState(getBranding());
+        setColors(getColors());
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   const switchBranding = (orgId: string) => {
     setGlobalBranding(orgId);
@@ -20,7 +39,7 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <BrandingContext.Provider value={{ branding, colors, switchBranding }}>
+    <BrandingContext.Provider value={{ branding, colors, switchBranding, loading }}>
       {children}
     </BrandingContext.Provider>
   );

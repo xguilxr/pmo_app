@@ -21,6 +21,19 @@ from app.auth.security import get_current_user
 router = APIRouter(prefix="/organizations", tags=["Organizations"])
 
 
+class OrganizationBrandingResponse(BaseModel):
+    id: int
+    name: str
+    slug: Optional[str] = None
+    logo_url: Optional[str] = None
+    primary_color: Optional[str] = None
+    secondary_color: Optional[str] = None
+    config_json: Optional[dict] = None
+    is_active: bool
+
+    model_config = {"from_attributes": True}
+
+
 class OrganizationCreate(BaseModel):
     name: str
     legal_name: Optional[str] = None
@@ -53,8 +66,14 @@ class OrganizationResponse(BaseModel):
 
 
 @router.get("", response_model=list[OrganizationResponse])
-def list_organizations(db: Session = Depends(get_db)):
-    return db.query(Organization).filter(Organization.deleted_at.is_(None)).order_by(Organization.name.asc()).all()
+def list_organizations(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.is_superadmin:
+        return db.query(Organization).filter(Organization.deleted_at.is_(None)).order_by(Organization.name.asc()).all()
+    user_org_ids = [o.id for o in current_user.organizations]
+    return db.query(Organization).filter(
+        Organization.id.in_(user_org_ids),
+        Organization.deleted_at.is_(None),
+    ).order_by(Organization.name.asc()).all()
 
 
 @router.get("/{org_id}", response_model=OrganizationResponse)

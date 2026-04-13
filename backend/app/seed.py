@@ -57,13 +57,14 @@ def seed_minimal(db):
     db.add(viewer_role)
     db.flush()
 
-    # --- Admin user ---
+    # --- Admin user (super admin for multi-tenant management) ---
     admin = User(
         username="admin",
         email="admin@pmo-platform.com",
         full_name="Administrador PMO",
         hashed_password=hash_password("Admin123!"),
         is_active=True,
+        is_superadmin=True,
     )
     admin.roles.append(admin_role)
     db.add(admin)
@@ -97,11 +98,35 @@ def seed_demo(db, admin, pm_role):
     db.add(pm2)
     db.flush()
 
-    # --- Organizations ---
-    org1 = Organization(name="Grupo Alfa", legal_name="Grupo Alfa S.A. de C.V.", industry="Manufactura", country="México", is_active=True, created_by_id=admin.id)
-    org2 = Organization(name="TechNova", legal_name="TechNova Solutions S.A.", industry="Tecnología", country="México", is_active=True, created_by_id=admin.id)
-    org3 = Organization(name="Distribuidora MX", legal_name="Distribuidora MX S. de R.L.", industry="Distribución", country="México", is_active=True, created_by_id=admin.id)
-    org4 = Organization(name="Servicios Global", legal_name="Servicios Global Corp.", industry="Servicios", country="México", is_active=True, created_by_id=admin.id)
+    # --- Organizations (with multi-tenant fields) ---
+    org1 = Organization(
+        name="Grupo Alfa", legal_name="Grupo Alfa S.A. de C.V.",
+        industry="Manufactura", country="México", is_active=True,
+        created_by_id=admin.id,
+        slug="grupo-alfa", primary_color="#10B981", secondary_color="#14B8A6",
+        config_json={"app_name": "Grupo Alfa PMO", "favicon": None},
+    )
+    org2 = Organization(
+        name="TechNova", legal_name="TechNova Solutions S.A.",
+        industry="Tecnología", country="México", is_active=True,
+        created_by_id=admin.id,
+        slug="technova", primary_color="#8B5CF6", secondary_color="#A855F7",
+        config_json={"app_name": "TechNova PMO", "favicon": None},
+    )
+    org3 = Organization(
+        name="Distribuidora MX", legal_name="Distribuidora MX S. de R.L.",
+        industry="Distribución", country="México", is_active=True,
+        created_by_id=admin.id,
+        slug="distribuidora-mx", primary_color="#F59E0B", secondary_color="#D97706",
+        config_json={"app_name": "Distribuidora MX PMO", "favicon": None},
+    )
+    org4 = Organization(
+        name="Servicios Global", legal_name="Servicios Global Corp.",
+        industry="Servicios", country="México", is_active=True,
+        created_by_id=admin.id,
+        slug="servicios-global", primary_color="#EF4444", secondary_color="#F43F5E",
+        config_json={"app_name": "Servicios Global PMO", "favicon": None},
+    )
     db.add_all([org1, org2, org3, org4])
     db.flush()
 

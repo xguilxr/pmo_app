@@ -3,9 +3,10 @@ from sqlalchemy.orm import relationship
 
 from app.database import Base
 from app.models.base import TimestampMixin
+from app.models.mixins import TenantScopedMixin
 
 
-class ProjectArea(TimestampMixin, Base):
+class ProjectArea(TenantScopedMixin, TimestampMixin, Base):
     __tablename__ = "project_areas"
 
     name = Column(String(255), nullable=False)

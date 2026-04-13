@@ -4,10 +4,13 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
+from app.models.organization import Organization
 from app.models.project import Project
 from app.models.area import ProjectArea
 from app.schemas.area import AreaCreate, AreaUpdate, AreaResponse
 from app.auth.security import get_current_user
+from app.dependencies import get_current_tenant
+from app.utils.tenant_query import verify_project_tenant
 
 logger = logging.getLogger(__name__)
 
@@ -15,10 +18,8 @@ router = APIRouter(prefix="/projects/{project_id}/areas", tags=["Project Areas"]
 
 
 @router.get("", response_model=list[AreaResponse])
-def list_areas(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    project = db.query(Project).filter(Project.id == project_id, Project.deleted_at.is_(None)).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+def list_areas(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user), tenant: Organization = Depends(get_current_tenant)):
+    verify_project_tenant(db, project_id, tenant)
     areas = db.query(ProjectArea).filter(
         ProjectArea.project_id == project_id,
         ProjectArea.deleted_at.is_(None)
@@ -35,10 +36,8 @@ def list_areas(project_id: int, db: Session = Depends(get_db), current_user: Use
 
 
 @router.post("", response_model=AreaResponse, status_code=status.HTTP_201_CREATED)
-def create_area(project_id: int, data: AreaCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    project = db.query(Project).filter(Project.id == project_id, Project.deleted_at.is_(None)).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+def create_area(project_id: int, data: AreaCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user), tenant: Organization = Depends(get_current_tenant)):
+    verify_project_tenant(db, project_id, tenant)
     try:
         area = ProjectArea(
             name=data.name,
@@ -46,6 +45,7 @@ def create_area(project_id: int, data: AreaCreate, db: Session = Depends(get_db)
             role_in_project=data.role_in_project,
             responsible_name_text=data.responsible_name,
             project_id=project_id,
+            organization_id=tenant.id,
             responsible_id=data.responsible_id,
         )
         db.add(area)

@@ -3,9 +3,10 @@ from sqlalchemy.orm import relationship
 
 from app.database import Base
 from app.models.base import TimestampMixin
+from app.models.mixins import TenantScopedMixin
 
 
-class Risk(TimestampMixin, Base):
+class Risk(TenantScopedMixin, TimestampMixin, Base):
     __tablename__ = "risks"
 
     folio = Column(String(50), unique=True, nullable=False, index=True)
@@ -27,7 +28,7 @@ class Risk(TimestampMixin, Base):
     project = relationship("Project", back_populates="risks")
 
 
-class Issue(TimestampMixin, Base):
+class Issue(TenantScopedMixin, TimestampMixin, Base):
     __tablename__ = "issues"
 
     folio = Column(String(50), unique=True, nullable=False, index=True)
@@ -47,7 +48,7 @@ class Issue(TimestampMixin, Base):
     project = relationship("Project", back_populates="issues")
 
 
-class Change(TimestampMixin, Base):
+class Change(TenantScopedMixin, TimestampMixin, Base):
     __tablename__ = "changes"
 
     folio = Column(String(50), unique=True, nullable=False, index=True)
@@ -68,7 +69,7 @@ class Change(TimestampMixin, Base):
     project = relationship("Project", back_populates="changes")
 
 
-class Document(TimestampMixin, Base):
+class Document(TenantScopedMixin, TimestampMixin, Base):
     __tablename__ = "documents"
 
     folio = Column(String(50), unique=True, nullable=False, index=True)
@@ -87,7 +88,7 @@ class Document(TimestampMixin, Base):
     project = relationship("Project", back_populates="documents")
 
 
-class Lesson(TimestampMixin, Base):
+class Lesson(TenantScopedMixin, TimestampMixin, Base):
     __tablename__ = "lessons"
 
     folio = Column(String(50), unique=True, nullable=False, index=True)
@@ -104,7 +105,7 @@ class Lesson(TimestampMixin, Base):
     project = relationship("Project", back_populates="lessons")
 
 
-class Minute(TimestampMixin, Base):
+class Minute(TenantScopedMixin, TimestampMixin, Base):
     __tablename__ = "minutes"
 
     folio = Column(String(50), unique=True, nullable=False, index=True)

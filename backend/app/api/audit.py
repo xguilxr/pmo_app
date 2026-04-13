@@ -7,8 +7,10 @@ from pydantic import BaseModel
 
 from app.database import get_db
 from app.models.user import User
+from app.models.organization import Organization
 from app.models.audit import AuditLog
 from app.auth.security import get_current_user
+from app.dependencies import get_current_tenant
 
 router = APIRouter(prefix="/audit-logs", tags=["Audit Logs"])
 
@@ -35,8 +37,9 @@ def list_audit_logs(
     offset: int = 0,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    q = db.query(AuditLog)
+    q = db.query(AuditLog).filter(AuditLog.organization_id == tenant.id)
     if user_id:
         q = q.filter(AuditLog.user_id == user_id)
     if module:

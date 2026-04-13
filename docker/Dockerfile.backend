@@ -8,12 +8,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
 COPY backend/ .
 
-RUN mkdir -p /app/uploads
+RUN mkdir -p /app/uploads /app/static/tenants
 
 EXPOSE 8080
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Production: Gunicorn with Uvicorn workers (configurable via env)
+ENV WORKERS=2
+ENV TIMEOUT=120
+
+CMD gunicorn app.main:app \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --workers ${WORKERS} \
+    --bind 0.0.0.0:8080 \
+    --timeout ${TIMEOUT} \
+    --access-logfile - \
+    --error-logfile -

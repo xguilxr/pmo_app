@@ -30,13 +30,14 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       APP_ENV: ${APP_ENV:-production}
       DEBUG: ${DEBUG:-false}
-      CORS_ORIGINS: '["http://localhost", "http://localhost:3000"]'
+      CORS_ORIGINS: '["http://localhost", "http://localhost:3000", "https://*.${DOMAIN:-localhost}"]'
       AI_ENABLED: ${AI_ENABLED:-false}
       AI_DEFAULT_ENGINE: ${AI_DEFAULT_ENGINE:-ollama}
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     volumes:
       - uploads:/app/uploads
+      - tenant_assets:/app/static/tenants
     ports:
       - "8080:8080"
 
@@ -53,3 +54,4 @@ services:
 volumes:
   pgdata:
   uploads:
+  tenant_assets:

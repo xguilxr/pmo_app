@@ -2,9 +2,10 @@ from sqlalchemy import Column, String, Integer, Date, Float, Text, ForeignKey
 
 from app.database import Base
 from app.models.base import TimestampMixin
+from app.models.mixins import TenantScopedMixin
 
 
-class ProjectStatus(TimestampMixin, Base):
+class ProjectStatus(TenantScopedMixin, TimestampMixin, Base):
     """Periodic project status snapshot (health, progress, blockers)."""
     __tablename__ = "project_statuses"
 

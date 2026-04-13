@@ -42,12 +42,24 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     user.last_login = datetime.now(timezone.utc)
     db.commit()
 
-    token = create_access_token(data={"sub": str(user.id)})
+    # Build org list for JWT and response
+    user_orgs = [o for o in user.organizations if o.is_active and o.deleted_at is None]
+    org_ids = [o.id for o in user_orgs]
+
+    token = create_access_token(data={
+        "sub": str(user.id),
+        "org_ids": org_ids,
+        "is_superadmin": user.is_superadmin,
+    })
+
+    from app.schemas.auth import OrgBrief
     return TokenResponse(
         access_token=token,
         user_id=user.id,
         full_name=user.full_name,
         roles=[r.name for r in user.roles],
+        organizations=[OrgBrief.model_validate(o) for o in user_orgs],
+        is_superadmin=user.is_superadmin,
     )
 
 

@@ -12,6 +12,7 @@ class ApprovalLog(Base):
     approvable_type = Column(String(100), nullable=False)   # project_request, change_request
     approvable_id = Column(Integer, nullable=False)
     approved_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
     status = Column(String(50), nullable=False)              # approved, rejected, cancelled, reopened
     comments = Column(Text, nullable=True)
     approved_at = Column(DateTime, server_default=func.now(), nullable=False)

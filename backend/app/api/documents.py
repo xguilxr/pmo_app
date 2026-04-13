@@ -3,9 +3,12 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
+from app.models.organization import Organization
 from app.models.modules import Document
 from app.schemas.document import DocumentCreate, DocumentUpdate, DocumentResponse
 from app.auth.security import get_current_user
+from app.dependencies import get_current_tenant
+from app.utils.tenant_query import verify_project_tenant
 from app.services.folio import generate_folio
 from app.services import notifications as notif_svc
 
@@ -18,8 +21,9 @@ def list_documents(
     category: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    query = db.query(Document).filter(Document.deleted_at.is_(None))
+    query = db.query(Document).filter(Document.deleted_at.is_(None), Document.organization_id == tenant.id)
     if project_id:
         query = query.filter(Document.project_id == project_id)
     if category:
@@ -33,7 +37,9 @@ def create_document(
     data: DocumentCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
+    verify_project_tenant(db, project_id, tenant)
     folio = generate_folio(db, "DOC")
     doc = Document(
         folio=folio,
@@ -44,6 +50,7 @@ def create_document(
         file_type=data.file_type,
         file_size=data.file_size,
         project_id=project_id,
+        organization_id=tenant.id,
         uploaded_by_id=current_user.id,
         created_by_id=current_user.id,
     )

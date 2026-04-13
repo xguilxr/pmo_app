@@ -1,0 +1,44 @@
+# Systemd service for PMO Platform backend (bare-metal / VPS deployment)
+#
+# Install:
+#   sudo cp pmo-backend.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable pmo-backend
+#   sudo systemctl start pmo-backend
+#
+# Assumes:
+#   - App lives in /opt/pmo_app
+#   - Python venv at /opt/pmo_app/venv
+#   - .env file at /opt/pmo_app/.env
+
+[Unit]
+Description=PMO Platform Backend (Gunicorn + Uvicorn)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=notify
+User=pmo
+Group=pmo
+WorkingDirectory=/opt/pmo_app/backend
+EnvironmentFile=/opt/pmo_app/.env
+ExecStart=/opt/pmo_app/venv/bin/gunicorn app.main:app \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --workers 2 \
+    --bind 127.0.0.1:8080 \
+    --timeout 120 \
+    --access-logfile /var/log/pmo/access.log \
+    --error-logfile /var/log/pmo/error.log
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/pmo_app/backend/uploads /opt/pmo_app/backend/static/tenants /var/log/pmo
+
+[Install]
+WantedBy=multi-user.target

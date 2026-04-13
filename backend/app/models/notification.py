@@ -3,9 +3,10 @@ from sqlalchemy.orm import relationship
 
 from app.database import Base
 from app.models.base import TimestampMixin
+from app.models.mixins import TenantScopedMixin
 
 
-class Notification(TimestampMixin, Base):
+class Notification(TenantScopedMixin, TimestampMixin, Base):
     __tablename__ = "notifications"
 
     type = Column(String(50), nullable=False, index=True)
