@@ -9,6 +9,7 @@ class AuditLog(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     timestamp = Column(DateTime, server_default=func.now(), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
     action = Column(String(50), nullable=False)      # create, update, delete, login, logout, etc.
     module = Column(String(100), nullable=False)     # users, projects, risks, etc.
     record_id = Column(Integer, nullable=True)

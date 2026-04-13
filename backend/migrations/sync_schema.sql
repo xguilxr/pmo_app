@@ -2,6 +2,60 @@
 -- to add all missing columns and tables that SQLAlchemy models define.
 
 -- -------------------------------------------------------
+-- organizations: multi-tenant fields
+-- -------------------------------------------------------
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS slug VARCHAR(100) UNIQUE;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS domain VARCHAR(255) UNIQUE;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS primary_color VARCHAR(7) DEFAULT '#3B82F6';
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS secondary_color VARCHAR(7) DEFAULT '#6366F1';
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS config_json JSONB DEFAULT '{}';
+
+-- -------------------------------------------------------
+-- Add organization_id to all tenant-scoped tables
+-- -------------------------------------------------------
+ALTER TABLE risks ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
+ALTER TABLE changes ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
+ALTER TABLE lessons ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
+ALTER TABLE minutes ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
+ALTER TABLE backlog_items ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
+ALTER TABLE project_areas ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
+ALTER TABLE project_objectives ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
+ALTER TABLE progress_reports ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
+ALTER TABLE project_statuses ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
+ALTER TABLE project_closures ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
+ALTER TABLE approval_logs ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
+
+-- -------------------------------------------------------
+-- users: super admin flag
+-- -------------------------------------------------------
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_superadmin BOOLEAN DEFAULT FALSE;
+
+-- Indexes for tenant-scoped queries
+CREATE INDEX IF NOT EXISTS idx_risks_org_id ON risks(organization_id);
+CREATE INDEX IF NOT EXISTS idx_issues_org_id ON issues(organization_id);
+CREATE INDEX IF NOT EXISTS idx_changes_org_id ON changes(organization_id);
+CREATE INDEX IF NOT EXISTS idx_documents_org_id ON documents(organization_id);
+CREATE INDEX IF NOT EXISTS idx_lessons_org_id ON lessons(organization_id);
+CREATE INDEX IF NOT EXISTS idx_minutes_org_id ON minutes(organization_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_org_id ON tasks(organization_id);
+CREATE INDEX IF NOT EXISTS idx_backlog_items_org_id ON backlog_items(organization_id);
+CREATE INDEX IF NOT EXISTS idx_project_areas_org_id ON project_areas(organization_id);
+CREATE INDEX IF NOT EXISTS idx_project_objectives_org_id ON project_objectives(organization_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_org_id ON notifications(organization_id);
+CREATE INDEX IF NOT EXISTS idx_progress_reports_org_id ON progress_reports(organization_id);
+CREATE INDEX IF NOT EXISTS idx_project_statuses_org_id ON project_statuses(organization_id);
+CREATE INDEX IF NOT EXISTS idx_project_closures_org_id ON project_closures(organization_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_org_id ON audit_log(organization_id);
+CREATE INDEX IF NOT EXISTS idx_approval_logs_org_id ON approval_logs(organization_id);
+CREATE INDEX IF NOT EXISTS idx_organizations_slug ON organizations(slug);
+CREATE INDEX IF NOT EXISTS idx_organizations_domain ON organizations(domain);
+
+-- -------------------------------------------------------
 -- tasks: add missing columns
 -- -------------------------------------------------------
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS notes TEXT;

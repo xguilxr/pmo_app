@@ -3,9 +3,10 @@ from sqlalchemy.orm import relationship
 
 from app.database import Base
 from app.models.base import TimestampMixin
+from app.models.mixins import TenantScopedMixin
 
 
-class BacklogItem(TimestampMixin, Base):
+class BacklogItem(TenantScopedMixin, TimestampMixin, Base):
     __tablename__ = "backlog_items"
 
     folio = Column(String(50), unique=True, index=True)

@@ -3,9 +3,10 @@ from sqlalchemy.orm import relationship
 
 from app.database import Base
 from app.models.base import TimestampMixin
+from app.models.mixins import TenantScopedMixin
 
 
-class ProjectObjective(TimestampMixin, Base):
+class ProjectObjective(TenantScopedMixin, TimestampMixin, Base):
     __tablename__ = "project_objectives"
 
     description = Column(Text, nullable=False)

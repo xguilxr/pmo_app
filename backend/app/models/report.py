@@ -2,9 +2,10 @@ from sqlalchemy import Column, String, Integer, Date, Text, ForeignKey
 
 from app.database import Base
 from app.models.base import TimestampMixin
+from app.models.mixins import TenantScopedMixin
 
 
-class ProgressReport(TimestampMixin, Base):
+class ProgressReport(TenantScopedMixin, TimestampMixin, Base):
     __tablename__ = "progress_reports"
 
     title = Column(String(255), nullable=False)

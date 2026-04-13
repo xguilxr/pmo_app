@@ -2,9 +2,10 @@ from sqlalchemy import Column, String, Integer, Date, Text, ForeignKey
 
 from app.database import Base
 from app.models.base import TimestampMixin
+from app.models.mixins import TenantScopedMixin
 
 
-class ProjectClosure(TimestampMixin, Base):
+class ProjectClosure(TenantScopedMixin, TimestampMixin, Base):
     """Formal project closure record (1:1 with project)."""
     __tablename__ = "project_closures"
 
