@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.api import auth, users, projects, dashboard, minutes, risks, issues, changes, documents, lessons, areas, objectives, organizations, tasks, backlog, requests, uploads, programs, exports, reports, notifications, resources, project_statuses, project_closures, dashboard_share, audit, approval_logs
+from app.api import auth, users, projects, dashboard, minutes, risks, issues, changes, documents, lessons, areas, objectives, organizations, tasks, backlog, requests, uploads, programs, exports, reports, notifications, resources, project_statuses, project_closures, dashboard_share, audit, approval_logs, branding
 from app.middleware.tenant import TenantMiddleware
 import app.models  # noqa: F401 - register all models with SQLAlchemy mapper
 
@@ -54,12 +54,18 @@ app.include_router(project_closures.router, prefix="/api")
 app.include_router(dashboard_share.router, prefix="/api")
 app.include_router(audit.router, prefix="/api")
 app.include_router(approval_logs.router, prefix="/api")
+app.include_router(branding.router, prefix="/api")
 
 
 from fastapi.staticfiles import StaticFiles
 import os
 uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
 os.makedirs(uploads_dir, exist_ok=True)
+
+# Serve per-tenant static assets (logos, favicons, custom CSS)
+tenant_static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "tenants")
+os.makedirs(tenant_static_dir, exist_ok=True)
+app.mount("/static/tenants", StaticFiles(directory=tenant_static_dir), name="tenant-assets")
 
 
 @app.on_event("startup")

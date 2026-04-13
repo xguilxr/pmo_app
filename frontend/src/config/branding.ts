@@ -139,3 +139,63 @@ export function updateBranding(orgId: string, updates: Partial<BrandingConfig>) 
     }
   }
 }
+
+// API-driven branding: map hex color to nearest Tailwind color name
+const hexToTailwind: Record<string, string> = {
+  '#3B82F6': 'blue', '#6366F1': 'indigo', '#10B981': 'emerald',
+  '#14B8A6': 'teal', '#8B5CF6': 'violet', '#A855F7': 'purple',
+  '#EF4444': 'rose', '#F59E0B': 'amber', '#D97706': 'amber',
+  '#F43F5E': 'rose',
+};
+
+function hexToNearestTailwind(hex: string): string {
+  return hexToTailwind[hex?.toUpperCase()] || 'blue';
+}
+
+export interface ApiBranding {
+  tenant_id: number | null;
+  org_name: string;
+  slug: string | null;
+  logo_url: string | null;
+  primary_color: string;
+  secondary_color: string;
+  favicon: string | null;
+  app_name: string;
+  login_subtitle: string;
+  support_email: string;
+}
+
+export function applyApiBranding(data: ApiBranding) {
+  const orgId = data.slug || 'api';
+  brandings[orgId] = {
+    orgId,
+    orgName: data.org_name,
+    logoUrl: data.logo_url,
+    logoText: data.app_name,
+    primaryColor: hexToNearestTailwind(data.primary_color),
+    accentColor: hexToNearestTailwind(data.secondary_color),
+    favicon: data.favicon,
+    loginSubtitle: data.login_subtitle,
+    supportEmail: data.support_email,
+  };
+  currentBranding = brandings[orgId];
+
+  // Apply CSS custom properties for hex-level precision
+  document.documentElement.style.setProperty('--tenant-primary', data.primary_color);
+  document.documentElement.style.setProperty('--tenant-secondary', data.secondary_color);
+}
+
+export async function fetchAndApplyBranding(): Promise<ApiBranding | null> {
+  try {
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+    const res = await fetch(`${API_BASE}/branding/current`);
+    if (!res.ok) return null;
+    const data: ApiBranding = await res.json();
+    if (data.tenant_id) {
+      applyApiBranding(data);
+    }
+    return data;
+  } catch {
+    return null;
+  }
+}
