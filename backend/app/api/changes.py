@@ -3,9 +3,12 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
+from app.models.organization import Organization
 from app.models.modules import Change
 from app.schemas.change import ChangeCreate, ChangeUpdate, ChangeResponse
 from app.auth.security import get_current_user
+from app.dependencies import get_current_tenant
+from app.utils.tenant_query import verify_project_tenant
 from app.services.folio import generate_folio
 from app.services import notifications as notif_svc
 
@@ -18,8 +21,9 @@ def list_changes(
     status_filter: str | None = Query(None, alias="status"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    query = db.query(Change).filter(Change.deleted_at.is_(None))
+    query = db.query(Change).filter(Change.deleted_at.is_(None), Change.organization_id == tenant.id)
     if project_id:
         query = query.filter(Change.project_id == project_id)
     if status_filter:
@@ -33,7 +37,9 @@ def create_change(
     data: ChangeCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
+    verify_project_tenant(db, project_id, tenant)
     folio = generate_folio(db, "CHG")
     change = Change(
         folio=folio,
@@ -44,6 +50,7 @@ def create_change(
         requested_by=data.requested_by,
         request_date=data.request_date,
         project_id=project_id,
+        organization_id=tenant.id,
         created_by_id=current_user.id,
     )
     db.add(change)

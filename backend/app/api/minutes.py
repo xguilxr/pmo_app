@@ -4,10 +4,13 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
+from app.models.organization import Organization
 from app.models.modules import Minute
 from app.models.project import Project
 from app.schemas.minutes import GenerateMinutesRequest, MinuteResponse, GenerateMinutesResponse, MinuteCreate, MinuteUpdate
 from app.auth.security import get_current_user
+from app.dependencies import get_current_tenant
+from app.utils.tenant_query import verify_project_tenant
 from app.services.folio import generate_folio
 from app.services.ai_engine import generate_minutes
 
@@ -19,8 +22,9 @@ def list_minutes(
     project_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    query = db.query(Minute).filter(Minute.deleted_at.is_(None))
+    query = db.query(Minute).filter(Minute.deleted_at.is_(None), Minute.organization_id == tenant.id)
     if project_id:
         query = query.filter(Minute.project_id == project_id)
     return query.order_by(Minute.created_at.desc()).all()
@@ -40,10 +44,9 @@ def create_minute(
     data: MinuteCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    project = db.query(Project).filter(Project.id == project_id, Project.deleted_at.is_(None)).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    verify_project_tenant(db, project_id, tenant)
 
     folio = generate_folio(db, "MIN")
     minute = Minute(
@@ -55,6 +58,7 @@ def create_minute(
         agreements=data.agreements,
         source="manual",
         project_id=project_id,
+        organization_id=tenant.id,
         recorded_by_id=current_user.id,
         created_by_id=current_user.id,
     )
@@ -100,11 +104,10 @@ async def generate_minute_from_transcript(
     data: GenerateMinutesRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    # Validate project exists
-    project = db.query(Project).filter(Project.id == data.project_id, Project.deleted_at.is_(None)).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    # Validate project exists and belongs to tenant
+    project = verify_project_tenant(db, data.project_id, tenant)
 
     # Generate minutes with AI
     try:
@@ -127,6 +130,7 @@ async def generate_minute_from_transcript(
         ai_model_used=result["model"],
         ai_generation_time_ms=result["generation_time_ms"],
         project_id=data.project_id,
+        organization_id=tenant.id,
         recorded_by_id=current_user.id,
         created_by_id=current_user.id,
     )

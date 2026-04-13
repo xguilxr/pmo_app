@@ -7,8 +7,10 @@ from pydantic import BaseModel
 
 from app.database import get_db
 from app.models.user import User
+from app.models.organization import Organization
 from app.models.resource import Resource, ResourceWorkLog, ResourceAvailability, project_resources
 from app.auth.security import get_current_user
+from app.dependencies import get_current_tenant
 from app.services.folio import generate_folio
 
 router = APIRouter(prefix="/resources", tags=["Resources"])
@@ -133,11 +135,11 @@ def list_resources(
     resource_type: str | None = None,
     is_internal: bool | None = None,
     is_active: bool | None = None,
-    organization_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    q = db.query(Resource).filter(Resource.deleted_at.is_(None))
+    q = db.query(Resource).filter(Resource.deleted_at.is_(None), Resource.organization_id == tenant.id)
     if search:
         q = q.filter(Resource.name.ilike(f"%{search}%"))
     if resource_type:
@@ -146,8 +148,6 @@ def list_resources(
         q = q.filter(Resource.is_internal == is_internal)
     if is_active is not None:
         q = q.filter(Resource.is_active == is_active)
-    if organization_id:
-        q = q.filter(Resource.organization_id == organization_id)
     return q.order_by(Resource.name).all()
 
 
@@ -160,9 +160,9 @@ def get_resource(resource_id: int, db: Session = Depends(get_db), current_user: 
 
 
 @router.post("", response_model=ResourceResponse, status_code=status.HTTP_201_CREATED)
-def create_resource(data: ResourceCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_resource(data: ResourceCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user), tenant: Organization = Depends(get_current_tenant)):
     folio = generate_folio(db, "REC")
-    r = Resource(folio=folio, created_by_id=current_user.id, **data.model_dump())
+    r = Resource(folio=folio, organization_id=tenant.id, created_by_id=current_user.id, **data.model_dump())
     db.add(r)
     db.commit()
     db.refresh(r)

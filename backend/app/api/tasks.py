@@ -11,10 +11,13 @@ from sqlalchemy import text
 
 from app.database import get_db
 from app.models.user import User
+from app.models.organization import Organization
 from app.models.task import Task
 from app.models.project import Project
 from app.models.modules import Document
 from app.auth.security import get_current_user
+from app.dependencies import get_current_tenant
+from app.utils.tenant_query import verify_project_tenant
 from app.services.folio import generate_folio
 from app.services import notifications as notif_svc
 
@@ -135,8 +138,9 @@ def list_tasks(
     status_filter: str | None = Query(None, alias="status"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    _get_project_or_404(db, project_id)
+    verify_project_tenant(db, project_id, tenant)
     query = db.query(Task).filter(Task.deleted_at.is_(None), Task.project_id == project_id)
     if status_filter:
         query = query.filter(Task.status == status_filter)
@@ -153,8 +157,9 @@ def create_task(
     data: TaskCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    _get_project_or_404(db, project_id)
+    verify_project_tenant(db, project_id, tenant)
     _validate_dates(data.start_date, data.end_date)
     _validate_status(data.status)
     task = Task(
@@ -174,6 +179,7 @@ def create_task(
         responsible_id=data.responsible_id,
         responsible_name=data.responsible_name,
         project_id=project_id,
+        organization_id=tenant.id,
         source="manual",
         created_by_id=current_user.id,
     )
@@ -236,12 +242,13 @@ def import_tasks(
     payload: TaskImportPayload,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
     """Bulk import tasks from JSON payload (e.g. MS Project).
 
     Overwrites all existing tasks for the project.
     """
-    _get_project_or_404(db, project_id)
+    verify_project_tenant(db, project_id, tenant)
     # Soft-delete all existing tasks
     existing_tasks = db.query(Task).filter(
         Task.project_id == project_id, Task.deleted_at.is_(None)

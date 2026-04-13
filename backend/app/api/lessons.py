@@ -3,9 +3,12 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
+from app.models.organization import Organization
 from app.models.modules import Lesson
 from app.schemas.lesson import LessonCreate, LessonUpdate, LessonResponse
 from app.auth.security import get_current_user
+from app.dependencies import get_current_tenant
+from app.utils.tenant_query import verify_project_tenant
 from app.services.folio import generate_folio
 
 router = APIRouter(prefix="/lessons", tags=["Lessons"])
@@ -17,8 +20,9 @@ def list_lessons(
     category: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    query = db.query(Lesson).filter(Lesson.deleted_at.is_(None))
+    query = db.query(Lesson).filter(Lesson.deleted_at.is_(None), Lesson.organization_id == tenant.id)
     if project_id:
         query = query.filter(Lesson.project_id == project_id)
     if category:
@@ -32,7 +36,9 @@ def create_lesson(
     data: LessonCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
+    verify_project_tenant(db, project_id, tenant)
     folio = generate_folio(db, "LEC")
     lesson = Lesson(
         folio=folio,
@@ -42,6 +48,7 @@ def create_lesson(
         project_phase=data.project_phase,
         recommendation=data.recommendation,
         project_id=project_id,
+        organization_id=tenant.id,
         recorded_by_id=current_user.id,
         created_by_id=current_user.id,
     )

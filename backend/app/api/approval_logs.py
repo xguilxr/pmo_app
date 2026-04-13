@@ -7,8 +7,10 @@ from pydantic import BaseModel
 
 from app.database import get_db
 from app.models.user import User
+from app.models.organization import Organization
 from app.models.approval_log import ApprovalLog
 from app.auth.security import get_current_user
+from app.dependencies import get_current_tenant
 
 router = APIRouter(prefix="/approval-logs", tags=["Approval Logs"])
 
@@ -31,8 +33,9 @@ def list_approval_logs(
     approvable_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    q = db.query(ApprovalLog)
+    q = db.query(ApprovalLog).filter(ApprovalLog.organization_id == tenant.id)
     if approvable_type:
         q = q.filter(ApprovalLog.approvable_type == approvable_type)
     if approvable_id:

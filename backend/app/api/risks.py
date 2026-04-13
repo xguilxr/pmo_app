@@ -3,9 +3,12 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
+from app.models.organization import Organization
 from app.models.modules import Risk
 from app.schemas.risk import RiskCreate, RiskUpdate, RiskResponse
 from app.auth.security import get_current_user
+from app.dependencies import get_current_tenant
+from app.utils.tenant_query import verify_project_tenant
 from app.services.folio import generate_folio
 from app.services import notifications as notif_svc
 
@@ -18,8 +21,9 @@ def list_risks(
     status_filter: str | None = Query(None, alias="status"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    query = db.query(Risk).filter(Risk.deleted_at.is_(None))
+    query = db.query(Risk).filter(Risk.deleted_at.is_(None), Risk.organization_id == tenant.id)
     if project_id:
         query = query.filter(Risk.project_id == project_id)
     if status_filter:
@@ -33,7 +37,9 @@ def create_risk(
     data: RiskCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
+    verify_project_tenant(db, project_id, tenant)
     folio = generate_folio(db, "RSK")
     risk = Risk(
         folio=folio,
@@ -47,6 +53,7 @@ def create_risk(
         identification_date=data.identification_date,
         deadline=data.deadline,
         project_id=project_id,
+        organization_id=tenant.id,
         responsible_id=data.responsible_id,
         created_by_id=current_user.id,
     )

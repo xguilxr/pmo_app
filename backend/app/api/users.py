@@ -2,18 +2,32 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.user import User
+from app.models.user import User, user_organizations
 from app.models.role import Role
 from app.models.organization import Organization
 from app.schemas.user import UserCreate, UserUpdate, UserResponse
 from app.auth.security import hash_password, get_current_user
+from app.dependencies import get_current_tenant
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
 @router.get("", response_model=list[UserResponse])
-def list_users(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    users = db.query(User).filter(User.deleted_at.is_(None)).all()
+def list_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    # Only show users that belong to the current tenant organization
+    users = (
+        db.query(User)
+        .join(user_organizations)
+        .filter(
+            user_organizations.c.organization_id == tenant.id,
+            User.deleted_at.is_(None),
+        )
+        .all()
+    )
     return [
         UserResponse(
             id=u.id, username=u.username, email=u.email, full_name=u.full_name,

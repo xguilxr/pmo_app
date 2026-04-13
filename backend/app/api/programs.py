@@ -16,19 +16,21 @@ from app.models.area import ProjectArea
 from app.models.objective import ProjectObjective
 from app.schemas.program import ProgramCreate, ProgramUpdate, ProgramResponse, ProgramDetailResponse
 from app.auth.security import get_current_user
+from app.dependencies import get_current_tenant
 
 router = APIRouter(prefix="/programs", tags=["Programs"])
 
 
 @router.get("", response_model=list[ProgramResponse])
 def list_programs(
-    organization_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    query = db.query(Program).filter(Program.deleted_at.is_(None))
-    if organization_id:
-        query = query.filter(Program.organization_id == organization_id)
+    query = db.query(Program).filter(
+        Program.deleted_at.is_(None),
+        Program.organization_id == tenant.id,
+    )
     programs = query.order_by(Program.name.asc()).all()
     return [
         ProgramResponse(

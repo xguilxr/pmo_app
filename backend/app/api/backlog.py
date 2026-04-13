@@ -7,8 +7,11 @@ from pydantic import BaseModel
 
 from app.database import get_db
 from app.models.user import User
+from app.models.organization import Organization
 from app.models.backlog import BacklogItem
 from app.auth.security import get_current_user
+from app.dependencies import get_current_tenant
+from app.utils.tenant_query import verify_project_tenant
 from app.services.folio import generate_folio
 
 router = APIRouter(prefix="/backlog", tags=["Backlog"])
@@ -64,8 +67,14 @@ def list_backlog(
     status_filter: str | None = Query(None, alias="status"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    query = db.query(BacklogItem).filter(BacklogItem.deleted_at.is_(None), BacklogItem.project_id == project_id)
+    verify_project_tenant(db, project_id, tenant)
+    query = db.query(BacklogItem).filter(
+        BacklogItem.deleted_at.is_(None),
+        BacklogItem.project_id == project_id,
+        BacklogItem.organization_id == tenant.id,
+    )
     if status_filter:
         query = query.filter(BacklogItem.status == status_filter)
     return query.order_by(BacklogItem.id).all()
@@ -77,7 +86,9 @@ def create_backlog_item(
     data: BacklogCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
+    verify_project_tenant(db, project_id, tenant)
     # BacklogItem doesn't have a folio prefix in folio service yet; use a simple pattern
     from sqlalchemy import func
     year = date.today().year
@@ -100,6 +111,7 @@ def create_backlog_item(
         start_date=data.start_date,
         end_date=data.end_date,
         project_id=project_id,
+        organization_id=tenant.id,
         responsible_id=data.responsible_id,
         created_by_id=current_user.id,
     )

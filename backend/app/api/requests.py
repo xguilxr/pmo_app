@@ -7,8 +7,10 @@ from pydantic import BaseModel
 
 from app.database import get_db
 from app.models.user import User
+from app.models.organization import Organization
 from app.models.project_request import ProjectRequest
 from app.auth.security import get_current_user
+from app.dependencies import get_current_tenant
 from app.services.folio import generate_folio
 
 router = APIRouter(prefix="/requests", tags=["Project Requests"])
@@ -91,15 +93,16 @@ class RequestResponse(BaseModel):
 @router.get("", response_model=list[RequestResponse])
 def list_requests(
     status_filter: str | None = Query(None, alias="status"),
-    organization_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    query = db.query(ProjectRequest).filter(ProjectRequest.deleted_at.is_(None))
+    query = db.query(ProjectRequest).filter(
+        ProjectRequest.deleted_at.is_(None),
+        ProjectRequest.organization_id == tenant.id,
+    )
     if status_filter:
         query = query.filter(ProjectRequest.status == status_filter)
-    if organization_id:
-        query = query.filter(ProjectRequest.organization_id == organization_id)
     return query.order_by(ProjectRequest.request_date.desc()).all()
 
 
@@ -116,6 +119,7 @@ def create_request(
     data: RequestCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
     folio = generate_folio(db, "REQ")
     req = ProjectRequest(
@@ -139,7 +143,7 @@ def create_request(
         key_stakeholders=data.key_stakeholders,
         expected_deliverables=data.expected_deliverables,
         observations=data.observations,
-        organization_id=data.organization_id,
+        organization_id=tenant.id,
         requester_id=current_user.id,
         created_by_id=current_user.id,
     )
