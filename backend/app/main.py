@@ -3,25 +3,28 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.api import auth, users, projects, dashboard, minutes, risks, issues, changes, documents, lessons, areas, objectives, organizations, tasks, backlog, requests, uploads, programs, exports, reports, notifications, resources, project_statuses, project_closures, dashboard_share, audit, approval_logs
+from app.middleware.tenant import TenantMiddleware
 import app.models  # noqa: F401 - register all models with SQLAlchemy mapper
 
 settings = get_settings()
 
 app = FastAPI(
     title="PMO Platform API",
-    version="0.2.0",
+    version="0.3.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
 
-# CORS
+# Middleware (order matters: CORS first, then tenant resolution)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "X-Tenant-ID"],
+    expose_headers=["X-Tenant-ID"],
 )
+app.add_middleware(TenantMiddleware)
 
 # Routers
 app.include_router(auth.router, prefix="/api")
@@ -92,4 +95,4 @@ def sync_schema_on_startup():
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "ok", "version": "0.2.0"}
+    return {"status": "ok", "version": "0.3.0"}
