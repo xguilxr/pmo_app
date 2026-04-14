@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-to-a-random-secret"
 
     # Database
-    database_url: str = "postgresql://pmo_user:secreto@localhost:5432/pmo_db"
+    database_url: str = "mysql+pymysql://pmo_user:secreto@localhost:3306/pmo_db?charset=utf8mb4"
     database_pool_size: int = 5
 
     # Server

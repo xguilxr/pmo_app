@@ -1,6 +1,5 @@
-from sqlalchemy import Boolean, Column, String, Integer, ForeignKey, Text
+from sqlalchemy import Boolean, Column, String, Integer, ForeignKey, Text, JSON
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSONB
 
 from app.database import Base
 from app.models.base import TimestampMixin
@@ -25,7 +24,7 @@ class Organization(TimestampMixin, Base):
     domain = Column(String(255), unique=True, nullable=True)
     primary_color = Column(String(7), nullable=True, default="#3B82F6")
     secondary_color = Column(String(7), nullable=True, default="#6366F1")
-    config_json = Column(JSONB, nullable=True, default=dict)
+    config_json = Column(JSON, nullable=True, default=dict)
 
     # Relationships
     programs = relationship("Program", back_populates="organization", lazy="selectin")

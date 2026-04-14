@@ -14,21 +14,22 @@ depends_on = None
 
 
 def _column_exists(table: str, column: str) -> bool:
-    """Check if a column already exists in a table."""
+    """Check if a column already exists in a table (works on MySQL and PostgreSQL)."""
     conn = op.get_bind()
     result = conn.execute(sa.text(
         "SELECT 1 FROM information_schema.columns "
-        "WHERE table_name = :table AND column_name = :column"
+        "WHERE table_name = :table AND column_name = :column "
+        "AND table_schema = DATABASE()"
     ), {"table": table, "column": column})
     return result.fetchone() is not None
 
 
 def _table_exists(table: str) -> bool:
-    """Check if a table already exists."""
+    """Check if a table already exists (works on MySQL and PostgreSQL)."""
     conn = op.get_bind()
     result = conn.execute(sa.text(
         "SELECT 1 FROM information_schema.tables "
-        "WHERE table_name = :table AND table_schema = 'public'"
+        "WHERE table_name = :table AND table_schema = DATABASE()"
     ), {"table": table})
     return result.fetchone() is not None
 

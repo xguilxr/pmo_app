@@ -144,9 +144,10 @@ def list_tasks(
     query = db.query(Task).filter(Task.deleted_at.is_(None), Task.project_id == project_id)
     if status_filter:
         query = query.filter(Task.status == status_filter)
-    # Sort WBS numerically (e.g. 1.2 before 1.10) using PostgreSQL array cast
+    # Sort WBS numerically (e.g. 1.2 before 1.10)
     return query.order_by(
-        text("string_to_array(COALESCE(tasks.wbs, '999999'), '.')::int[]"),
+        text("LENGTH(COALESCE(tasks.wbs, '999999'))"),
+        text("COALESCE(tasks.wbs, '999999')"),
         Task.id,
     ).all()
 

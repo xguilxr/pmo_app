@@ -1,5 +1,6 @@
--- Comprehensive schema sync: run this against the PostgreSQL database
+-- Comprehensive schema sync: run this against the database
 -- to add all missing columns and tables that SQLAlchemy models define.
+-- Compatible with MySQL 5.7+ / MariaDB 10.3+ and PostgreSQL.
 
 -- -------------------------------------------------------
 -- organizations: multi-tenant fields
@@ -8,52 +9,32 @@ ALTER TABLE organizations ADD COLUMN IF NOT EXISTS slug VARCHAR(100) UNIQUE;
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS domain VARCHAR(255) UNIQUE;
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS primary_color VARCHAR(7) DEFAULT '#3B82F6';
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS secondary_color VARCHAR(7) DEFAULT '#6366F1';
-ALTER TABLE organizations ADD COLUMN IF NOT EXISTS config_json JSONB DEFAULT '{}';
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS config_json JSON;
 
 -- -------------------------------------------------------
 -- Add organization_id to all tenant-scoped tables
 -- -------------------------------------------------------
-ALTER TABLE risks ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
-ALTER TABLE issues ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
-ALTER TABLE changes ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
-ALTER TABLE documents ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
-ALTER TABLE lessons ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
-ALTER TABLE minutes ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
-ALTER TABLE tasks ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
-ALTER TABLE backlog_items ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
-ALTER TABLE project_areas ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
-ALTER TABLE project_objectives ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
-ALTER TABLE notifications ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
-ALTER TABLE progress_reports ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
-ALTER TABLE project_statuses ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
-ALTER TABLE project_closures ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
-ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
-ALTER TABLE approval_logs ADD COLUMN IF NOT EXISTS organization_id INTEGER REFERENCES organizations(id);
+ALTER TABLE risks ADD COLUMN IF NOT EXISTS organization_id INTEGER;
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS organization_id INTEGER;
+ALTER TABLE changes ADD COLUMN IF NOT EXISTS organization_id INTEGER;
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS organization_id INTEGER;
+ALTER TABLE lessons ADD COLUMN IF NOT EXISTS organization_id INTEGER;
+ALTER TABLE minutes ADD COLUMN IF NOT EXISTS organization_id INTEGER;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS organization_id INTEGER;
+ALTER TABLE backlog_items ADD COLUMN IF NOT EXISTS organization_id INTEGER;
+ALTER TABLE project_areas ADD COLUMN IF NOT EXISTS organization_id INTEGER;
+ALTER TABLE project_objectives ADD COLUMN IF NOT EXISTS organization_id INTEGER;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS organization_id INTEGER;
+ALTER TABLE progress_reports ADD COLUMN IF NOT EXISTS organization_id INTEGER;
+ALTER TABLE project_statuses ADD COLUMN IF NOT EXISTS organization_id INTEGER;
+ALTER TABLE project_closures ADD COLUMN IF NOT EXISTS organization_id INTEGER;
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS organization_id INTEGER;
+ALTER TABLE approval_logs ADD COLUMN IF NOT EXISTS organization_id INTEGER;
 
 -- -------------------------------------------------------
 -- users: super admin flag
 -- -------------------------------------------------------
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_superadmin BOOLEAN DEFAULT FALSE;
-
--- Indexes for tenant-scoped queries
-CREATE INDEX IF NOT EXISTS idx_risks_org_id ON risks(organization_id);
-CREATE INDEX IF NOT EXISTS idx_issues_org_id ON issues(organization_id);
-CREATE INDEX IF NOT EXISTS idx_changes_org_id ON changes(organization_id);
-CREATE INDEX IF NOT EXISTS idx_documents_org_id ON documents(organization_id);
-CREATE INDEX IF NOT EXISTS idx_lessons_org_id ON lessons(organization_id);
-CREATE INDEX IF NOT EXISTS idx_minutes_org_id ON minutes(organization_id);
-CREATE INDEX IF NOT EXISTS idx_tasks_org_id ON tasks(organization_id);
-CREATE INDEX IF NOT EXISTS idx_backlog_items_org_id ON backlog_items(organization_id);
-CREATE INDEX IF NOT EXISTS idx_project_areas_org_id ON project_areas(organization_id);
-CREATE INDEX IF NOT EXISTS idx_project_objectives_org_id ON project_objectives(organization_id);
-CREATE INDEX IF NOT EXISTS idx_notifications_org_id ON notifications(organization_id);
-CREATE INDEX IF NOT EXISTS idx_progress_reports_org_id ON progress_reports(organization_id);
-CREATE INDEX IF NOT EXISTS idx_project_statuses_org_id ON project_statuses(organization_id);
-CREATE INDEX IF NOT EXISTS idx_project_closures_org_id ON project_closures(organization_id);
-CREATE INDEX IF NOT EXISTS idx_audit_log_org_id ON audit_log(organization_id);
-CREATE INDEX IF NOT EXISTS idx_approval_logs_org_id ON approval_logs(organization_id);
-CREATE INDEX IF NOT EXISTS idx_organizations_slug ON organizations(slug);
-CREATE INDEX IF NOT EXISTS idx_organizations_domain ON organizations(domain);
 
 -- -------------------------------------------------------
 -- tasks: add missing columns
@@ -68,17 +49,13 @@ ALTER TABLE tasks ADD COLUMN IF NOT EXISTS original_end_date DATE;
 -- project_areas: add missing columns
 -- -------------------------------------------------------
 ALTER TABLE project_areas ADD COLUMN IF NOT EXISTS responsible_name_text VARCHAR(255);
-ALTER TABLE project_areas ADD COLUMN IF NOT EXISTS responsible_id INTEGER REFERENCES users(id);
+ALTER TABLE project_areas ADD COLUMN IF NOT EXISTS responsible_id INTEGER;
 
 -- -------------------------------------------------------
--- risks: ensure responsible_id column exists
+-- risks / issues: ensure responsible_id column exists
 -- -------------------------------------------------------
-ALTER TABLE risks ADD COLUMN IF NOT EXISTS responsible_id INTEGER REFERENCES users(id);
-
--- -------------------------------------------------------
--- issues: ensure responsible_id column exists
--- -------------------------------------------------------
-ALTER TABLE issues ADD COLUMN IF NOT EXISTS responsible_id INTEGER REFERENCES users(id);
+ALTER TABLE risks ADD COLUMN IF NOT EXISTS responsible_id INTEGER;
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS responsible_id INTEGER;
 
 -- -------------------------------------------------------
 -- backlog_items: add missing columns
@@ -98,10 +75,10 @@ ALTER TABLE minutes ADD COLUMN IF NOT EXISTS ai_generation_time_ms INTEGER;
 -- progress_reports: create table if not exists
 -- -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS progress_reports (
-    id SERIAL PRIMARY KEY,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at TIMESTAMP,
+    id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
     title VARCHAR(255) NOT NULL,
     content_html TEXT NOT NULL,
     period_start DATE,
@@ -111,49 +88,47 @@ CREATE TABLE IF NOT EXISTS progress_reports (
     sent_date DATE,
     ai_model_used VARCHAR(100),
     ai_generation_time_ms INTEGER,
-    project_id INTEGER NOT NULL REFERENCES projects(id),
-    generated_by_id INTEGER REFERENCES users(id),
-    created_by_id INTEGER REFERENCES users(id)
+    project_id INTEGER NOT NULL,
+    generated_by_id INTEGER,
+    created_by_id INTEGER,
+    organization_id INTEGER
 );
 
 -- -------------------------------------------------------
 -- project_objectives: create table if not exists
 -- -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS project_objectives (
-    id SERIAL PRIMARY KEY,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at TIMESTAMP,
+    id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
     description TEXT NOT NULL,
     type VARCHAR(50) NOT NULL,
     target_value VARCHAR(255),
     current_value VARCHAR(255),
     progress FLOAT DEFAULT 0,
     status VARCHAR(50) DEFAULT 'pending',
-    project_id INTEGER NOT NULL REFERENCES projects(id)
+    project_id INTEGER NOT NULL
 );
 
 -- -------------------------------------------------------
 -- task_dependencies: create table if not exists
 -- -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS task_dependencies (
-    id SERIAL PRIMARY KEY,
-    predecessor_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    successor_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    predecessor_id INTEGER NOT NULL,
+    successor_id INTEGER NOT NULL,
     dependency_type VARCHAR(10) DEFAULT 'FS'
 );
 
 -- -------------------------------------------------------
--- project_requests: create table if not exists
--- -------------------------------------------------------
--- -------------------------------------------------------
--- resources: create table if not exists (G1)
+-- resources: create table if not exists
 -- -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS resources (
-    id SERIAL PRIMARY KEY,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at TIMESTAMP,
+    id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
     folio VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255),
@@ -169,62 +144,62 @@ CREATE TABLE IF NOT EXISTS resources (
     hourly_rate FLOAT DEFAULT 0,
     cost_period VARCHAR(20) DEFAULT 'hour',
     hours_worked FLOAT DEFAULT 0,
-    user_id INTEGER REFERENCES users(id),
-    organization_id INTEGER REFERENCES organizations(id),
-    created_by_id INTEGER REFERENCES users(id)
+    user_id INTEGER,
+    organization_id INTEGER,
+    created_by_id INTEGER
 );
 
 -- -------------------------------------------------------
--- project_resources: pivot table (G1)
+-- project_resources: pivot table
 -- -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS project_resources (
-    project_id INTEGER NOT NULL REFERENCES projects(id),
-    resource_id INTEGER NOT NULL REFERENCES resources(id),
+    project_id INTEGER NOT NULL,
+    resource_id INTEGER NOT NULL,
     allocation FLOAT DEFAULT 100,
     role VARCHAR(100),
     PRIMARY KEY (project_id, resource_id)
 );
 
 -- -------------------------------------------------------
--- resource_work_logs: time tracking (G2)
+-- resource_work_logs: time tracking
 -- -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS resource_work_logs (
-    id SERIAL PRIMARY KEY,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at TIMESTAMP,
-    resource_id INTEGER NOT NULL REFERENCES resources(id),
-    project_id INTEGER REFERENCES projects(id),
-    task_id INTEGER REFERENCES tasks(id),
+    id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    resource_id INTEGER NOT NULL,
+    project_id INTEGER,
+    task_id INTEGER,
     work_date DATE NOT NULL,
     hours FLOAT NOT NULL,
     notes TEXT,
-    created_by_id INTEGER REFERENCES users(id)
+    created_by_id INTEGER
 );
 
 -- -------------------------------------------------------
--- resource_availabilities: availability (G3)
+-- resource_availabilities: availability
 -- -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS resource_availabilities (
-    id SERIAL PRIMARY KEY,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at TIMESTAMP,
-    resource_id INTEGER NOT NULL REFERENCES resources(id),
+    id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    resource_id INTEGER NOT NULL,
     available_date DATE NOT NULL,
     available_hours FLOAT NOT NULL,
     notes TEXT
 );
 
 -- -------------------------------------------------------
--- project_statuses: periodic snapshots (G4)
+-- project_statuses: periodic snapshots
 -- -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS project_statuses (
-    id SERIAL PRIMARY KEY,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at TIMESTAMP,
-    project_id INTEGER NOT NULL REFERENCES projects(id),
+    id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    project_id INTEGER NOT NULL,
     status_date DATE NOT NULL,
     health VARCHAR(20) NOT NULL,
     progress_plan FLOAT DEFAULT 0,
@@ -233,68 +208,71 @@ CREATE TABLE IF NOT EXISTS project_statuses (
     risks_summary TEXT,
     blockers TEXT,
     next_steps TEXT,
-    created_by_id INTEGER REFERENCES users(id)
+    created_by_id INTEGER,
+    organization_id INTEGER
 );
 
 -- -------------------------------------------------------
--- project_closures: formal closure (G5)
+-- project_closures: formal closure
 -- -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS project_closures (
-    id SERIAL PRIMARY KEY,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at TIMESTAMP,
-    project_id INTEGER NOT NULL REFERENCES projects(id) UNIQUE,
+    id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    project_id INTEGER NOT NULL,
     closure_date DATE NOT NULL,
     summary TEXT NOT NULL,
     outcomes TEXT,
     pending_actions TEXT,
     approved_by VARCHAR(255),
-    approved_by_id INTEGER REFERENCES users(id),
+    approved_by_id INTEGER,
     status VARCHAR(50) DEFAULT 'draft',
     comments TEXT,
-    created_by_id INTEGER REFERENCES users(id)
+    created_by_id INTEGER,
+    organization_id INTEGER
 );
 
 -- -------------------------------------------------------
--- dashboard_share_links: shared dashboards (G6)
+-- dashboard_share_links: shared dashboards
 -- -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS dashboard_share_links (
-    id SERIAL PRIMARY KEY,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at TIMESTAMP,
-    organization_id INTEGER NOT NULL REFERENCES organizations(id),
-    created_by_user_id INTEGER NOT NULL REFERENCES users(id),
+    id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    organization_id INTEGER NOT NULL,
+    created_by_user_id INTEGER NOT NULL,
     label VARCHAR(255) NOT NULL,
     token VARCHAR(128) UNIQUE NOT NULL,
     pin_hash VARCHAR(255),
-    expires_at TIMESTAMP,
-    last_accessed_at TIMESTAMP,
+    expires_at TIMESTAMP NULL,
+    last_accessed_at TIMESTAMP NULL,
     is_active BOOLEAN DEFAULT TRUE
 );
 
 -- -------------------------------------------------------
--- approval_logs: polymorphic approval history (G13)
+-- approval_logs: polymorphic approval history
 -- -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS approval_logs (
-    id SERIAL PRIMARY KEY,
+    id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
     approvable_type VARCHAR(100) NOT NULL,
     approvable_id INTEGER NOT NULL,
-    approved_by_user_id INTEGER NOT NULL REFERENCES users(id),
+    approved_by_user_id INTEGER NOT NULL,
     status VARCHAR(50) NOT NULL,
     comments TEXT,
-    approved_at TIMESTAMP NOT NULL DEFAULT NOW()
+    approved_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    organization_id INTEGER
 );
 
 -- -------------------------------------------------------
 -- project_requests: create table if not exists
 -- -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS project_requests (
-    id SERIAL PRIMARY KEY,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at TIMESTAMP,
+    id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
     folio VARCHAR(50) UNIQUE NOT NULL,
     status VARCHAR(50) DEFAULT 'pending',
     request_date DATE,
@@ -315,10 +293,10 @@ CREATE TABLE IF NOT EXISTS project_requests (
     key_stakeholders TEXT,
     expected_deliverables TEXT,
     observations TEXT,
-    reviewed_by_id INTEGER REFERENCES users(id),
+    reviewed_by_id INTEGER,
     review_date DATE,
     rejection_reason TEXT,
-    organization_id INTEGER REFERENCES organizations(id),
-    requester_id INTEGER REFERENCES users(id),
-    created_by_id INTEGER REFERENCES users(id)
+    organization_id INTEGER,
+    requester_id INTEGER,
+    created_by_id INTEGER
 );
