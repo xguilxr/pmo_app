@@ -203,6 +203,121 @@ def get_tenant(
     return resp
 
 
+class TenantDetailResponse(TenantResponse):
+    """Extended tenant response with full detail for drill-down view."""
+    programs: list[dict] = []
+    projects: list[dict] = []
+    users: list[dict] = []
+    requests: list[dict] = []
+
+
+@router.get("/tenants/{tenant_id}/detail", response_model=TenantDetailResponse)
+def get_tenant_detail(
+    tenant_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_superadmin_user),
+):
+    """Get tenant with full detail: programs, projects, users, requests."""
+    from app.models.project_request import ProjectRequest
+    from app.models.role import Role
+
+    org = db.query(Organization).filter(
+        Organization.id == tenant_id, Organization.deleted_at.is_(None)
+    ).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Tenant no encontrado")
+
+    # Counts
+    user_count = (
+        db.execute(
+            text("SELECT COUNT(*) FROM user_organizations WHERE organization_id = :oid"),
+            {"oid": org.id},
+        ).scalar() or 0
+    )
+    project_count = (
+        db.query(func.count(Project.id))
+        .filter(Project.organization_id == org.id, Project.deleted_at.is_(None))
+        .scalar() or 0
+    )
+
+    # Programs with project counts
+    programs = db.query(Program).filter(
+        Program.organization_id == org.id, Program.deleted_at.is_(None)
+    ).all()
+    programs_data = []
+    for p in programs:
+        pc = db.query(func.count(Project.id)).filter(
+            Project.program_id == p.id, Project.deleted_at.is_(None)
+        ).scalar() or 0
+        programs_data.append({
+            "id": p.id, "name": p.name, "status": p.status,
+            "project_count": pc,
+            "start_date": str(p.start_date) if p.start_date else None,
+            "end_date": str(p.end_date) if p.end_date else None,
+        })
+
+    # Projects with program name
+    projects = db.query(Project).filter(
+        Project.organization_id == org.id, Project.deleted_at.is_(None)
+    ).order_by(Project.created_at.desc()).all()
+    projects_data = []
+    for prj in projects:
+        prog_name = None
+        if prj.program_id:
+            prog = db.query(Program).filter(Program.id == prj.program_id).first()
+            if prog:
+                prog_name = prog.name
+        projects_data.append({
+            "id": prj.id, "folio": prj.folio, "name": prj.name,
+            "type": prj.type, "phase": prj.phase, "health": prj.health or "green",
+            "progress": prj.progress or 0, "planned_progress": prj.planned_progress or 0,
+            "budget": prj.budget or 0, "program_name": prog_name,
+        })
+
+    # Users in this org
+    user_rows = db.execute(
+        text("""
+            SELECT u.id, u.username, u.full_name, u.email, u.is_active, u.last_login
+            FROM users u
+            JOIN user_organizations uo ON uo.user_id = u.id
+            WHERE uo.organization_id = :oid AND u.deleted_at IS NULL
+            ORDER BY u.full_name
+        """),
+        {"oid": org.id},
+    ).fetchall()
+    users_data = []
+    for row in user_rows:
+        user_obj = db.query(User).get(row[0])
+        roles = [r.name for r in user_obj.roles] if user_obj else []
+        users_data.append({
+            "id": row[0], "username": row[1], "full_name": row[2],
+            "email": row[3], "is_active": row[4],
+            "last_login": str(row[5]) if row[5] else None,
+            "roles": roles,
+        })
+
+    # Project requests
+    reqs = db.query(ProjectRequest).filter(
+        ProjectRequest.organization_id == org.id, ProjectRequest.deleted_at.is_(None)
+    ).order_by(ProjectRequest.created_at.desc()).all()
+    requests_data = []
+    for r in reqs:
+        requests_data.append({
+            "id": r.id, "folio": r.folio, "title": r.title,
+            "status": r.status, "requester_name": r.requester_name or "",
+            "request_date": str(r.request_date) if r.request_date else "",
+        })
+
+    resp = TenantDetailResponse.model_validate(org)
+    resp.user_count = user_count
+    resp.project_count = project_count
+    resp.programs = programs_data
+    resp.projects = projects_data
+    resp.users = users_data
+    resp.requests = requests_data
+    return resp
+
+
 @router.post("/tenants", response_model=TenantResponse, status_code=status.HTTP_201_CREATED)
 def create_tenant(
     data: TenantCreate,

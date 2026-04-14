@@ -1,11 +1,19 @@
 import { setToken } from './api';
 
+interface OrgBrief {
+  id: number;
+  name: string;
+  slug: string | null;
+}
+
 interface LoginResponse {
   access_token: string;
   token_type: string;
   user_id: number;
   full_name: string;
   roles: string[];
+  organizations: OrgBrief[];
+  is_superadmin: boolean;
 }
 
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -21,7 +29,13 @@ export async function login(usernameOrEmail: string, password: string): Promise<
   setToken(data.access_token);
   localStorage.setItem(
     'pmo_user',
-    JSON.stringify({ id: data.user_id, fullName: data.full_name, roles: data.roles }),
+    JSON.stringify({
+      id: data.user_id,
+      fullName: data.full_name,
+      roles: data.roles,
+      is_superadmin: data.is_superadmin,
+      organizations: data.organizations,
+    }),
   );
   touchActivity();
   return data;
@@ -34,7 +48,15 @@ export function logout() {
   window.location.href = '/login';
 }
 
-export function getCurrentUser(): { id: number; fullName: string; roles: string[] } | null {
+export interface CurrentUser {
+  id: number;
+  fullName: string;
+  roles: string[];
+  is_superadmin: boolean;
+  organizations: OrgBrief[];
+}
+
+export function getCurrentUser(): CurrentUser | null {
   const raw = localStorage.getItem('pmo_user');
   if (!raw) return null;
   try {
@@ -42,6 +64,11 @@ export function getCurrentUser(): { id: number; fullName: string; roles: string[
   } catch {
     return null;
   }
+}
+
+export function isSuperAdmin(): boolean {
+  const user = getCurrentUser();
+  return user?.is_superadmin === true;
 }
 
 export function isAuthenticated(): boolean {
