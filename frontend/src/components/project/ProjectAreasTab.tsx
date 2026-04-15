@@ -3,28 +3,12 @@ import { Plus, X, Edit2, Trash2, User } from 'lucide-react';
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
-
-interface Area {
-  id: number;
-  name: string;
-  description: string | null;
-  role_in_project: string | null;
-  responsible_id: number | null;
-  responsible_name: string | null;
-  project_id: number;
-  created_at: string;
-}
-
-interface UserOption {
-  id: number;
-  full_name: string;
-}
+import type { Area, UserOption } from '../../types';
 
 export default function ProjectAreasTab({ projectId }: { projectId: number }) {
   const { toastSuccess, toastError } = useToast();
   const { data: areas, loading, refetch } = useApi(() => api.get<Area[]>(`/projects/${projectId}/areas`), [projectId]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: users } = useApi(() => api.get<any[]>('/users').then(arr => arr.map(u => ({ id: u.id, full_name: u.full_name }))).catch(() => [] as UserOption[]), []);
+  const { data: users } = useApi(() => api.get<UserOption[]>('/users').then(arr => arr.map(u => ({ id: u.id, full_name: u.full_name }))).catch(() => [] as UserOption[]), []);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Area | null>(null);
   const [saving, setSaving] = useState(false);

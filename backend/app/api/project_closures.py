@@ -12,6 +12,7 @@ from app.models.project_closure import ProjectClosure
 from app.auth.security import get_current_user
 from app.dependencies import get_current_tenant
 from app.utils.tenant_query import verify_project_tenant
+from app.utils.crud_helpers import get_or_404
 
 router = APIRouter(prefix="/project-closures", tags=["Project Closures"])
 
@@ -80,9 +81,7 @@ def create_closure(data: ClosureCreate, db: Session = Depends(get_db), current_u
 
 @router.patch("/{closure_id}", response_model=ClosureResponse)
 def update_closure(closure_id: int, data: ClosureUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    c = db.query(ProjectClosure).filter(ProjectClosure.id == closure_id, ProjectClosure.deleted_at.is_(None)).first()
-    if not c:
-        raise HTTPException(status_code=404, detail="Cierre no encontrado")
+    c = get_or_404(db, ProjectClosure, closure_id, detail="Cierre no encontrado")
     if data.status == "approved":
         c.approved_by_id = current_user.id
     for field, value in data.model_dump(exclude_unset=True).items():

@@ -8,44 +8,9 @@ import {
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
-
-interface Project {
-  id: number;
-  folio: string;
-  name: string;
-  description?: string;
-  type: string;
-  priority: string;
-  company: string;
-  programName: string;
-  phase: string;
-  progress: number;
-  plannedProgress: number;
-  budget: number;
-  realBudget: number;
-  startDate: string;
-  endDate: string;
-  health: string;
-}
-
-interface Objective {
-  id: number;
-  description: string;
-  type: string;
-  target_value: string | null;
-  current_value: string | null;
-  progress: number;
-  status: string;
-  project_id: number;
-  created_at: string;
-}
-
-interface Task {
-  id: number;
-  name: string;
-  outline_level: number;
-  [key: string]: unknown;
-}
+import type { ProjectView } from '../../types';
+import type { Objective } from '../../types';
+import type { Task } from '../../types';
 
 // Charter template sections
 const charterSections = [
@@ -62,7 +27,7 @@ const charterSections = [
   { key: 'success', icon: CheckCircle2, label: 'Criterios de Éxito', fields: ['success_criteria'] },
 ];
 
-export default function ProjectCharterInfoTab({ project, projectId }: { project: Project; projectId: number }) {
+export default function ProjectCharterInfoTab({ project, projectId }: { project: ProjectView; projectId: number }) {
   const { t } = useTranslation();
   const { toastSuccess, toastError } = useToast();
   const { data: objectives, loading, refetch } = useApi<Objective[]>(

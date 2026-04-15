@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -9,6 +9,7 @@ from app.schemas.lesson import LessonCreate, LessonUpdate, LessonResponse
 from app.auth.security import get_current_user
 from app.dependencies import get_current_tenant
 from app.utils.tenant_query import verify_project_tenant
+from app.utils.crud_helpers import get_or_404, apply_update, soft_delete
 from app.services.folio import generate_folio
 
 router = APIRouter(prefix="/lessons", tags=["Lessons"])
@@ -60,21 +61,11 @@ def create_lesson(
 
 @router.patch("/{lesson_id}", response_model=LessonResponse)
 def update_lesson(lesson_id: int, data: LessonUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    lesson = db.query(Lesson).filter(Lesson.id == lesson_id, Lesson.deleted_at.is_(None)).first()
-    if not lesson:
-        raise HTTPException(status_code=404, detail="Lección no encontrada")
-    for field, value in data.model_dump(exclude_unset=True).items():
-        setattr(lesson, field, value)
-    db.commit()
-    db.refresh(lesson)
+    lesson = get_or_404(db, Lesson, lesson_id, detail="Lección no encontrada")
+    apply_update(db, lesson, data)
     return lesson
 
 
 @router.delete("/{lesson_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_lesson(lesson_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    lesson = db.query(Lesson).filter(Lesson.id == lesson_id, Lesson.deleted_at.is_(None)).first()
-    if not lesson:
-        raise HTTPException(status_code=404, detail="Lección no encontrada")
-    from datetime import datetime, timezone
-    lesson.deleted_at = datetime.now(timezone.utc)
-    db.commit()
+    soft_delete(db, get_or_404(db, Lesson, lesson_id, detail="Lección no encontrada"))

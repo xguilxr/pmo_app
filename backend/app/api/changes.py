@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -9,6 +9,7 @@ from app.schemas.change import ChangeCreate, ChangeUpdate, ChangeResponse
 from app.auth.security import get_current_user
 from app.dependencies import get_current_tenant
 from app.utils.tenant_query import verify_project_tenant
+from app.utils.crud_helpers import get_or_404, soft_delete
 from app.services.folio import generate_folio
 from app.services import notifications as notif_svc
 
@@ -61,9 +62,7 @@ def create_change(
 
 @router.patch("/{change_id}", response_model=ChangeResponse)
 def update_change(change_id: int, data: ChangeUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    change = db.query(Change).filter(Change.id == change_id, Change.deleted_at.is_(None)).first()
-    if not change:
-        raise HTTPException(status_code=404, detail="Cambio no encontrado")
+    change = get_or_404(db, Change, change_id, detail="Cambio no encontrado")
     old_status = change.status
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -78,9 +77,4 @@ def update_change(change_id: int, data: ChangeUpdate, db: Session = Depends(get_
 
 @router.delete("/{change_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_change(change_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    change = db.query(Change).filter(Change.id == change_id, Change.deleted_at.is_(None)).first()
-    if not change:
-        raise HTTPException(status_code=404, detail="Cambio no encontrado")
-    from datetime import datetime, timezone
-    change.deleted_at = datetime.now(timezone.utc)
-    db.commit()
+    soft_delete(db, get_or_404(db, Change, change_id, detail="Cambio no encontrado"))

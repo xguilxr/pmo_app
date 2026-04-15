@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ClipboardList, Sparkles, Upload, Clock, Cpu } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
-import { projects } from '../data/mock';
 import { api } from '../services/api';
 import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';
+import { useToast } from '../context/ToastContext';
 
 // Sample minutes for display before backend is connected
 const sampleMinutes = [
@@ -46,6 +46,7 @@ function mapApiMinute(m: ApiMinute): Minute {
 
 export default function MinutesPage() {
   const { t } = useTranslation();
+  const { toastError } = useToast();
   const [showAIForm, setShowAIForm] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [projectId, setProjectId] = useState('');
@@ -58,10 +59,11 @@ export default function MinutesPage() {
   const [saved, setSaved] = useState(false);
 
   const { data: apiMinutes, loading, error: fetchError, refetch } = useApi<ApiMinute[]>(() => api.get('/minutes'), []);
+  const { data: apiProjects } = useApi<{ id: number; name: string; phase: string }[]>(() => api.get('/projects'), []);
 
   const minutes: Minute[] = apiMinutes ? apiMinutes.map(mapApiMinute) : sampleMinutes;
 
-  const activeProjects = projects.filter(p => p.phase !== 'Cerrado');
+  const activeProjects = (apiProjects || []).filter(p => p.phase !== 'Cerrado');
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -132,8 +134,9 @@ export default function MinutesPage() {
         source: 'ai_generated',
       });
       refetch();
-    } catch {
-      // Fallback: just show saved state even if API fails
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Error al guardar minuta');
+      return;
     }
     setSaved(true);
     setTimeout(() => {

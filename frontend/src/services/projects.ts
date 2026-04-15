@@ -1,36 +1,8 @@
 import { api } from './api';
+import type { Project, ProjectCreate } from '../types';
 
-export interface Project {
-  id: number;
-  folio: string;
-  name: string;
-  description?: string;
-  type: string;
-  priority: string;
-  phase: string;
-  status: string;
-  health: string;
-  start_date: string;
-  end_date: string;
-  budget: number;
-  real_budget?: number;
-  progress: number;
-  planned_progress?: number;
-  organization_id?: number;
-  program_id?: number;
-  created_at: string;
-}
-
-export interface ProjectCreate {
-  name: string;
-  description?: string;
-  type: string;
-  priority: string;
-  organization_id?: number;
-  start_date: string;
-  end_date: string;
-  budget?: number;
-}
+// Re-export types for backward compatibility
+export type { Project, ProjectCreate };
 
 export const projectsService = {
   list: (params?: Record<string, string>) => {

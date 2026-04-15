@@ -14,7 +14,7 @@ depends_on = None
 
 
 def _column_exists(table: str, column: str) -> bool:
-    """Check if a column already exists in a table (works on MySQL and PostgreSQL)."""
+    """Check if a column already exists in a table (MySQL)."""
     conn = op.get_bind()
     result = conn.execute(sa.text(
         "SELECT 1 FROM information_schema.columns "
@@ -25,7 +25,7 @@ def _column_exists(table: str, column: str) -> bool:
 
 
 def _table_exists(table: str) -> bool:
-    """Check if a table already exists (works on MySQL and PostgreSQL)."""
+    """Check if a table already exists (MySQL)."""
     conn = op.get_bind()
     result = conn.execute(sa.text(
         "SELECT 1 FROM information_schema.tables "

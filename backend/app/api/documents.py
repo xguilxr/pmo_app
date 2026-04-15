@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -9,6 +9,7 @@ from app.schemas.document import DocumentCreate, DocumentUpdate, DocumentRespons
 from app.auth.security import get_current_user
 from app.dependencies import get_current_tenant
 from app.utils.tenant_query import verify_project_tenant
+from app.utils.crud_helpers import get_or_404, apply_update, soft_delete
 from app.services.folio import generate_folio
 from app.services import notifications as notif_svc
 
@@ -64,21 +65,11 @@ def create_document(
 
 @router.patch("/{document_id}", response_model=DocumentResponse)
 def update_document(document_id: int, data: DocumentUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    doc = db.query(Document).filter(Document.id == document_id, Document.deleted_at.is_(None)).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Documento no encontrado")
-    for field, value in data.model_dump(exclude_unset=True).items():
-        setattr(doc, field, value)
-    db.commit()
-    db.refresh(doc)
+    doc = get_or_404(db, Document, document_id, detail="Documento no encontrado")
+    apply_update(db, doc, data)
     return doc
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_document(document_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    doc = db.query(Document).filter(Document.id == document_id, Document.deleted_at.is_(None)).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Documento no encontrado")
-    from datetime import datetime, timezone
-    doc.deleted_at = datetime.now(timezone.utc)
-    db.commit()
+    soft_delete(db, get_or_404(db, Document, document_id, detail="Documento no encontrado"))

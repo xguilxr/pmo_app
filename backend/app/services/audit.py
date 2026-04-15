@@ -11,9 +11,9 @@ def log_action(
     action: str,
     module: str,
     record_id: int | None = None,
-    details: dict | str | None = None,
+    details: dict[str, str | int | None] | str | None = None,
     ip_address: str | None = None,
-):
+) -> None:
     detail_str = json.dumps(details, default=str) if isinstance(details, dict) else details
     entry = AuditLog(
         user_id=user_id,

@@ -12,15 +12,14 @@ Desarrollador frontend. Responsable de la interfaz de usuario, interacción y ex
 - Responsive design (desktop primario, tablet secundario)
 - Visualización de datos (gráficos, KPIs, matrices)
 
-## Stack tentativo
-- Framework: Por definir junto con decisión de backend
-  - Si backend Python: React/Vue como SPA separada o templates con Jinja2/HTMX
-  - Si fullstack JS: Next.js con React
-- Charts: Chart.js o Recharts
-- CSS: Tailwind CSS o Bootstrap 5
-- i18n: react-i18next o equivalente
-- State: Zustand o Context API (si React)
-- Tablas: TanStack Table (filtros, paginación, sorting)
+## Stack
+- Framework: React 19 + TypeScript + Vite 8
+- Charts: Recharts
+- CSS: Tailwind CSS 4
+- Icons: Lucide React
+- i18n: react-i18next (ES/EN)
+- State: React Context API
+- Routing: react-router-dom v7
 
 ## Estructura de pantallas
 1. **Login** - Formulario de acceso (usuario/correo + contraseña)

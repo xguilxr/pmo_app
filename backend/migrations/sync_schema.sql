@@ -1,6 +1,6 @@
 -- Comprehensive schema sync: run this against the database
 -- to add all missing columns and tables that SQLAlchemy models define.
--- Compatible with MySQL 5.7+ / MariaDB 10.3+ and PostgreSQL.
+-- Compatible with MySQL 8.0+ / MariaDB 10.3+.
 
 -- -------------------------------------------------------
 -- organizations: multi-tenant fields

@@ -1,15 +1,8 @@
 import { api } from './api';
+import type { Organization } from '../types';
 
-export interface Organization {
-  id: number;
-  name: string;
-  legal_name?: string;
-  industry?: string;
-  country?: string;
-  contact_email?: string;
-  is_active: boolean;
-  projects_count?: number;
-}
+// Re-export type for backward compatibility
+export type { Organization };
 
 export const organizationsService = {
   list: () => api.get<Organization[]>('/organizations'),

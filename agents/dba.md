@@ -13,9 +13,8 @@ Administrador de bases de datos SQL. Diseña, optimiza y mantiene la base de dat
 - Diseñar estrategia de backups y recuperación
 
 ## Stack técnico
-- PostgreSQL (producción)
-- SQLite (desarrollo local, opcional)
-- ORM: SQLAlchemy / Alembic para migraciones
+- MySQL 8.0 (producción en HostGator/cPanel)
+- ORM: SQLAlchemy 2.0 / Alembic para migraciones
 
 ## Esquemas principales
 - `users` - Usuarios, credenciales, perfiles

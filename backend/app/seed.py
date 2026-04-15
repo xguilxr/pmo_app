@@ -8,6 +8,8 @@ Usage:
 import sys
 from datetime import date
 
+from sqlalchemy.orm import Session
+
 from app.database import engine, SessionLocal, Base
 from app.models.user import User
 from app.models.role import Role, Permission
@@ -25,7 +27,7 @@ from app.models.backlog import BacklogItem
 from app.auth.security import hash_password
 
 
-def seed_minimal(db):
+def seed_minimal(db: Session) -> tuple[User, Role, Role, Role, Role]:
     """Create only roles, permissions, and admin user."""
 
     # --- Permissions ---
@@ -73,7 +75,7 @@ def seed_minimal(db):
     return admin, admin_role, pmo_role, pm_role, viewer_role
 
 
-def seed_demo(db, admin, admin_role, pmo_role, pm_role, viewer_role):
+def seed_demo(db: Session, admin: User, admin_role: Role, pmo_role: Role, pm_role: Role, viewer_role: Role) -> None:
     """Create 2 tenants with full demo data: users, programs, projects, requests, modules."""
 
     # =====================================================================
@@ -565,7 +567,7 @@ def seed_demo(db, admin, admin_role, pmo_role, pm_role, viewer_role):
     print("    PM:      dmorales    / Pm1234!")
 
 
-def seed():
+def seed() -> None:
     demo = "--demo" in sys.argv
 
     # Create all tables

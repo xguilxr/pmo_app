@@ -1,15 +1,8 @@
 import { api } from './api';
+import type { User } from '../types';
 
-export interface User {
-  id: number;
-  username: string;
-  email: string;
-  full_name: string;
-  is_active: boolean;
-  last_login?: string;
-  roles: string[];
-  created_at: string;
-}
+// Re-export type for backward compatibility
+export type { User };
 
 export const usersService = {
   list: () => api.get<User[]>('/users'),

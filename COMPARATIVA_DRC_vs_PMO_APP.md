@@ -8,7 +8,7 @@
 
 | Aspecto | DRC-PMO | PMO_APP |
 |---------|---------|---------|
-| **Stack** | Laravel (PHP) + Blade + PostgreSQL | FastAPI (Python) + React (TS) + PostgreSQL |
+| **Stack** | Laravel (PHP) + Blade + PostgreSQL | FastAPI (Python) + React (TS) + MySQL |
 | **Frontend** | Blade Templates (server-rendered) | React 19 + Vite + Tailwind (SPA) |
 | **Autenticacion** | Session-based + API tokens | JWT (Bearer) + bcrypt |
 | **AI** | No | SI (Ollama + Claude API) |

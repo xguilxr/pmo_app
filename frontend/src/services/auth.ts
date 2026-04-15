@@ -1,27 +1,10 @@
-import { setToken } from './api';
-
-interface OrgBrief {
-  id: number;
-  name: string;
-  slug: string | null;
-}
-
-interface LoginResponse {
-  access_token: string;
-  token_type: string;
-  user_id: number;
-  full_name: string;
-  roles: string[];
-  organizations: OrgBrief[];
-  is_superadmin: boolean;
-}
+import { setToken, api } from './api';
+import type { OrgBrief, LoginResponse, CurrentUser } from '../types';
 
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const ACTIVITY_KEY = 'pmo_last_activity';
 
 export async function login(usernameOrEmail: string, password: string): Promise<LoginResponse> {
-  // Import api dynamically to avoid circular dependency
-  const { api } = await import('./api');
   const data = await api.post<LoginResponse>('/auth/login', {
     username_or_email: usernameOrEmail,
     password,
@@ -46,14 +29,6 @@ export function logout() {
   localStorage.removeItem('pmo_user');
   localStorage.removeItem(ACTIVITY_KEY);
   window.location.href = '/login';
-}
-
-export interface CurrentUser {
-  id: number;
-  fullName: string;
-  roles: string[];
-  is_superadmin: boolean;
-  organizations: OrgBrief[];
 }
 
 export function getCurrentUser(): CurrentUser | null {

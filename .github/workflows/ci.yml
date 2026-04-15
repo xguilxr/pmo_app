@@ -40,19 +40,20 @@ jobs:
     name: Backend Tests
     runs-on: ubuntu-latest
     services:
-      postgres:
-        image: postgres:16-alpine
+      mysql:
+        image: mysql:8.0
         env:
-          POSTGRES_DB: pmo_test
-          POSTGRES_USER: pmo_user
-          POSTGRES_PASSWORD: test_secret
+          MYSQL_DATABASE: pmo_test
+          MYSQL_USER: pmo_user
+          MYSQL_PASSWORD: test_secret
+          MYSQL_ROOT_PASSWORD: root_secret
         options: >-
-          --health-cmd "pg_isready -U pmo_user -d pmo_test"
+          --health-cmd "mysqladmin ping -h localhost -u pmo_user -ptest_secret"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 5
         ports:
-          - 5432:5432
+          - 3306:3306
 
     steps:
       - uses: actions/checkout@v4
@@ -70,7 +71,7 @@ jobs:
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql://pmo_user:test_secret@localhost:5432/pmo_test
+          DATABASE_URL: mysql+pymysql://pmo_user:test_secret@localhost:3306/pmo_test?charset=utf8mb4
           JWT_SECRET: ci-test-jwt-secret
           SECRET_KEY: ci-test-secret-key
           APP_ENV: testing

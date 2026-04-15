@@ -4,20 +4,7 @@ import { Plus, X, BarChart3, Download, FileBarChart, Calendar, Trash2, Send, Eye
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
-
-interface Report {
-  id: number;
-  title: string;
-  content_html: string | null;
-  period_start: string | null;
-  period_end: string | null;
-  status: string;
-  recipients: string | null;
-  sent_date: string | null;
-  ai_model_used: string | null;
-  project_id: number;
-  created_at: string;
-}
+import type { Report } from '../../types';
 
 const REPORT_TYPES = [
   { id: 'avance', label: 'Avance', desc: 'Estado general, progreso de tareas, riesgos e issues', icon: FileBarChart, color: 'blue' },

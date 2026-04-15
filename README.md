@@ -12,7 +12,7 @@ Plataforma de Project Management Office (PMO) como servicio. Sistema integral pa
 |------|-----------|
 | **Frontend** | React 19 + TypeScript + Vite 8 + Tailwind CSS 4 |
 | **Backend** | FastAPI + Uvicorn + SQLAlchemy 2.0 + Alembic |
-| **Base de Datos** | PostgreSQL 15+ |
+| **Base de Datos** | MySQL 8.0 |
 | **IA** | Ollama (Qwen 2.5 7B local) / Claude API (fallback) |
 | **Graficas** | Recharts |
 | **Iconos** | Lucide React |
@@ -28,7 +28,7 @@ Plataforma de Project Management Office (PMO) como servicio. Sistema integral pa
 pmo_app/
 ├── backend/
 │   ├── app/
-│   │   ├── api/            # Endpoints REST (16 routers)
+│   │   ├── api/            # Endpoints REST (28 routers)
 │   │   │   ├── areas.py         # CRUD areas de proyecto
 │   │   │   ├── auth.py          # Login + JWT
 │   │   │   ├── backlog.py       # Backlog items
@@ -47,12 +47,12 @@ pmo_app/
 │   │   │   ├── tasks.py         # Tareas + import .mpp/.xlsx/.csv
 │   │   │   └── users.py         # Gestion de usuarios
 │   │   ├── auth/            # Seguridad JWT
-│   │   ├── models/          # 14 modelos SQLAlchemy
+│   │   ├── models/          # 26+ modelos SQLAlchemy
 │   │   ├── schemas/         # Validacion Pydantic
 │   │   ├── services/        # AI engine + folio generator
 │   │   ├── utils/           # MppToJson.java (MS Project parser)
 │   │   ├── config.py        # Configuracion centralizada
-│   │   ├── database.py      # Conexion PostgreSQL
+│   │   ├── database.py      # Conexion MySQL
 │   │   ├── main.py          # App FastAPI (auto-sync schema on startup)
 │   │   └── seed.py          # Datos iniciales
 │   ├── migrations/          # Alembic + sync_schema.sql
@@ -66,7 +66,6 @@ pmo_app/
 │   │   │   ├── layout/      # AppLayout, Sidebar, TopBar
 │   │   │   └── project/     # 8 tabs del detalle de proyecto
 │   │   ├── pages/           # Dashboard, Projects, ProjectDetail, Login, Minutes, Reports, etc.
-│   │   ├── data/            # Mock data para desarrollo
 │   │   └── i18n/            # Traducciones ES/EN
 │   └── package.json
 ├── docs/
@@ -86,7 +85,7 @@ pmo_app/
 
 - **Node.js** 18+ y npm
 - **Python** 3.11+
-- **PostgreSQL** 15+
+- **MySQL** 8.0+
 - **Java JDK** 11+ (para importacion de archivos .mpp, opcional)
 - **Ollama** 0.1+ (para IA local, opcional)
 - **Git**
@@ -108,12 +107,12 @@ cd pmo_app
 
 ```bash
 cp .env.example .env
-# Editar .env con tus credenciales de PostgreSQL y JWT secrets
+# Editar .env con tus credenciales de MySQL y JWT secrets
 ```
 
 Variables criticas a configurar:
 ```
-DATABASE_URL=postgresql://pmo_user:tu_password@localhost:5432/pmo_db
+DATABASE_URL=mysql+pymysql://pmo_user:tu_password@localhost:3306/pmo_db?charset=utf8mb4
 JWT_SECRET=<generar con: python -c "import secrets; print(secrets.token_hex(32))">
 SECRET_KEY=<generar otro secreto aleatorio>
 ```
@@ -130,12 +129,12 @@ source venv/bin/activate          # Linux/Mac
 cd backend
 pip install -r requirements.txt
 
-# Crear base de datos en PostgreSQL
-# (En psql o DBeaver):
-# CREATE DATABASE pmo_db;
-# CREATE USER pmo_user WITH PASSWORD 'tu_password';
-# GRANT ALL PRIVILEGES ON DATABASE pmo_db TO pmo_user;
-# ALTER DATABASE pmo_db OWNER TO pmo_user;
+# Crear base de datos en MySQL
+# (En mysql CLI o DBeaver):
+# CREATE DATABASE pmo_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+# CREATE USER 'pmo_user'@'localhost' IDENTIFIED BY 'tu_password';
+# GRANT ALL PRIVILEGES ON pmo_db.* TO 'pmo_user'@'localhost';
+# FLUSH PRIVILEGES;
 
 # Seed de datos iniciales
 python -m app.seed
@@ -371,7 +370,7 @@ User (*) ──── (*) Role (*) ──── (*) Permission
                                      (module + action)
 ```
 
-14 modelos con soft delete (`deleted_at`), timestamps automaticos (`created_at`, `updated_at`).
+26+ modelos con soft delete (`deleted_at`), timestamps automaticos (`created_at`, `updated_at`).
 
 ---
 
@@ -472,12 +471,10 @@ ollama serve                                  # Start server
 
 ## Despliegue
 
-El proyecto esta preparado para despliegue en **Railway**:
+El proyecto esta preparado para despliegue en **HostGator** (cPanel con MySQL).
+Consultar `DEPLOY_HOSTGATOR.md` para la guia paso a paso.
 
-1. Crear proyecto en Railway
-2. Agregar servicio PostgreSQL
-3. Configurar variables de entorno (cambiar `APP_ENV=production`, `DEBUG=false`)
-4. Deploy backend y frontend como servicios separados
+Tambien se puede desplegar con **Docker Compose** (ver carpeta `docker/`).
 
 ---
 

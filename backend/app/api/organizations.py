@@ -28,7 +28,7 @@ class OrganizationBrandingResponse(BaseModel):
     logo_url: Optional[str] = None
     primary_color: Optional[str] = None
     secondary_color: Optional[str] = None
-    config_json: Optional[dict] = None
+    config_json: Optional[dict[str, str | int | bool | None]] = None
     is_active: bool
 
     model_config = {"from_attributes": True}

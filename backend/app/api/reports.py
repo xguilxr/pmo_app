@@ -1,6 +1,5 @@
 from datetime import date, datetime, timezone
 from io import BytesIO
-import json
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -15,6 +14,7 @@ from app.models.task import Task
 from app.models.backlog import BacklogItem
 from app.schemas.report import ReportCreate, ReportUpdate, ReportResponse
 from app.auth.security import get_current_user
+from app.utils.crud_helpers import get_or_404, apply_update, soft_delete
 from app.services.ai_engine import generate_report
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
@@ -34,10 +34,7 @@ def list_reports(
 
 @router.get("/{report_id}", response_model=ReportResponse)
 def get_report(report_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    report = db.query(ProgressReport).filter(ProgressReport.id == report_id, ProgressReport.deleted_at.is_(None)).first()
-    if not report:
-        raise HTTPException(status_code=404, detail="Reporte no encontrado")
-    return report
+    return get_or_404(db, ProgressReport, report_id, detail="Reporte no encontrado")
 
 
 @router.post("", response_model=ReportResponse, status_code=status.HTTP_201_CREATED)
@@ -90,33 +87,24 @@ def update_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    report = db.query(ProgressReport).filter(ProgressReport.id == report_id, ProgressReport.deleted_at.is_(None)).first()
-    if not report:
-        raise HTTPException(status_code=404, detail="Reporte no encontrado")
-    for field, value in data.model_dump(exclude_unset=True).items():
-        setattr(report, field, value)
+    report = get_or_404(db, ProgressReport, report_id, detail="Reporte no encontrado")
+    apply_update(db, report, data)
     if data.status == "sent" and not report.sent_date:
         report.sent_date = date.today()
-    db.commit()
-    db.refresh(report)
+        db.commit()
+        db.refresh(report)
     return report
 
 
 @router.delete("/{report_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_report(report_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    report = db.query(ProgressReport).filter(ProgressReport.id == report_id, ProgressReport.deleted_at.is_(None)).first()
-    if not report:
-        raise HTTPException(status_code=404, detail="Reporte no encontrado")
-    report.deleted_at = datetime.now(timezone.utc)
-    db.commit()
+    soft_delete(db, get_or_404(db, ProgressReport, report_id, detail="Reporte no encontrado"))
 
 
 @router.get("/{report_id}/download")
 def download_report(report_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Download report as HTML file (can be opened/printed as PDF from browser)."""
-    report = db.query(ProgressReport).filter(ProgressReport.id == report_id, ProgressReport.deleted_at.is_(None)).first()
-    if not report:
-        raise HTTPException(status_code=404, detail="Reporte no encontrado")
+    report = get_or_404(db, ProgressReport, report_id, detail="Reporte no encontrado")
 
     html = f"""<!DOCTYPE html>
 <html lang="es">

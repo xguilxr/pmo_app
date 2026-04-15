@@ -15,7 +15,7 @@ PMO_APP es una plataforma moderna de gestion de portafolio de proyectos (PMO) co
 |-----------|-----------|
 | **Backend** | FastAPI (Python 3.11+) + SQLAlchemy 2.0 |
 | **Frontend** | React 19 + TypeScript + Vite + Tailwind CSS 4 |
-| **Base de Datos** | PostgreSQL 15+ |
+| **Base de Datos** | MySQL 8.0 |
 | **Motor IA** | Ollama (Qwen 2.5 7B local) + Claude API (fallback) |
 | **Importacion MS Project** | mpxj (Java) |
 | **Autenticacion** | JWT (python-jose) + bcrypt |
@@ -43,7 +43,7 @@ PMO_APP es una plataforma moderna de gestion de portafolio de proyectos (PMO) co
 │  │ Notific. │ │  JWT/BC  │ │          │ │          │   │
 │  └──────────┘ └──────────┘ └──────────┘ └──────────┘   │
 ├─────────────────────────────────────────────────────────┤
-│                   PostgreSQL 15+                         │
+│                      MySQL 8.0                           │
 │            26 tablas + soft delete universal              │
 ├─────────────────────────────────────────────────────────┤
 │              INTEGRACIONES EXTERNAS                       │

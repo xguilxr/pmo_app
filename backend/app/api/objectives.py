@@ -4,12 +4,12 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.models.organization import Organization
-from app.models.project import Project
 from app.models.objective import ProjectObjective
 from app.schemas.objective import ObjectiveCreate, ObjectiveUpdate, ObjectiveResponse
 from app.auth.security import get_current_user
 from app.dependencies import get_current_tenant
 from app.utils.tenant_query import verify_project_tenant
+from app.utils.crud_helpers import soft_delete
 
 router = APIRouter(prefix="/projects/{project_id}/objectives", tags=["Project Objectives"])
 
@@ -65,6 +65,4 @@ def delete_objective(project_id: int, objective_id: int, db: Session = Depends(g
     ).first()
     if not obj:
         raise HTTPException(status_code=404, detail="Objetivo no encontrado")
-    from datetime import datetime, timezone
-    obj.deleted_at = datetime.now(timezone.utc)
-    db.commit()
+    soft_delete(db, obj)

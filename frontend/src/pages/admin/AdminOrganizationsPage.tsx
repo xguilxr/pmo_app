@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Plus, Edit2, Trash2, X, Building2, Globe, MapPin } from 'lucide-react';
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner, ErrorMessage } from '../../hooks/useApi';
+import { useToast } from '../../context/ToastContext';
 
 interface OrgItem {
   id: number;
@@ -15,8 +16,19 @@ interface OrgItem {
   projectsCount: number;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapApiOrg(raw: any): OrgItem {
+interface ApiOrgResponse {
+  id: number;
+  name: string;
+  legal_name: string | null;
+  industry: string | null;
+  country: string | null;
+  contact_email: string | null;
+  is_active: boolean;
+  projects_count?: number;
+  created_at: string;
+}
+
+function mapApiOrg(raw: ApiOrgResponse): OrgItem {
   return {
     id: raw.id,
     name: raw.name || '',
@@ -31,6 +43,7 @@ function mapApiOrg(raw: any): OrgItem {
 
 export default function AdminOrganizationsPage() {
   const { t } = useTranslation();
+  const { toastError } = useToast();
   const [orgs, setOrgs] = useState<OrgItem[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<OrgItem | null>(null);
@@ -40,8 +53,7 @@ export default function AdminOrganizationsPage() {
 
   // Fetch organizations from API
   const { data: apiOrgs, loading, error, refetch } = useApi<OrgItem[]>(async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const raw = await api.get<any[]>('/organizations');
+    const raw = await api.get<ApiOrgResponse[]>('/organizations');
     return raw.map(mapApiOrg);
   }, []);
 
@@ -98,8 +110,8 @@ export default function AdminOrganizationsPage() {
     try {
       await api.delete(`/organizations/${deleteTarget.id}`);
       refetch();
-    } catch {
-      setOrgs(orgs.filter(o => o.id !== deleteTarget.id));
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Error al eliminar organización');
     }
     setDeleteTarget(null);
   };

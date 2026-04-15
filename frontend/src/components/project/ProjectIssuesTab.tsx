@@ -3,12 +3,7 @@ import { Plus, X, Download, Edit2, Trash2 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
-
-interface Issue {
-  id: number; folio: string; title: string; description: string | null;
-  type: string; priority: string; status: string;
-  resolution: string | null; report_date: string | null; commitment_date: string | null;
-}
+import type { Issue } from '../../types';
 
 export default function ProjectIssuesTab({ projectId }: { projectId: number }) {
   const { toastSuccess, toastError } = useToast();

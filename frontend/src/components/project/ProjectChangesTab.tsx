@@ -3,12 +3,7 @@ import { Plus, X, Download, Edit2, Trash2 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
-
-interface Change {
-  id: number; folio: string; title: string; description: string;
-  change_type: string; impact: string | null; requested_by: string | null;
-  request_date: string; status: string; comments: string | null;
-}
+import type { Change } from '../../types';
 
 export default function ProjectChangesTab({ projectId }: { projectId: number }) {
   const { toastSuccess, toastError } = useToast();

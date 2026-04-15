@@ -12,6 +12,7 @@ from app.models.project_status import ProjectStatus
 from app.auth.security import get_current_user
 from app.dependencies import get_current_tenant
 from app.utils.tenant_query import verify_project_tenant
+from app.utils.crud_helpers import get_or_404, apply_update, soft_delete
 
 router = APIRouter(prefix="/project-statuses", tags=["Project Statuses"])
 
@@ -73,10 +74,7 @@ def list_statuses(
 
 @router.get("/{status_id}", response_model=StatusResponse)
 def get_status(status_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    s = db.query(ProjectStatus).filter(ProjectStatus.id == status_id, ProjectStatus.deleted_at.is_(None)).first()
-    if not s:
-        raise HTTPException(status_code=404, detail="Estatus no encontrado")
-    return s
+    return get_or_404(db, ProjectStatus, status_id, detail="Estatus no encontrado")
 
 
 @router.post("", response_model=StatusResponse, status_code=status.HTTP_201_CREATED)
@@ -91,21 +89,11 @@ def create_status(data: StatusCreate, db: Session = Depends(get_db), current_use
 
 @router.patch("/{status_id}", response_model=StatusResponse)
 def update_status(status_id: int, data: StatusUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    s = db.query(ProjectStatus).filter(ProjectStatus.id == status_id, ProjectStatus.deleted_at.is_(None)).first()
-    if not s:
-        raise HTTPException(status_code=404, detail="Estatus no encontrado")
-    for field, value in data.model_dump(exclude_unset=True).items():
-        setattr(s, field, value)
-    db.commit()
-    db.refresh(s)
+    s = get_or_404(db, ProjectStatus, status_id, detail="Estatus no encontrado")
+    apply_update(db, s, data)
     return s
 
 
 @router.delete("/{status_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_status(status_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    s = db.query(ProjectStatus).filter(ProjectStatus.id == status_id, ProjectStatus.deleted_at.is_(None)).first()
-    if not s:
-        raise HTTPException(status_code=404, detail="Estatus no encontrado")
-    from datetime import datetime, timezone
-    s.deleted_at = datetime.now(timezone.utc)
-    db.commit()
+    soft_delete(db, get_or_404(db, ProjectStatus, status_id, detail="Estatus no encontrado"))

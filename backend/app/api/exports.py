@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.models.project import Project
-from app.models.modules import Risk, Issue, Change, Document, Lesson
+from app.models.modules import Risk, Issue, Change, Lesson
 from app.models.backlog import BacklogItem
 from app.models.task import Task
 from app.auth.security import get_current_user
