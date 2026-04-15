@@ -10,7 +10,7 @@ can access these endpoints.  Provides:
 import os
 import platform
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
