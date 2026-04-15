@@ -29,8 +29,8 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
-      await login(userOrEmail, password);
-      navigate('/');
+      const resp = await login(userOrEmail, password);
+      navigate(resp.is_superadmin ? '/superadmin' : '/');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error de autenticacion';
       setError(msg);

@@ -1,17 +1,19 @@
 services:
   db:
-    image: postgres:16-alpine
+    image: mysql:8.0
     restart: unless-stopped
     environment:
-      POSTGRES_DB: pmo_db
-      POSTGRES_USER: pmo_user
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-secreto}
+      MYSQL_DATABASE: pmo_db
+      MYSQL_USER: pmo_user
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secreto}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootsecret}
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - mysqldata:/var/lib/mysql
     ports:
-      - "5432:5432"
+      - "3306:3306"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pmo_user -d pmo_db"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "pmo_user", "-psecret"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -25,7 +27,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://pmo_user:${DB_PASSWORD:-secreto}@db:5432/pmo_db
+      DATABASE_URL: mysql+pymysql://pmo_user:${DB_PASSWORD:-secreto}@db:3306/pmo_db?charset=utf8mb4
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       APP_ENV: ${APP_ENV:-production}
@@ -52,6 +54,6 @@ services:
       - "80:80"
 
 volumes:
-  pgdata:
+  mysqldata:
   uploads:
   tenant_assets:

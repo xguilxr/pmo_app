@@ -25,6 +25,8 @@ import AdminVariablesPage from './pages/admin/AdminVariablesPage';
 import AdminLogsPage from './pages/admin/AdminLogsPage';
 import AdminProjectsPage from './pages/admin/AdminProjectsPage';
 import AdminProgramsPage from './pages/admin/AdminProgramsPage';
+import SuperadminDashboardPage from './pages/superadmin/SuperadminDashboardPage';
+import SuperadminTenantDetailPage from './pages/superadmin/SuperadminTenantDetailPage';
 import './i18n';
 
 export default function App() {
@@ -58,6 +60,8 @@ export default function App() {
           <Route path="/admin/logs" element={<AdminLogsPage />} />
           <Route path="/admin/projects" element={<AdminProjectsPage />} />
           <Route path="/admin/programs" element={<AdminProgramsPage />} />
+          <Route path="/superadmin" element={<SuperadminDashboardPage />} />
+          <Route path="/superadmin/tenants/:id" element={<SuperadminTenantDetailPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

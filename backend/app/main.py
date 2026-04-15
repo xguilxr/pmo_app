@@ -104,16 +104,21 @@ def sync_schema_on_startup():
     if os.path.exists(sql_path):
         with open(sql_path, encoding="utf-8") as f:
             sql = f.read()
-        # Execute each statement separately (skip comments and empty lines)
-        with engine.begin() as conn:
-            for stmt in sql.split(";"):
-                stmt = stmt.strip()
-                if stmt and not stmt.startswith("--"):
-                    # Remove leading comment lines from each statement
-                    lines = [l for l in stmt.split("\n") if not l.strip().startswith("--")]
-                    clean = "\n".join(lines).strip()
-                    if clean:
-                        conn.execute(text(clean))
+        # Execute each statement separately — each in its own transaction
+        # so one failure (e.g. column already exists) doesn't abort the rest.
+        import logging
+        _log = logging.getLogger(__name__)
+        for stmt in sql.split(";"):
+            stmt = stmt.strip()
+            if stmt and not stmt.startswith("--"):
+                lines = [l for l in stmt.split("\n") if not l.strip().startswith("--")]
+                clean = "\n".join(lines).strip()
+                if clean:
+                    try:
+                        with engine.begin() as conn:
+                            conn.execute(text(clean))
+                    except Exception as exc:
+                        _log.warning("sync_schema statement skipped: %s", exc)
 
 
 @app.get("/api/health")
