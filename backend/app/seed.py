@@ -179,6 +179,14 @@ def seed_demo(db: Session, admin: User, admin_role: Role, pmo_role: Role, pm_rol
     t2_pmo.roles.append(pmo_role)
     db.add(t2_pmo)
 
+    t2_viewer = User(
+        username="nova_viewer", email="viewer@technova.com",
+        full_name="Andres Fuentes Peña",
+        hashed_password=hash_password("View123!"), is_active=True,
+    )
+    t2_viewer.roles.append(viewer_role)
+    db.add(t2_viewer)
+
     db.flush()
 
     # --- Organization assignments ---
@@ -192,6 +200,7 @@ def seed_demo(db: Session, admin: User, admin_role: Role, pmo_role: Role, pm_rol
     t2_pm1.organizations.append(t2)
     t2_pm2.organizations.append(t2)
     t2_pmo.organizations.append(t2)
+    t2_viewer.organizations.append(t2)
     db.flush()
 
     # =====================================================================

@@ -9,11 +9,46 @@
 
 ### Credenciales de acceso
 
+Creadas por `python -m app.seed --demo`. Cada tenant tiene su propio admin
+para que puedas probar todas las funcionalidades aisladamente.
+
+**Super Admin (multi-tenant, panel global)**
+
 | Usuario | Contrasena | Rol |
 |---------|-----------|-----|
-| admin | Admin123! | Administrador |
-| jgarcia | Pm1234! | Project Manager |
-| mrodriguez | Pm1234! | Project Manager |
+| admin | Admin123! | Super Administrador |
+
+**Tenant: Grupo Alfa** (`grupo-alfa`)
+
+| Usuario | Contrasena | Rol | Permisos |
+|---------|-----------|-----|----------|
+| alfa_admin | Alfa123! | Administrador | Acceso total al tenant |
+| alfa_pmo | Alfa123! | PMO Manager | Ver/crear/editar portafolio |
+| jgarcia | Pm1234! | Project Manager | Gestion de sus proyectos |
+| rlopez | Pm1234! | Project Manager | Gestion de sus proyectos |
+| alfa_viewer | View123! | Viewer | Solo lectura |
+
+**Tenant: TechNova** (`technova`)
+
+| Usuario | Contrasena | Rol | Permisos |
+|---------|-----------|-----|----------|
+| nova_admin | Nova123! | Administrador | Acceso total al tenant |
+| nova_pmo | Nova123! | PMO Manager | Ver/crear/editar portafolio |
+| mrodriguez | Pm1234! | Project Manager | Gestion de sus proyectos |
+| dmorales | Pm1234! | Project Manager | Gestion de sus proyectos |
+| nova_viewer | View123! | Viewer | Solo lectura |
+
+> Para validar todas las funcionalidades de un tenant, entra con su
+> `*_admin` (no con el super admin). El super admin sirve para CRUD de
+> tenants y metricas globales.
+
+### Tenants creados desde el superadmin (no-seed)
+
+Cuando creas un tenant desde **Superadmin > Provisionar Tenant**, la
+plataforma **siempre** genera un usuario Administrador automaticamente.
+Si dejas los campos en blanco, se crea `{slug}_admin` con una contrasena
+aleatoria que se muestra una sola vez en la pantalla post-creacion:
+copiala antes de cerrar el modal.
 
 ### URL de acceso
 - **Frontend:** http://localhost:5173

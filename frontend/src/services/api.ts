@@ -37,11 +37,36 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   return res.json();
 }
 
+// Multipart / FormData POST — do NOT set Content-Type so the browser adds the
+// correct multipart boundary.
+async function apiFetchForm<T>(path: string, form: FormData): Promise<T> {
+  const token = localStorage.getItem('pmo_token');
+  const tenantId = localStorage.getItem('pmo_tenant_id');
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (tenantId) headers['X-Tenant-ID'] = tenantId;
+
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    body: form,
+    headers,
+  });
+
+  if (res.status === 401) throw new Error('Unauthorized');
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(error.detail || `API Error ${res.status}`);
+  }
+  if (res.status === 204) return undefined as T;
+  return res.json();
+}
+
 // Convenience methods
 export const api = {
   get: <T>(path: string) => apiFetch<T>(path),
   post: <T>(path: string, body: unknown) =>
     apiFetch<T>(path, { method: 'POST', body: JSON.stringify(body) }),
+  postForm: <T>(path: string, form: FormData) => apiFetchForm<T>(path, form),
   patch: <T>(path: string, body: unknown) =>
     apiFetch<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: <T>(path: string) => apiFetch<T>(path, { method: 'DELETE' }),

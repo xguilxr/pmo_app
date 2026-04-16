@@ -472,9 +472,30 @@ ollama serve                                  # Start server
 ## Despliegue
 
 El proyecto esta preparado para despliegue en **HostGator** (cPanel con MySQL).
-Consultar `DEPLOY_HOSTGATOR.md` para la guia paso a paso.
+
+- [`docs/deploy-hostgator.md`](docs/deploy-hostgator.md) — guia paso a paso de primer despliegue
+- [`docs/deploy-flow.md`](docs/deploy-flow.md) — estrategia de ramas (`dev` → `prod`), manejo de migraciones y checklist de deploy
 
 Tambien se puede desplegar con **Docker Compose** (ver carpeta `docker/`).
+
+---
+
+## Documentacion
+
+Toda la documentacion vive en `docs/`:
+
+| Archivo | Contenido |
+|---------|-----------|
+| [`docs/setup-guide.md`](docs/setup-guide.md) | Setup de desarrollo local |
+| [`docs/deploy-hostgator.md`](docs/deploy-hostgator.md) | Deploy en HostGator cPanel / WHM |
+| [`docs/deploy-flow.md`](docs/deploy-flow.md) | Flujo `dev`→`prod` y gestion de migraciones |
+| [`docs/demo-guiada.md`](docs/demo-guiada.md) | Guion para demos funcionales |
+| [`docs/analisis.md`](docs/analisis.md) | Analisis general de la plataforma |
+| [`docs/comparativa-drc.md`](docs/comparativa-drc.md) | Comparativa PMOAAS vs DRC |
+| [`docs/changelog.md`](docs/changelog.md) | Historial de cambios |
+| [`docs/glossary.md`](docs/glossary.md) | Glosario de terminos |
+| [`docs/architecture/`](docs/architecture/) | ADRs de arquitectura |
+| [`docs/epics/`](docs/epics/) | Documentacion de epics |
 
 ---
 

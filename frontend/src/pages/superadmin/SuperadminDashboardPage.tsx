@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import {
   Building2, Users, FolderKanban, Plus, Activity,
   Server, ChevronRight, Search, Power, PowerOff,
+  Copy, Check, KeyRound,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
@@ -17,6 +18,7 @@ interface Tenant {
   industry: string | null;
   country: string | null;
   contact_email: string | null;
+  logo_url: string | null;
   primary_color: string | null;
   secondary_color: string | null;
   is_active: boolean;
@@ -51,6 +53,14 @@ interface ProvisionForm {
   admin_password: string;
 }
 
+interface ProvisionResult {
+  tenant: { id: number; name: string; slug: string | null };
+  admin_user_id: number;
+  admin_username: string;
+  admin_email: string;
+  admin_password: string;
+}
+
 const emptyProvision: ProvisionForm = {
   name: '', slug: '', industry: '', country: 'Mexico',
   contact_email: '', primary_color: '#3B82F6', secondary_color: '#6366F1',
@@ -64,6 +74,8 @@ export default function SuperadminDashboardPage() {
   const [form, setForm] = useState<ProvisionForm>({ ...emptyProvision });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [createdTenant, setCreatedTenant] = useState<ProvisionResult | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const { data: tenants, loading, refetch } = useApi(
     () => api.get<Tenant[]>('/superadmin/tenants?include_inactive=true'), []
@@ -81,14 +93,30 @@ export default function SuperadminDashboardPage() {
     setSaving(true);
     setError('');
     try {
-      await api.post('/superadmin/provision', form);
+      // Strip empty admin_* fields so the backend auto-generates defaults.
+      const payload: Record<string, unknown> = { ...form };
+      (['admin_username', 'admin_email', 'admin_full_name', 'admin_password'] as const).forEach(k => {
+        if (!form[k]) delete payload[k];
+      });
+      const result = await api.post<ProvisionResult>('/superadmin/provision', payload);
       setShowProvision(false);
       setForm({ ...emptyProvision });
+      setCreatedTenant(result);
       refetch();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error al provisionar');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCopy = async (value: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 1500);
+    } catch {
+      /* clipboard may fail in some browsers; silent no-op */
     }
   };
 
@@ -205,12 +233,20 @@ export default function SuperadminDashboardPage() {
           >
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div
-                  className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-[15px]"
-                  style={{ backgroundColor: tenant.primary_color || '#3B82F6' }}
-                >
-                  {tenant.name.charAt(0).toUpperCase()}
-                </div>
+                {tenant.logo_url ? (
+                  <img
+                    src={tenant.logo_url}
+                    alt={`Logo ${tenant.name}`}
+                    className="w-11 h-11 rounded-xl object-contain bg-white/5 p-1"
+                  />
+                ) : (
+                  <div
+                    className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-[15px]"
+                    style={{ backgroundColor: tenant.primary_color || '#3B82F6' }}
+                  >
+                    {tenant.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div>
                   <h3 className="text-[14px] font-medium text-text-primary group-hover:text-accent transition-colors">
                     {tenant.name}
@@ -337,39 +373,45 @@ export default function SuperadminDashboardPage() {
               </div>
 
               <p className="text-[11px] text-text-tertiary uppercase tracking-widest font-medium pt-3">Admin del Tenant</p>
+              <p className="text-[11px] text-text-tertiary -mt-2">
+                Cada tenant se crea con un usuario Administrador. Si dejas los campos en blanco,
+                se generara <code>{'{slug}_admin'}</code> con una contrasena aleatoria que veras una sola vez.
+              </p>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] text-text-tertiary mb-1">Username *</label>
+                  <label className="block text-[11px] text-text-tertiary mb-1">Username</label>
                   <input
-                    required
                     value={form.admin_username}
+                    placeholder={form.slug ? `${form.slug}_admin` : 'auto'}
                     onChange={e => setForm({ ...form, admin_username: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border text-[13px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-text-tertiary mb-1">Email *</label>
+                  <label className="block text-[11px] text-text-tertiary mb-1">Email</label>
                   <input
-                    required type="email"
+                    type="email"
                     value={form.admin_email}
+                    placeholder={form.contact_email || `admin@${form.slug || 'tenant'}.local`}
                     onChange={e => setForm({ ...form, admin_email: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border text-[13px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-text-tertiary mb-1">Nombre completo *</label>
+                  <label className="block text-[11px] text-text-tertiary mb-1">Nombre completo</label>
                   <input
-                    required
                     value={form.admin_full_name}
+                    placeholder={`Admin ${form.name || ''}`.trim()}
                     onChange={e => setForm({ ...form, admin_full_name: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border text-[13px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-text-tertiary mb-1">Password *</label>
+                  <label className="block text-[11px] text-text-tertiary mb-1">Password</label>
                   <input
-                    required type="password"
+                    type="password"
                     value={form.admin_password}
+                    placeholder="Auto-generado si vacio"
                     onChange={e => setForm({ ...form, admin_password: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border text-[13px] text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30"
                   />
@@ -393,6 +435,71 @@ export default function SuperadminDashboardPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Post-provision credentials modal */}
+      {createdTenant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-surface-elevated border border-accent/30 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                <KeyRound className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-[15px] font-medium text-text-primary">Tenant creado: {createdTenant.tenant.name}</h3>
+                <p className="text-[11px] text-text-tertiary">Credenciales del Administrador del tenant</p>
+              </div>
+            </div>
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-4">
+              <p className="text-[11px] text-amber-300">
+                Guarda la contrasena ahora. Esta es la <strong>unica vez</strong> que se muestra.
+                Despues solo queda almacenada de forma cifrada.
+              </p>
+            </div>
+            <div className="space-y-3">
+              {[
+                { label: 'Username', value: createdTenant.admin_username, field: 'username' },
+                { label: 'Email', value: createdTenant.admin_email, field: 'email' },
+                { label: 'Password', value: createdTenant.admin_password, field: 'password', mono: true },
+              ].map(({ label, value, field, mono }) => (
+                <div key={field} className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <label className="block text-[10px] text-text-tertiary uppercase tracking-widest mb-1">{label}</label>
+                    <div className={`px-3 py-2 rounded-xl bg-surface-secondary border border-border text-[13px] text-text-primary ${mono ? 'font-mono' : ''}`}>
+                      {value}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleCopy(value, field)}
+                    className="mt-5 p-2 rounded-xl border border-border hover:bg-surface-hover transition-colors"
+                    title={`Copiar ${label.toLowerCase()}`}
+                  >
+                    {copiedField === field ? (
+                      <Check className="w-4 h-4 text-emerald-400" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-text-secondary" />
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-3 pt-5">
+              <Link
+                to={`/superadmin/tenants/${createdTenant.tenant.id}`}
+                className="px-4 py-2 rounded-xl border border-border text-[13px] text-text-secondary hover:bg-surface-hover transition-colors"
+                onClick={() => setCreatedTenant(null)}
+              >
+                Abrir tenant
+              </Link>
+              <button
+                onClick={() => setCreatedTenant(null)}
+                className="px-5 py-2 rounded-xl btn-gradient text-white text-[13px] font-medium shadow-lg shadow-accent/20"
+              >
+                Listo
+              </button>
+            </div>
           </div>
         </div>
       )}

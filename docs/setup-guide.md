@@ -117,7 +117,7 @@ docker run -d \
 ```
 
 ### Opción C: HostGator (producción)
-Crear la base de datos desde cPanel > MySQL Databases. Consultar `DEPLOY_HOSTGATOR.md`.
+Crear la base de datos desde cPanel > MySQL Databases. Consultar [`deploy-hostgator.md`](deploy-hostgator.md).
 
 ### Configurar en .env
 ```
@@ -288,7 +288,7 @@ npm run dev
 | `AI_DEFAULT_ENGINE` | ollama | claude_api (opcional) |
 
 ### En HostGator (cPanel):
-Consultar `DEPLOY_HOSTGATOR.md` para la guia paso a paso de despliegue en produccion.
+Consultar [`deploy-hostgator.md`](deploy-hostgator.md) para la guia paso a paso de despliegue en produccion.
 
 El `.env` **nunca se sube** al repositorio (está en `.gitignore`).
 Las credenciales de producción se configuran directamente en el servidor.
