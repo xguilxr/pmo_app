@@ -1,0 +1,26 @@
+---
+# cPanel Git Version Control - Deployment script.
+#
+# This file is read by the "Pull or Deploy" button in cPanel Git Version
+# Control. Tasks run as the cPanel user from the repository path
+# (e.g. /home2/pmas/repositories/pmo_app) after a successful `git pull`.
+#
+# Layout assumed (see docs/deploy-hostgator.md, Ruta B):
+#   $HOME/repositories/pmo_app/   <- this repo (source of truth)
+#   $HOME/pmo_app/                <- live application directory
+#   $HOME/pmo_app/.env            <- secrets (created manually, NEVER in git)
+#   $HOME/pmo_app/backend/        <- code served by Application Manager
+#   $HOME/virtualenv/pmo_app/backend/3.10/  <- virtualenv (managed by cPanel)
+#
+# The .env file lives at $HOME/pmo_app/.env and is loaded by
+# backend/passenger_wsgi.py. This deploy NEVER touches .env.
+
+deployment:
+  tasks:
+    - export DEPLOYPATH=$HOME/pmo_app
+    - /bin/mkdir -p $DEPLOYPATH/backend/tmp
+    - /bin/cp -Rfp backend/. $DEPLOYPATH/backend/
+    - /bin/cp -Rfp docker $DEPLOYPATH/ 2>/dev/null || true
+    - /bin/cp -fp deploy.sh $DEPLOYPATH/ 2>/dev/null || true
+    - /bin/cp -fp .env.example $DEPLOYPATH/ 2>/dev/null || true
+    - /bin/touch $DEPLOYPATH/backend/tmp/restart.txt
