@@ -312,6 +312,9 @@ def seed_demo(db: Session, admin: User, admin_role: Role, pmo_role: Role, pm_rol
             benefits="Reduccion de costos, visibilidad en tiempo real",
             budget=750000, status="in_review", request_date=date(2026, 3, 15),
             requester_name="Roberto Lopez", requester_email="r.lopez@grupoalfa.com",
+            what_if_not_done="Continuaran las perdidas de inventario estimadas en 2M anuales y la falta de visibilidad impedira decisiones oportunas de compra.",
+            key_stakeholders="Director de Operaciones, Gerentes de Almacen, Equipo de Compras, Finanzas",
+            expected_deliverables="Sistema web de inventarios, integracion con ERP, dashboards en tiempo real, capacitacion a usuarios finales",
             requester_id=t1_pm2.id, organization_id=t1.id, created_by_id=t1_pm2.id,
         ),
         ProjectRequest(
@@ -324,6 +327,9 @@ def seed_demo(db: Session, admin: User, admin_role: Role, pmo_role: Role, pm_rol
             benefits="Reduccion de tiempos de compra, trazabilidad",
             budget=500000, status="approved", request_date=date(2026, 2, 20),
             requester_name="Ana Garcia", requester_email="pmo@grupoalfa.com",
+            what_if_not_done="Se mantendran procesos manuales de compras con alta carga operativa y sin trazabilidad de ordenes ni desempeno de proveedores.",
+            key_stakeholders="Gerente de Compras, Proveedores estrategicos, Finanzas, TI",
+            expected_deliverables="Portal web de proveedores, modulo de ordenes de compra, panel de cumplimiento, integracion con sistema contable",
             requester_id=t1_pmo.id, organization_id=t1.id, created_by_id=t1_pmo.id,
         ),
         ProjectRequest(
@@ -336,6 +342,9 @@ def seed_demo(db: Session, admin: User, admin_role: Role, pmo_role: Role, pm_rol
             benefits="Ahorro de 40 hrs/mes, reduccion de errores",
             budget=300000, status="rejected", request_date=date(2026, 1, 10),
             requester_name="Sofia Martinez", requester_email="viewer@grupoalfa.com",
+            what_if_not_done="El cierre contable seguira tomando 40 horas mensuales con riesgo de errores manuales y retrasos en la entrega de reportes a direccion.",
+            key_stakeholders="CFO, Contralor, Equipo de Contabilidad, Auditoria Interna",
+            expected_deliverables="Automatizacion de reportes mensuales, plantillas estandarizadas, dashboard ejecutivo, documentacion de procesos",
             requester_id=t1_viewer.id, organization_id=t1.id, created_by_id=t1_viewer.id,
         ),
     ])
@@ -354,6 +363,9 @@ def seed_demo(db: Session, admin: User, admin_role: Role, pmo_role: Role, pm_rol
             benefits="Reduccion de costos de soporte, mejor NPS",
             budget=400000, status="in_review", request_date=date(2026, 3, 20),
             requester_name="Diego Morales", requester_email="d.morales@technova.com",
+            what_if_not_done="La carga de tickets nivel 1 seguira creciendo, incrementando costos de soporte y deteriorando el NPS por tiempos de respuesta elevados.",
+            key_stakeholders="VP de Producto, Lider de Customer Success, Equipo de Soporte, Area Legal y Privacidad",
+            expected_deliverables="Chatbot conversacional con IA, base de conocimiento integrada, handoff a agentes humanos, metricas de deflexion y satisfaccion",
             requester_id=t2_pm2.id, organization_id=t2.id, created_by_id=t2_pm2.id,
         ),
         ProjectRequest(
@@ -366,6 +378,9 @@ def seed_demo(db: Session, admin: User, admin_role: Role, pmo_role: Role, pm_rol
             benefits="Mejor analytics, reduccion de silos de datos",
             budget=1500000, status="approved", request_date=date(2026, 2, 1),
             requester_name="Patricia Dominguez", requester_email="pmo@technova.com",
+            what_if_not_done="Los datos seguiran fragmentados en silos, limitando la capacidad de analitica avanzada y retrasando iniciativas estrategicas basadas en datos.",
+            key_stakeholders="CTO, Lider de Data Engineering, Areas de Negocio, Seguridad de la Informacion",
+            expected_deliverables="Data lake en cloud, pipelines de ingesta, catalogo de datos, modelos analiticos iniciales y capacitacion al equipo",
             requester_id=t2_pmo.id, organization_id=t2.id, created_by_id=t2_pmo.id,
         ),
     ])
