@@ -4,8 +4,8 @@ Guia canonica de despliegue vigente. Backend FastAPI corriendo nativamente
 en tu PC Windows 24/7, base de datos y sitio estatico en HostGator,
 conectado al publico con Cloudflare Tunnel. Sin Docker.
 
-> Para rutas historicas (HostGator Passenger, Render, variante con Docker),
-> ver [`docs/archive/`](./archive/README.md).
+> Para rutas historicas (HostGator Passenger, Render), ver
+> [`docs/archive/`](./archive/README.md).
 
 ---
 
@@ -260,17 +260,20 @@ Verifica:
 nssm version
 ```
 
-### S.5.2 Crear un `.bat` de arranque
+### S.5.2 Verificar el `.bat` de arranque
 
-Crea el archivo `C:\pmo\pmo_app\run-backend.bat` con este contenido
-(reemplaza la ruta si la cambiaste):
+El repo ya incluye [`run-backend.bat`](../run-backend.bat) en la raiz, que
+activa el venv y arranca uvicorn. No necesitas crearlo manualmente.
 
-```bat
-@echo off
-cd /d C:\pmo\pmo_app\backend
-call C:\pmo\pmo_app\venv\Scripts\activate.bat
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8080
+Prueba que funciona antes de envolverlo como servicio:
+
+```powershell
+cd C:\pmo\pmo_app
+.\run-backend.bat
 ```
+
+Deberias ver los logs de uvicorn (`Application startup complete`). Cierra
+con `Ctrl+C` y continua con S.5.3.
 
 ### S.5.3 Instalar el servicio
 
@@ -624,4 +627,4 @@ Pasos principales:
 ### Mover a un mini-PC / servidor Linux
 
 Sigue los mismos pasos sin NSSM — usa systemd. Hay un ejemplo de unit
-file en `docker/pmo-backend.service`.
+file en `scripts/pmo-backend.service`.

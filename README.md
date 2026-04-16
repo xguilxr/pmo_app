@@ -487,10 +487,7 @@ Docker) archivadas en [`docs/archive/`](docs/archive/README.md) con
 instrucciones para revivirlas.
 
 Para desarrollo local all-in-one con contenedores, ver
-[`docker/docker-compose.yml`](docker/docker-compose.yml). Existe tambien
-[`docker/docker-compose.selfhosted.yml`](docker/docker-compose.selfhosted.yml)
-como alternativa con Docker si prefieres evitar la instalacion directa de
-Python en tu PC.
+[`docker/docker-compose.yml`](docker/docker-compose.yml).
 
 ---
 

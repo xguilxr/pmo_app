@@ -18,9 +18,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
   [`docs/deploy-self-hosted.md`](./deploy-self-hosted.md).
 - `docs/deploy-flow.md` reescrito para el nuevo workflow nativo (`git pull`
   + `pip install -r requirements.txt` + `nssm restart pmo-backend` en la PC).
-- `docker/docker-compose.selfhosted.yml` queda como opcion alternativa para
-  quien quiera usar Docker en vez de uvicorn nativo.
 - Agent prompts (`backender.md`, `dba.md`) actualizados.
+- `run-backend.bat` agregado en la raiz del repo para activar el venv y
+  arrancar uvicorn (usado tanto manualmente como por NSSM).
+- `pmo-backend.service` movido de `docker/` a `scripts/` para que la ruta no
+  sugiera dependencia de Docker.
 
 ### Archivado (movido a `docs/archive/`)
 - `deploy-hostgator.md` — ruta 100% HostGator con Passenger; requiere Setup
@@ -35,6 +37,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 - `render.yaml` — blueprint de Render, ruta rechazada.
 - `a2wsgi>=1.10.0` de `backend/requirements.txt` — solo se usaba en
   `passenger_wsgi.py`.
+- `.cpanel.yml` — script de deploy via cPanel Git Version Control, ya no
+  aplicable.
+- `docker/docker-compose.selfhosted.yml` — alternativa Docker descartada en
+  favor del venv nativo.
 
 ---
 
