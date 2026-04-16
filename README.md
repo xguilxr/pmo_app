@@ -471,21 +471,26 @@ ollama serve                                  # Start server
 
 ## Despliegue
 
-Arquitectura vigente: **self-hosted** — backend FastAPI en la PC del dueño
-(Windows + Docker Desktop) expuesto via **Cloudflare Tunnel**, frontend
+Arquitectura vigente: **self-hosted nativo** — backend FastAPI con
+Python venv + **uvicorn** corriendo como servicio de Windows (via NSSM) en
+la PC del dueño, expuesto al internet via **Cloudflare Tunnel**. Frontend
 estatico y MySQL en **HostGator**.
 
 - [`docs/deploy-self-hosted.md`](docs/deploy-self-hosted.md) — guia canonica
-  paso a paso (MySQL remoto en cPanel, Docker Compose en tu PC, Cloudflare
-  Tunnel, frontend en `public_html`)
+  paso a paso (MySQL remoto en cPanel, venv + uvicorn + NSSM en tu PC,
+  Cloudflare Tunnel, frontend en `public_html`)
 - [`docs/deploy-flow.md`](docs/deploy-flow.md) — estrategia de ramas
   (`dev` → `prod`), cambios de BD y checklist de deploy
 
-Rutas de despliegue historicas (HostGator Passenger, Render) archivadas en
-[`docs/archive/`](docs/archive/README.md) con instrucciones para revivirlas.
+Rutas de despliegue historicas (HostGator Passenger, Render, variante con
+Docker) archivadas en [`docs/archive/`](docs/archive/README.md) con
+instrucciones para revivirlas.
 
-Para desarrollo local all-in-one (backend + DB + frontend en contenedores),
-ver [`docker/docker-compose.yml`](docker/docker-compose.yml).
+Para desarrollo local all-in-one con contenedores, ver
+[`docker/docker-compose.yml`](docker/docker-compose.yml). Existe tambien
+[`docker/docker-compose.selfhosted.yml`](docker/docker-compose.selfhosted.yml)
+como alternativa con Docker si prefieres evitar la instalacion directa de
+Python en tu PC.
 
 ---
 
