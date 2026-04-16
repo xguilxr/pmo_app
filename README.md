@@ -501,4 +501,12 @@ Toda la documentacion vive en `docs/`:
 
 ## Licencia
 
-Proyecto privado - Todos los derechos reservados.
+**Software propietario - Todos los derechos reservados.**
+
+Este repositorio es publico unicamente con fines de transparencia y referencia.
+El codigo NO es open source: no esta permitido usarlo, copiarlo, modificarlo
+ni redistribuirlo sin autorizacion escrita de los titulares.
+
+Consulta el archivo [`LICENSE`](LICENSE) para los terminos completos. Para
+solicitar una licencia de uso comercial, contacta al propietario del
+repositorio.
