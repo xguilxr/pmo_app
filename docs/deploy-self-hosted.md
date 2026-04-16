@@ -4,6 +4,12 @@ Guia canonica de despliegue vigente. Backend FastAPI corriendo nativamente
 en tu PC Windows 24/7, base de datos y sitio estatico en HostGator,
 conectado al publico con Cloudflare Tunnel. Sin Docker.
 
+> **¿Solo necesitas exponer la app temporalmente para un demo y aun no
+> tienes dominio?** Usa la ruta corta con ngrok:
+> [`deploy-demo-ngrok.md`](./deploy-demo-ngrok.md). El backend, NSSM y la
+> base de datos en HostGator de esta guia se reusan tal cual; solo cambia
+> la capa de exposicion publica.
+
 > Para rutas historicas (HostGator Passenger, Render), ver
 > [`docs/archive/`](./archive/README.md).
 
