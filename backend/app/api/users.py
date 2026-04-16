@@ -144,7 +144,7 @@ def delete_user(
     db.commit()
 
 
-@router.get("/roles", response_model=list[dict])
-def list_roles(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@router.get("/roles", response_model=list[dict[str, int | str | None]])
+def list_roles(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[dict[str, int | str | None]]:
     roles = db.query(Role).all()
     return [{"id": r.id, "name": r.name, "description": r.description} for r in roles]

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.models.project import Project
-from app.models.modules import Risk, Issue, Change, Document, Lesson
+from app.models.modules import Risk, Issue, Change, Lesson
 from app.models.backlog import BacklogItem
 from app.models.task import Task
 from app.auth.security import get_current_user
@@ -128,7 +128,7 @@ def export_project_xlsx(
         bottom=Side(style='thin', color='D1D5DB'),
     )
 
-    def write_sheet(ws, headers, rows):
+    def write_sheet(ws: object, headers: list[str], rows: list[list[str | int | float | None]]) -> None:
         for col_idx, h in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col_idx, value=h)
             cell.font = header_font

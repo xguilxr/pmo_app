@@ -4,45 +4,11 @@ import { Target, Calendar, DollarSign, TrendingUp, CheckCircle2, Clock, AlertCir
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
+import type { ProjectView } from '../../types';
+import type { Objective } from '../../types';
+import type { Task } from '../../types';
 
-interface Project {
-  id: number;
-  folio: string;
-  name: string;
-  type: string;
-  priority: string;
-  company: string;
-  programName: string;
-  phase: string;
-  progress: number;
-  plannedProgress: number;
-  budget: number;
-  realBudget: number;
-  startDate: string;
-  endDate: string;
-  health: string;
-}
-
-interface Objective {
-  id: number;
-  description: string;
-  type: string;
-  target_value: string | null;
-  current_value: string | null;
-  progress: number;
-  status: string;
-  project_id: number;
-  created_at: string;
-}
-
-interface Task {
-  id: number;
-  name: string;
-  outline_level: number;
-  [key: string]: unknown;
-}
-
-export default function ProjectInfoTab({ project }: { project: Project }) {
+export default function ProjectInfoTab({ project }: { project: ProjectView }) {
   const { t } = useTranslation();
   const { toastSuccess, toastError } = useToast();
   const { data: objectives, loading, refetch } = useApi<Objective[]>(

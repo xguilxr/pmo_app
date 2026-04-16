@@ -3,17 +3,7 @@ import { Plus, X, Download, Edit2, Trash2, Lightbulb, CheckCircle2, TrendingUp, 
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
-
-interface Lesson {
-  id: number;
-  folio: string;
-  title: string;
-  description: string | null;
-  category: string;
-  project_phase: string | null;
-  recommendation: string | null;
-  created_at: string | null;
-}
+import type { Lesson } from '../../types';
 
 export default function ProjectLessonsTab({ projectId }: { projectId: number }) {
   const { toastSuccess, toastError } = useToast();

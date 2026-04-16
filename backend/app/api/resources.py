@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -11,12 +11,11 @@ from app.models.organization import Organization
 from app.models.resource import Resource, ResourceWorkLog, ResourceAvailability, project_resources
 from app.auth.security import get_current_user
 from app.dependencies import get_current_tenant
+from app.utils.crud_helpers import get_or_404, apply_update, soft_delete
 from app.services.folio import generate_folio
 
 router = APIRouter(prefix="/resources", tags=["Resources"])
 
-
-# ── Schemas ──────────────────────────────────────────────────────────────────
 
 class ResourceCreate(BaseModel):
     name: str
@@ -83,8 +82,6 @@ class AssignResourcePayload(BaseModel):
     role: Optional[str] = None
 
 
-# ── Work Log Schemas ─────────────────────────────────────────────────────────
-
 class WorkLogCreate(BaseModel):
     resource_id: int
     project_id: Optional[int] = None
@@ -107,8 +104,6 @@ class WorkLogResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-# ── Availability Schemas ─────────────────────────────────────────────────────
-
 class AvailabilityCreate(BaseModel):
     resource_id: int
     available_date: date
@@ -126,8 +121,6 @@ class AvailabilityResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
-
-# ── Resource CRUD ────────────────────────────────────────────────────────────
 
 @router.get("", response_model=list[ResourceResponse])
 def list_resources(
@@ -153,10 +146,7 @@ def list_resources(
 
 @router.get("/{resource_id}", response_model=ResourceResponse)
 def get_resource(resource_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    r = db.query(Resource).filter(Resource.id == resource_id, Resource.deleted_at.is_(None)).first()
-    if not r:
-        raise HTTPException(status_code=404, detail="Recurso no encontrado")
-    return r
+    return get_or_404(db, Resource, resource_id, detail="Recurso no encontrado")
 
 
 @router.post("", response_model=ResourceResponse, status_code=status.HTTP_201_CREATED)
@@ -171,27 +161,15 @@ def create_resource(data: ResourceCreate, db: Session = Depends(get_db), current
 
 @router.patch("/{resource_id}", response_model=ResourceResponse)
 def update_resource(resource_id: int, data: ResourceUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    r = db.query(Resource).filter(Resource.id == resource_id, Resource.deleted_at.is_(None)).first()
-    if not r:
-        raise HTTPException(status_code=404, detail="Recurso no encontrado")
-    for field, value in data.model_dump(exclude_unset=True).items():
-        setattr(r, field, value)
-    db.commit()
-    db.refresh(r)
+    r = get_or_404(db, Resource, resource_id, detail="Recurso no encontrado")
+    apply_update(db, r, data)
     return r
 
 
 @router.delete("/{resource_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_resource(resource_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    r = db.query(Resource).filter(Resource.id == resource_id, Resource.deleted_at.is_(None)).first()
-    if not r:
-        raise HTTPException(status_code=404, detail="Recurso no encontrado")
-    from datetime import datetime, timezone
-    r.deleted_at = datetime.now(timezone.utc)
-    db.commit()
+    soft_delete(db, get_or_404(db, Resource, resource_id, detail="Recurso no encontrado"))
 
-
-# ── Project-Resource Assignment ──────────────────────────────────────────────
 
 @router.post("/projects/{project_id}/assign", status_code=status.HTTP_201_CREATED)
 def assign_resource_to_project(
@@ -222,8 +200,6 @@ def unassign_resource(project_id: int, resource_id: int, db: Session = Depends(g
     )
     db.commit()
 
-
-# ── Work Logs ────────────────────────────────────────────────────────────────
 
 @router.get("/work-logs", response_model=list[WorkLogResponse])
 def list_work_logs(
@@ -261,9 +237,7 @@ def create_work_log(data: WorkLogCreate, db: Session = Depends(get_db), current_
 
 @router.delete("/work-logs/{log_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_work_log(log_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    wl = db.query(ResourceWorkLog).filter(ResourceWorkLog.id == log_id, ResourceWorkLog.deleted_at.is_(None)).first()
-    if not wl:
-        raise HTTPException(status_code=404, detail="Registro no encontrado")
+    wl = get_or_404(db, ResourceWorkLog, log_id, detail="Registro no encontrado")
     from datetime import datetime, timezone
     wl.deleted_at = datetime.now(timezone.utc)
     # Subtract hours from resource
@@ -272,8 +246,6 @@ def delete_work_log(log_id: int, db: Session = Depends(get_db), current_user: Us
         resource.hours_worked = max(0, (resource.hours_worked or 0) - wl.hours)
     db.commit()
 
-
-# ── Availability ─────────────────────────────────────────────────────────────
 
 @router.get("/availability", response_model=list[AvailabilityResponse])
 def list_availability(
@@ -304,9 +276,4 @@ def create_availability(data: AvailabilityCreate, db: Session = Depends(get_db),
 
 @router.delete("/availability/{avail_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_availability(avail_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    av = db.query(ResourceAvailability).filter(ResourceAvailability.id == avail_id, ResourceAvailability.deleted_at.is_(None)).first()
-    if not av:
-        raise HTTPException(status_code=404, detail="Registro no encontrado")
-    from datetime import datetime, timezone
-    av.deleted_at = datetime.now(timezone.utc)
-    db.commit()
+    soft_delete(db, get_or_404(db, ResourceAvailability, avail_id, detail="Registro no encontrado"))

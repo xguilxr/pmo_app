@@ -4,6 +4,7 @@ import { Plus, FileText, X, Eye, CheckCircle2, XCircle, Clock, AlertCircle, Ban 
 import PageHeader from '../components/common/PageHeader';
 import { api } from '../services/api';
 import { useApi, LoadingSpinner } from '../hooks/useApi';
+import { useToast } from '../context/ToastContext';
 
 interface ProjectRequest {
   id: number;
@@ -21,8 +22,24 @@ interface ProjectRequest {
   reviewNotes: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapApiRequest(raw: any): ProjectRequest {
+interface ApiRequestResponse {
+  id: number;
+  folio: string;
+  title: string;
+  description: string;
+  objective: string;
+  benefits: string;
+  requester_name: string;
+  organization_name?: string;
+  budget: number | null;
+  priority?: string;
+  expected_start?: string;
+  status: string;
+  created_at: string;
+  rejection_reason: string | null;
+}
+
+function mapApiRequest(raw: ApiRequestResponse): ProjectRequest {
   return {
     id: raw.id,
     folio: raw.folio || '',
@@ -42,6 +59,7 @@ function mapApiRequest(raw: any): ProjectRequest {
 
 export default function RequestsPage() {
   const { t } = useTranslation();
+  const { toastError } = useToast();
   const [requests, setRequests] = useState<ProjectRequest[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
@@ -49,15 +67,10 @@ export default function RequestsPage() {
   const [form, setForm] = useState({ projectName: '', description: '', objective: '', businessCase: '', requestedBy: '', sponsorEmail: '', organization: '', organizationId: 0, estimatedBudget: 0, priority: 'Media', startDate: '', strategic_alignment: '', what_if_not_done: '', key_stakeholders: '', expected_deliverables: '' });
   const { data: orgs } = useApi(() => api.get<{id: number; name: string}[]>('/organizations').catch(() => []), []);
 
-  // Fetch from API with fallback to mock
+  // Fetch from API; useApi handles errors
   const { data: apiRequests, loading, refetch } = useApi(async () => {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const raw = await api.get<any[]>('/requests');
-      return raw.map(mapApiRequest);
-    } catch {
-      return [];
-    }
+    const raw = await api.get<ApiRequestResponse[]>('/requests');
+    return raw.map(mapApiRequest);
   }, []);
 
   useEffect(() => {
@@ -95,16 +108,8 @@ export default function RequestsPage() {
         organization_id: form.organizationId || 1,
       });
       refetch();
-    } catch {
-      const newReq: ProjectRequest = {
-        id: Date.now(),
-        folio: `REQ-2026-${(requests.length + 1).toString().padStart(3, '0')}`,
-        ...form,
-        status: 'in_review',
-        createdAt: new Date().toISOString().split('T')[0],
-        reviewNotes: '',
-      };
-      setRequests([newReq, ...requests]);
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Error al crear solicitud');
     }
     setShowModal(false);
     setForm({ projectName: '', description: '', objective: '', businessCase: '', requestedBy: '', sponsorEmail: '', organization: '', organizationId: 0, estimatedBudget: 0, priority: 'Media', startDate: '', strategic_alignment: '', what_if_not_done: '', key_stakeholders: '', expected_deliverables: '' });
@@ -133,8 +138,8 @@ export default function RequestsPage() {
         await api.patch(`/requests/${id}`, { status: newStatus });
       }
       refetch();
-    } catch {
-      setRequests(requests.map(r => r.id === id ? { ...r, status: newStatus, reviewNotes: notes || r.reviewNotes } : r));
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Error al cambiar estado de solicitud');
     }
     setViewDetail(null);
   };

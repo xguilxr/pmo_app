@@ -8,6 +8,7 @@ import { api } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import PageHeader from '../../components/common/PageHeader';
 import HealthBadge from '../../components/common/HealthBadge';
+import { useToast } from '../../context/ToastContext';
 import ProgressBar from '../../components/common/ProgressBar';
 
 interface TenantDetail {
@@ -94,6 +95,7 @@ const statusLabels: Record<string, string> = {
 
 export default function SuperadminTenantDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { toastError } = useToast();
   const [activeTab, setActiveTab] = useState<'overview' | 'programs' | 'projects' | 'users' | 'requests'>('overview');
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, string | boolean>>({});
@@ -109,7 +111,9 @@ export default function SuperadminTenantDetailPage() {
       await api.patch(`/superadmin/tenants/${id}`, editForm);
       setEditing(false);
       refetch();
-    } catch { /* ignore */ } finally {
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Error al guardar tenant');
+    } finally {
       setSaving(false);
     }
   };
@@ -120,7 +124,9 @@ export default function SuperadminTenantDetailPage() {
     try {
       await api.patch(`/superadmin/tenants/${id}`, { is_active: !tenant.is_active });
       refetch();
-    } catch { /* ignore */ } finally {
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Error al cambiar estado del tenant');
+    } finally {
       setSaving(false);
     }
   };

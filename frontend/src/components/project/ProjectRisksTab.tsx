@@ -3,13 +3,7 @@ import { Plus, X, Download, Edit2, Trash2 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
-
-interface Risk {
-  id: number; folio: string; title: string; description: string | null;
-  category: string | null; probability: number; impact: number; severity: number;
-  mitigation_strategy: string | null; status: string;
-  identification_date: string | null; deadline: string | null;
-}
+import type { Risk } from '../../types';
 
 export default function ProjectRisksTab({ projectId }: { projectId: number }) {
   const { toastSuccess, toastError } = useToast();

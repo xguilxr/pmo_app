@@ -3,23 +3,7 @@ import { Plus, X, Download, Edit2, Trash2, AlertTriangle, Zap, Bug, Scale, FileS
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
-
-interface Risk {
-  id: number; folio: string; title: string; description: string | null;
-  category: string | null; probability: number; impact: number; severity: number;
-  mitigation_strategy: string | null; status: string;
-  identification_date: string | null; deadline: string | null;
-  responsible_id: number | null;
-}
-
-interface Issue {
-  id: number; folio: string; title: string; description: string | null;
-  type: string; priority: string; status: string;
-  resolution: string | null; report_date: string | null; commitment_date: string | null;
-  responsible_id: number | null;
-}
-
-interface UserOption { id: number; full_name: string; }
+import type { Risk, Issue, UserOption } from '../../types';
 
 type RaidSection = 'all' | 'risks' | 'actions' | 'issues' | 'decisions';
 
@@ -50,8 +34,7 @@ export default function ProjectRaidTab({ projectId }: { projectId: number }) {
   const { toastSuccess, toastError } = useToast();
   const { data: risks, loading: loadingR, refetch: refetchR } = useApi(() => api.get<Risk[]>(`/risks?project_id=${projectId}`), [projectId]);
   const { data: allIssues, loading: loadingI, refetch: refetchI } = useApi(() => api.get<Issue[]>(`/issues?project_id=${projectId}`), [projectId]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: users } = useApi(() => api.get<any[]>('/users').then(arr => arr.map(u => ({ id: u.id, full_name: u.full_name })) as UserOption[]).catch(() => [] as UserOption[]), []);
+  const { data: users } = useApi(() => api.get<UserOption[]>('/users').then(arr => arr.map(u => ({ id: u.id, full_name: u.full_name }))).catch(() => [] as UserOption[]), []);
 
   const userById = (id: number | null) => (users || []).find(u => u.id === id)?.full_name || '-';
 

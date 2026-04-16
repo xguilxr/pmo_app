@@ -6,11 +6,11 @@ from app.database import get_db
 from app.models.user import User
 from app.models.organization import Organization
 from app.models.modules import Minute
-from app.models.project import Project
 from app.schemas.minutes import GenerateMinutesRequest, MinuteResponse, GenerateMinutesResponse, MinuteCreate, MinuteUpdate
 from app.auth.security import get_current_user
 from app.dependencies import get_current_tenant
 from app.utils.tenant_query import verify_project_tenant
+from app.utils.crud_helpers import get_or_404, apply_update, soft_delete
 from app.services.folio import generate_folio
 from app.services.ai_engine import generate_minutes
 
@@ -32,10 +32,7 @@ def list_minutes(
 
 @router.get("/{minute_id}", response_model=MinuteResponse)
 def get_minute(minute_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    minute = db.query(Minute).filter(Minute.id == minute_id, Minute.deleted_at.is_(None)).first()
-    if not minute:
-        raise HTTPException(status_code=404, detail="Minuta no encontrada")
-    return minute
+    return get_or_404(db, Minute, minute_id, detail="Minuta no encontrada")
 
 
 @router.post("", response_model=MinuteResponse, status_code=201)
@@ -75,13 +72,8 @@ def update_minute(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    minute = db.query(Minute).filter(Minute.id == minute_id, Minute.deleted_at.is_(None)).first()
-    if not minute:
-        raise HTTPException(status_code=404, detail="Minuta no encontrada")
-    for field, value in data.model_dump(exclude_unset=True).items():
-        setattr(minute, field, value)
-    db.commit()
-    db.refresh(minute)
+    minute = get_or_404(db, Minute, minute_id, detail="Minuta no encontrada")
+    apply_update(db, minute, data)
     return minute
 
 
@@ -91,12 +83,7 @@ def delete_minute(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from datetime import datetime, timezone
-    minute = db.query(Minute).filter(Minute.id == minute_id, Minute.deleted_at.is_(None)).first()
-    if not minute:
-        raise HTTPException(status_code=404, detail="Minuta no encontrada")
-    minute.deleted_at = datetime.now(timezone.utc)
-    db.commit()
+    soft_delete(db, get_or_404(db, Minute, minute_id, detail="Minuta no encontrada"))
 
 
 @router.post("/generate", response_model=GenerateMinutesResponse)

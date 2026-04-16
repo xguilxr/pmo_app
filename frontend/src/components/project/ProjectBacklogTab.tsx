@@ -3,12 +3,7 @@ import { Plus, X, Download, Edit2, Trash2, FileSpreadsheet, FileDown } from 'luc
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
-
-interface BacklogItem {
-  id: number; folio: string; title: string; description: string | null;
-  area: string | null; priority: string | null; status: string; progress: number;
-  start_date: string | null; end_date: string | null; was_delayed: boolean;
-}
+import type { BacklogItem } from '../../types';
 
 export default function ProjectBacklogTab({ projectId }: { projectId: number }) {
   const { toastSuccess, toastError } = useToast();

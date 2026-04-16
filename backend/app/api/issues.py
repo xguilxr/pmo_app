@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -9,6 +9,7 @@ from app.schemas.issue import IssueCreate, IssueUpdate, IssueResponse
 from app.auth.security import get_current_user
 from app.dependencies import get_current_tenant
 from app.utils.tenant_query import verify_project_tenant
+from app.utils.crud_helpers import get_or_404, apply_update, soft_delete
 from app.services.folio import generate_folio
 from app.services import notifications as notif_svc
 
@@ -67,29 +68,16 @@ def create_issue(
 
 @router.get("/{issue_id}", response_model=IssueResponse)
 def get_issue(issue_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    issue = db.query(Issue).filter(Issue.id == issue_id, Issue.deleted_at.is_(None)).first()
-    if not issue:
-        raise HTTPException(status_code=404, detail="Incidencia no encontrada")
-    return issue
+    return get_or_404(db, Issue, issue_id, detail="Incidencia no encontrada")
 
 
 @router.patch("/{issue_id}", response_model=IssueResponse)
 def update_issue(issue_id: int, data: IssueUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    issue = db.query(Issue).filter(Issue.id == issue_id, Issue.deleted_at.is_(None)).first()
-    if not issue:
-        raise HTTPException(status_code=404, detail="Incidencia no encontrada")
-    for field, value in data.model_dump(exclude_unset=True).items():
-        setattr(issue, field, value)
-    db.commit()
-    db.refresh(issue)
+    issue = get_or_404(db, Issue, issue_id, detail="Incidencia no encontrada")
+    apply_update(db, issue, data)
     return issue
 
 
 @router.delete("/{issue_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_issue(issue_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    issue = db.query(Issue).filter(Issue.id == issue_id, Issue.deleted_at.is_(None)).first()
-    if not issue:
-        raise HTTPException(status_code=404, detail="Incidencia no encontrada")
-    from datetime import datetime, timezone
-    issue.deleted_at = datetime.now(timezone.utc)
-    db.commit()
+    soft_delete(db, get_or_404(db, Issue, issue_id, detail="Incidencia no encontrada"))

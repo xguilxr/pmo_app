@@ -2,6 +2,9 @@
 
 Guia paso a paso para desplegar la plataforma PMO en un hosting HostGator con cPanel.
 
+Esta guia cubre tanto planes **Shared/Business** (solo cPanel) como planes
+**Reseller** (WHM + cPanel).
+
 > **Dos rutas posibles**
 >
 > - **Ruta A — con SSH local**: si tu plan/reseller te habilita SSH Access en
@@ -18,9 +21,10 @@ Guia paso a paso para desplegar la plataforma PMO en un hosting HostGator con cP
 - Plan de HostGator con acceso a **cPanel** (Business o superior recomendado)
 - Dominio configurado apuntando a HostGator
 - Python 3.10+ disponible (HostGator lo tiene por defecto)
-- Para Ruta A: acceso SSH habilitado (ver Paso 2)
-- Para Ruta B: **Application Manager** + **Git Version Control** + **Cron Jobs**
-  disponibles en cPanel (todos vienen por defecto)
+- Para Ruta A: acceso SSH habilitado (ver Paso 2 — en Reseller se activa desde
+  **WHM**, no desde cPanel)
+- Para Ruta B: **Application Manager** (o **Setup Python App**) + **Git Version
+  Control** + **Cron Jobs** disponibles en cPanel (todos vienen por defecto)
 
 ---
 
@@ -138,6 +142,19 @@ cPanel tienen un **Terminal** integrado:
 2. Acepta el aviso y tendras una shell del servidor en el navegador
 
 Sirve para los pasos 3-8 de esta guia (no para `scp` desde tu maquina, paso 9).
+
+> **Tip Reseller**: Si administras multiples cuentas, puedes crear un alias en
+> `~/.ssh/config` para cada una:
+>
+> ```
+> Host pmo-prod
+>   HostName tudominio.com
+>   Port 2222
+>   User tuusuario
+>   IdentityFile ~/.ssh/hostgator_pmo
+> ```
+>
+> Luego conectas con `ssh pmo-prod`.
 
 ---
 
@@ -301,7 +318,7 @@ Guarda y cierra.
 
 ### Opcion B: Proceso en Background (alternativa)
 
-Si no tienes "Setup Python App", puedes usar un cron job o screen:
+Si no tienes "Setup Python App" (comun en algunos planes Reseller viejos), puedes usar un cron job o screen:
 
 ```bash
 cd ~/pmo_app
@@ -314,6 +331,18 @@ uvicorn app.main:app --host 127.0.0.1 --port 8080
 # Presiona Ctrl+A, luego D para desconectar screen
 # Para reconectar: screen -r pmo
 ```
+
+Para asegurar que el proceso arranque automaticamente tras un reinicio, agrega un cron job en cPanel > **Cron Jobs**:
+
+```
+@reboot cd /home/tuusuario/pmo_app && source venv/bin/activate && cd backend && nohup uvicorn app.main:app --host 127.0.0.1 --port 8080 > ~/pmo_app/uvicorn.log 2>&1 &
+```
+
+### Opcion C: Solo tengo Reseller sin Python App ni SSH
+
+Si tu plan Reseller no permite Python ni SSH (raro pero posible en planes muy basicos), tienes dos opciones:
+1. **Contactar soporte** para habilitar Python en tu paquete WHM
+2. **Upgrade a Business/VPS** — la plataforma PMO requiere Python backend persistente
 
 ---
 
@@ -402,28 +431,46 @@ RewriteRule ^ index.html [L]
 Sintoma: entras a cPanel, buscas "ssh" y no aparece nada, o aparece pero al
 abrirlo dice "Shell access has been disabled for this account".
 
-Causa: el shell no esta habilitado a nivel servidor.
+Causa: el shell no esta habilitado a nivel servidor, o el feature esta
+deshabilitado en el Feature Manager.
 
 Solucion:
 1. Si tienes WHM: ve a *Account Functions > Manage Shell Access* y pon
    **Jailed Shell** para tu cuenta (ver Paso 2.1).
-2. Si NO tienes WHM (plan compartido sin reseller): abre un ticket a soporte
+2. Si aun no aparece, en WHM ve a *Packages > Feature Manager*, selecciona la
+   feature list del paquete y asegurate que **"SSH Access"** este marcado.
+3. Si NO tienes WHM (plan compartido sin reseller): abre un ticket a soporte
    de HostGator con este texto:
 
    > Hola, necesito habilitar Jailed Shell (SSH) en mi cuenta cPanel
    > `tuusuario` para poder hacer deploy de una aplicacion Python. Por favor
    > confirmen el puerto SSH del servidor.
 
-3. Mientras esperan respuesta, puedes adelantar los pasos 1, 9 y 10 que se
-   hacen desde **File Manager** sin SSH.
+4. Mientras esperan respuesta, usa la **Ruta B** de esta guia — hace todo el
+   deploy desde cPanel sin SSH.
 
-### "Permission denied (publickey)" al conectar por SSH
+### "Permission denied (publickey)" / SSH pide password
 
-- Verifica que **autorizaste** la llave publica en cPanel (Paso 2.3 punto 5)
-- Verifica que usas el puerto correcto: `-p 2222`
-- Si usas llave generada en el servidor, asegurate que la privada local
-  tiene permisos `600`: `chmod 600 ~/.ssh/hostgator_pmo`
-- Prueba con `-v` para ver detalles: `ssh -v -p 2222 tuusuario@tudominio.com`
+HostGator Reseller no permite login por password en SSH — solo llave publica
+autorizada. Verifica:
+
+- Que **autorizaste** la llave publica en cPanel (Paso 2.3 punto 5).
+- Que usas el puerto correcto: `-p 2222`.
+- Si usas llave generada en el servidor, que la privada local tenga permisos
+  `600`: `chmod 600 ~/.ssh/hostgator_pmo`.
+- Prueba con `-v` para ver detalles: `ssh -v -p 2222 tuusuario@tudominio.com`.
+
+### Plan Reseller: No veo "Setup Python App" / "Application Manager" en cPanel
+
+En WHM:
+1. **Feature Manager** (*Packages > Feature Manager*)
+2. Selecciona el feature list que usa tu cuenta
+3. Asegurate que **"Setup Python App"** (o **"Application Manager"**) este
+   marcado
+4. Guarda cambios y recarga el cPanel de la cuenta
+
+Si tu paquete no incluye Python, editalo en WHM > *Edit a Package*, o contacta
+soporte de HostGator para que agreguen el modulo al servidor.
 
 ### "502 Bad Gateway" o "Application Error"
 

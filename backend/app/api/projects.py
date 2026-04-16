@@ -1,5 +1,5 @@
 from datetime import date, datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -7,7 +7,6 @@ from app.database import get_db
 from app.models.user import User
 from app.models.project import Project
 from app.models.organization import Organization
-from app.models.program import Program
 from app.models.task import Task
 from app.models.modules import Risk, Issue, Change, Document, Lesson, Minute
 from app.models.backlog import BacklogItem

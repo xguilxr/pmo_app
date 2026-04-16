@@ -13,21 +13,9 @@ import { useToast } from '../context/ToastContext';
 const PROJECT_TYPES = ['Tecnología', 'Digital', 'Procesos', 'Infraestructura', 'Regulatorio'];
 const PRIORITIES = ['Alta', 'Media', 'Baja'];
 
-type StatusFilter = 'Todos' | 'Planificación' | 'Ejecución' | 'Soporte' | 'Cerrado';
+import type { ProjectListItem } from '../types';
 
-interface ApiProject {
-  id: number;
-  folio: string;
-  name: string;
-  type: string;
-  priority: string;
-  phase: string;
-  progress: number;
-  planned_progress: number;
-  budget: number;
-  health: string;
-  company?: string;
-}
+type StatusFilter = 'Todos' | 'Planificación' | 'Ejecución' | 'Soporte' | 'Cerrado';
 
 function formatMXN(value: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(value);
@@ -37,7 +25,7 @@ export default function ProjectsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  const { data: apiProjects, loading, refetch } = useApi(() => api.get<ApiProject[]>('/projects'), []);
+  const { data: apiProjects, loading, refetch } = useApi(() => api.get<ProjectListItem[]>('/projects'), []);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [filterOrgs, setFilterOrgs] = useState<string[]>([]);
@@ -253,7 +241,7 @@ function CreateProjectModal({ onClose, onCreated }: { onClose: () => void; onCre
     if (!form.organizationId) { toastError('Selecciona una organización'); return; }
     setSubmitting(true);
     try {
-      const created = await api.post<ApiProject>('/projects', {
+      const created = await api.post<ProjectListItem>('/projects', {
         name: form.name, type: form.type, priority: form.priority,
         organization_id: form.organizationId,
         program_id: form.programId || null,

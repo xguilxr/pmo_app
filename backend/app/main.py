@@ -1,5 +1,8 @@
 import logging
+import os
 import sys
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,11 +25,53 @@ import app.models  # noqa: F401 - register all models with SQLAlchemy mapper
 
 settings = get_settings()
 
+_log = logging.getLogger(__name__)
+
+
+def _sync_schema_on_startup() -> None:
+    """Ensure all model columns/tables exist in the database.
+
+    Uses IF NOT EXISTS so this is safe to run on every startup.
+    """
+    from app.database import engine, Base
+    import app.models  # noqa: ensure all models are registered
+    from sqlalchemy import text
+
+    # First, create any missing tables (does NOT add columns to existing tables)
+    Base.metadata.create_all(bind=engine)
+
+    # Then, add any missing columns via raw SQL (ALTER TABLE ... ADD COLUMN IF NOT EXISTS)
+    sql_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migrations", "sync_schema.sql")
+    if os.path.exists(sql_path):
+        with open(sql_path, encoding="utf-8") as f:
+            sql = f.read()
+        # Execute each statement separately — each in its own transaction
+        # so one failure (e.g. column already exists) doesn't abort the rest.
+        for stmt in sql.split(";"):
+            stmt = stmt.strip()
+            if stmt and not stmt.startswith("--"):
+                lines = [l for l in stmt.split("\n") if not l.strip().startswith("--")]
+                clean = "\n".join(lines).strip()
+                if clean:
+                    try:
+                        with engine.begin() as conn:
+                            conn.execute(text(clean))
+                    except Exception as exc:
+                        _log.warning("sync_schema statement skipped: %s", exc)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    _sync_schema_on_startup()
+    yield
+
+
 app = FastAPI(
     title="PMO Platform API",
     version="0.3.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # Middleware (order matters — last added runs first):
@@ -75,7 +120,6 @@ app.include_router(superadmin.router, prefix="/api")
 
 
 from fastapi.staticfiles import StaticFiles
-import os
 uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
 os.makedirs(uploads_dir, exist_ok=True)
 
@@ -85,44 +129,8 @@ os.makedirs(tenant_static_dir, exist_ok=True)
 app.mount("/static/tenants", StaticFiles(directory=tenant_static_dir), name="tenant-assets")
 
 
-@app.on_event("startup")
-def sync_schema_on_startup():
-    """Ensure all model columns/tables exist in the database.
-
-    Uses IF NOT EXISTS so this is safe to run on every startup.
-    """
-    from app.database import engine, Base
-    import app.models  # noqa: ensure all models are registered
-    from sqlalchemy import text
-    import os
-
-    # First, create any missing tables (does NOT add columns to existing tables)
-    Base.metadata.create_all(bind=engine)
-
-    # Then, add any missing columns via raw SQL (ALTER TABLE ... ADD COLUMN IF NOT EXISTS)
-    sql_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migrations", "sync_schema.sql")
-    if os.path.exists(sql_path):
-        with open(sql_path, encoding="utf-8") as f:
-            sql = f.read()
-        # Execute each statement separately — each in its own transaction
-        # so one failure (e.g. column already exists) doesn't abort the rest.
-        import logging
-        _log = logging.getLogger(__name__)
-        for stmt in sql.split(";"):
-            stmt = stmt.strip()
-            if stmt and not stmt.startswith("--"):
-                lines = [l for l in stmt.split("\n") if not l.strip().startswith("--")]
-                clean = "\n".join(lines).strip()
-                if clean:
-                    try:
-                        with engine.begin() as conn:
-                            conn.execute(text(clean))
-                    except Exception as exc:
-                        _log.warning("sync_schema statement skipped: %s", exc)
-
-
 @app.get("/api/health")
-def health_check():
+def health_check() -> dict[str, str]:
     """Public health check — verifies DB connectivity."""
     from app.database import engine
     from sqlalchemy import text

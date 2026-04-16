@@ -8,7 +8,7 @@
 | **Node.js** | 18+ | Frontend React |
 | **npm** | 9+ | Gestión de paquetes JS |
 | **Python** | 3.11+ | Backend FastAPI |
-| **PostgreSQL** | 15+ | Base de datos |
+| **MySQL** | 8.0+ | Base de datos |
 | **Ollama** | 0.1+ | Motor de IA local |
 | **Java JRE** | 11+ | Lectura de archivos .mpp (MPXJ) |
 | **Git** | 2.30+ | Control de versiones |
@@ -87,38 +87,41 @@ Docs automáticos (Swagger): **http://localhost:8080/docs**
 
 ---
 
-## 4. Setup de Base de Datos (PostgreSQL)
+## 4. Setup de Base de Datos (MySQL)
 
-### Opción A: PostgreSQL local
+### Opción A: MySQL local
 ```bash
-# Instalar PostgreSQL (Ubuntu/Debian)
-sudo apt install postgresql postgresql-contrib
+# Instalar MySQL (Ubuntu/Debian)
+sudo apt install mysql-server
 
 # Crear base de datos
-sudo -u postgres psql
-CREATE DATABASE pmo_db;
-CREATE USER pmo_user WITH PASSWORD 'tu_password_seguro';
-GRANT ALL PRIVILEGES ON DATABASE pmo_db TO pmo_user;
-\q
+sudo mysql
+CREATE DATABASE pmo_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'pmo_user'@'localhost' IDENTIFIED BY 'tu_password_seguro';
+GRANT ALL PRIVILEGES ON pmo_db.* TO 'pmo_user'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
 ```
 
 ### Opción B: Docker (recomendado para desarrollo)
 ```bash
 docker run -d \
-  --name pmo-postgres \
-  -e POSTGRES_DB=pmo_db \
-  -e POSTGRES_USER=pmo_user \
-  -e POSTGRES_PASSWORD=tu_password_seguro \
-  -p 5432:5432 \
-  postgres:16
+  --name pmo-mysql \
+  -e MYSQL_DATABASE=pmo_db \
+  -e MYSQL_USER=pmo_user \
+  -e MYSQL_PASSWORD=tu_password_seguro \
+  -e MYSQL_ROOT_PASSWORD=rootsecret \
+  -p 3306:3306 \
+  mysql:8.0 --default-authentication-plugin=mysql_native_password \
+  --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 ```
 
-### Opción C: Railway (producción)
-Railway provee PostgreSQL integrado. La variable `DATABASE_URL` se configura automáticamente.
+### Opción C: HostGator (producción)
+Crear la base de datos desde cPanel > MySQL Databases. Consultar `DEPLOY_HOSTGATOR.md`.
 
 ### Configurar en .env
 ```
-DATABASE_URL=postgresql://pmo_user:tu_password_seguro@localhost:5432/pmo_db
+DATABASE_URL=mysql+pymysql://pmo_user:tu_password_seguro@localhost:3306/pmo_db?charset=utf8mb4
 ```
 
 ---
@@ -230,7 +233,7 @@ nano .env  # o tu editor preferido
 ```
 SECRET_KEY=genera-un-string-random-de-32-caracteres
 JWT_SECRET=genera-otro-string-random-diferente
-DATABASE_URL=postgresql://tu_user:tu_password@localhost:5432/pmo_db
+DATABASE_URL=mysql+pymysql://tu_user:tu_password@localhost:3306/pmo_db?charset=utf8mb4
 ```
 
 ### Generar secrets seguros:
@@ -247,8 +250,8 @@ python -c "import secrets; print(secrets.token_hex(32))"
 # 1. Iniciar Ollama (si no está corriendo como servicio)
 ollama serve &
 
-# 2. Iniciar PostgreSQL (si usas Docker)
-docker start pmo-postgres
+# 2. Iniciar MySQL (si usas Docker)
+docker start pmo-mysql
 
 # 3. Iniciar Backend
 cd backend
@@ -267,7 +270,7 @@ npm run dev
 | Backend API | http://localhost:8080 |
 | API Docs (Swagger) | http://localhost:8080/docs |
 | Ollama API | http://localhost:11434 |
-| PostgreSQL | localhost:5432 |
+| MySQL | localhost:3306 |
 
 ---
 
@@ -279,16 +282,13 @@ npm run dev
 |----------|-----------|------------|
 | `APP_ENV` | development | production |
 | `DEBUG` | true | false |
-| `DATABASE_URL` | localhost | URL de Railway/Neon |
+| `DATABASE_URL` | localhost | URL de HostGator MySQL |
 | `SECRET_KEY` | cualquier cosa | Secret fuerte |
 | `OLLAMA_BASE_URL` | localhost:11434 | Servidor dedicado o Claude API |
 | `AI_DEFAULT_ENGINE` | ollama | claude_api (opcional) |
 
-### En Railway:
-1. Conectar repo de GitHub
-2. Railway detecta Python automáticamente
-3. Configurar variables de entorno en el dashboard de Railway
-4. Railway provee `DATABASE_URL` automáticamente para PostgreSQL
+### En HostGator (cPanel):
+Consultar `DEPLOY_HOSTGATOR.md` para la guia paso a paso de despliegue en produccion.
 
 El `.env` **nunca se sube** al repositorio (está en `.gitignore`).
-Las credenciales de producción se configuran directo en Railway.
+Las credenciales de producción se configuran directamente en el servidor.

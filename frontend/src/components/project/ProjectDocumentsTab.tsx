@@ -3,25 +3,7 @@ import { Plus, X, Download, Edit2, Trash2, Upload, FileText, FileSpreadsheet, Fi
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
-
-interface Document {
-  id: number;
-  folio: string;
-  name: string;
-  description: string | null;
-  category: string;
-  file_path: string | null;
-  file_type: string | null;
-  file_size: number | null;
-  created_at: string | null;
-}
-
-interface UploadResponse {
-  file_path: string;
-  file_name: string;
-  file_type: string;
-  file_size: number;
-}
+import type { Document, UploadResponse } from '../../types';
 
 // Folder definitions with their categories
 const FOLDERS = [

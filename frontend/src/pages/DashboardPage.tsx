@@ -15,30 +15,7 @@ import { useApi, LoadingSpinner } from '../hooks/useApi';
 import { Link } from 'react-router-dom';
 import PageHeader from '../components/common/PageHeader';
 
-interface DashboardKPIs {
-  active_projects: number;
-  requests_in_review: number;
-  open_risks: number;
-  changes_in_review: number;
-  total_budget: number;
-  avg_progress: number;
-  severe_risks: number;
-  open_aids: number;
-}
-
-interface ProjectRow {
-  id: number;
-  folio: string;
-  name: string;
-  type: string;
-  priority: string;
-  phase: string;
-  progress: number;
-  planned_progress: number;
-  budget: number;
-  health: string;
-  company?: string;
-}
+import type { DashboardKPIs, ProjectListItem } from '../types';
 
 function formatMXN(value: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(value);
@@ -65,7 +42,7 @@ export default function DashboardPage() {
   const { t } = useTranslation();
 
   const { data: apiKpis, loading: kpisLoading } = useApi(() => api.get<DashboardKPIs>('/dashboard/kpis'), []);
-  const { data: apiProjects, loading: projectsLoading } = useApi(() => api.get<ProjectRow[]>('/projects'), []);
+  const { data: apiProjects, loading: projectsLoading } = useApi(() => api.get<ProjectListItem[]>('/projects'), []);
 
   const kpiData = apiKpis
     ? {

@@ -1,6 +1,6 @@
 # ADR-001: Selección de Framework y Stack Tecnológico
 
-**Estado:** Pendiente de decisión
+**Estado:** Aceptado
 **Fecha:** 2026-03-26
 **Decisores:** Equipo de desarrollo
 
@@ -12,14 +12,14 @@ Se necesita definir el stack tecnológico para la plataforma PMO como servicio. 
 ### Opción A: Python (FastAPI) + Railway + React SPA
 - **Backend:** FastAPI + Uvicorn, SQLAlchemy 2.0, Pydantic, JWT
 - **Frontend:** React + Vite, Tailwind CSS, Chart.js
-- **Infra:** Railway (app + PostgreSQL + Redis)
+- **Infra:** HostGator cPanel (MySQL 8.0) / Docker Compose para desarrollo local
 - **Pros:** Alta performance (async), docs automáticos (Swagger), tipado fuerte, ecosistema maduro
 - **Contras:** Dos proyectos separados (front/back), CORS a manejar
 
 ### Opción B: Python (Flask/Waitress) + Railway + Templates
 - **Backend:** Flask + Waitress, SQLAlchemy, Jinja2 + HTMX
 - **Frontend:** Server-side rendering con Jinja2, HTMX para interactividad
-- **Infra:** Railway (app + PostgreSQL)
+- **Infra:** Railway / HostGator
 - **Pros:** Un solo deploy, simplicidad, sin CORS, buen SEO
 - **Contras:** Menos interactividad, UI limitada para dashboards complejos
 
@@ -33,7 +33,7 @@ Se necesita definir el stack tecnológico para la plataforma PMO como servicio. 
 ### Opción D: Python (FastAPI) + Railway + HTMX (Híbrido)
 - **Backend:** FastAPI + Jinja2 templates + HTMX para interactividad
 - **Frontend:** HTMX + Alpine.js para interactividad, Chart.js para gráficos
-- **Infra:** Railway (app + PostgreSQL)
+- **Infra:** Railway / HostGator
 - **Pros:** Un solo deploy, Python puro, interactividad sin SPA, simplicidad
 - **Contras:** Ecosistema HTMX más pequeño, menos componentes pre-hechos
 
@@ -61,5 +61,6 @@ Factores determinantes:
 ## Consecuencias
 - Se mantienen dos proyectos: `backend/` (FastAPI) y `frontend/` (React + Vite)
 - Se necesita configurar CORS en el backend
-- Deploy en Railway: dos servicios o monorepo con build step
+- Base de datos: MySQL 8.0 (HostGator cPanel) con PyMySQL driver
+- Deploy: HostGator cPanel (producción) / Docker Compose (desarrollo)
 - El equipo debe manejar Python + TypeScript/React

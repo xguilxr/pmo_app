@@ -4,6 +4,7 @@ import { Plus, Eye, Download, Trash2, X, FileBarChart, BarChart3, Bot, Calendar,
 import PageHeader from '../components/common/PageHeader';
 import { api } from '../services/api';
 import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';
+import { useToast } from '../context/ToastContext';
 
 interface ApiReport {
   id: number;
@@ -56,6 +57,7 @@ interface ProjectOption {
 
 export default function ReportsPage() {
   const { t } = useTranslation();
+  const { toastError } = useToast();
   const [reports, setReports] = useState<Report[]>([]);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -77,8 +79,7 @@ export default function ReportsPage() {
 
   // Fetch reports from API
   const { data: apiReports, loading, error, refetch } = useApi<Report[]>(async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const raw = await api.get<any[]>('/reports');
+    const raw = await api.get<ApiReport[]>('/reports');
     return raw.map(mapApiReport);
   }, []);
 
@@ -106,7 +107,7 @@ export default function ReportsPage() {
       setShowGenerateModal(false);
       resetForm();
     } catch (err) {
-      console.error('Error generating report:', err);
+      toastError(err instanceof Error ? err.message : 'Error al generar reporte');
     }
     setGenerating(false);
   };
@@ -122,7 +123,7 @@ export default function ReportsPage() {
       a.download = `reporte_${report.id}.html`;
       a.click();
     } catch {
-      console.error('Error downloading report');
+      toastError('Error al descargar reporte');
     }
   };
 
@@ -140,8 +141,8 @@ export default function ReportsPage() {
     try {
       await api.patch(`/reports/${reportId}`, { status: 'sent' });
       refetch();
-    } catch {
-      setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'sent' as const } : r));
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Error al enviar reporte');
     }
   };
 
@@ -149,8 +150,8 @@ export default function ReportsPage() {
     try {
       await api.delete(`/reports/${reportId}`);
       refetch();
-    } catch {
-      setReports(prev => prev.filter(r => r.id !== reportId));
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Error al eliminar reporte');
     }
   };
 

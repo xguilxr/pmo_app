@@ -127,19 +127,6 @@ export function getColors() {
   return colorMap[currentBranding.primaryColor] || colorMap.blue;
 }
 
-export function getAllBrandings() {
-  return brandings;
-}
-
-export function updateBranding(orgId: string, updates: Partial<BrandingConfig>) {
-  if (brandings[orgId]) {
-    brandings[orgId] = { ...brandings[orgId], ...updates };
-    if (currentBranding.orgId === orgId) {
-      currentBranding = brandings[orgId];
-    }
-  }
-}
-
 // API-driven branding: map hex color to nearest Tailwind color name
 const hexToTailwind: Record<string, string> = {
   '#3B82F6': 'blue', '#6366F1': 'indigo', '#10B981': 'emerald',
