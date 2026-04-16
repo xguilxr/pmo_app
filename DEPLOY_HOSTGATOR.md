@@ -2,14 +2,25 @@
 
 Guia paso a paso para desplegar la plataforma PMO en un hosting HostGator con cPanel.
 
+> **Dos rutas posibles**
+>
+> - **Ruta A — con SSH local**: si tu plan/reseller te habilita SSH Access en
+>   cPanel, sigue la guia completa en orden (Pasos 1-12, incluyendo el Paso 2).
+> - **Ruta B — sin SSH, sin Terminal** (HostGator compartido/reseller con la
+>   feature SSH deshabilitada): **salta el Paso 2** y usa la seccion
+>   [Ruta B: Deploy 100% desde cPanel UI](#ruta-b-deploy-100-desde-cpanel-ui)
+>   que usa Git Version Control + Application Manager + Cron Jobs.
+
 ---
 
 ## Requisitos Previos
 
 - Plan de HostGator con acceso a **cPanel** (Business o superior recomendado)
-- Acceso SSH habilitado (se activa desde cPanel)
 - Dominio configurado apuntando a HostGator
 - Python 3.10+ disponible (HostGator lo tiene por defecto)
+- Para Ruta A: acceso SSH habilitado (ver Paso 2)
+- Para Ruta B: **Application Manager** + **Git Version Control** + **Cron Jobs**
+  disponibles en cPanel (todos vienen por defecto)
 
 ---
 
@@ -457,6 +468,211 @@ O por SSH:
 ```bash
 touch ~/pmo_app/backend/tmp/restart.txt
 ```
+
+---
+
+## Ruta B: Deploy 100% desde cPanel UI
+
+Usar esta ruta cuando **no aparece "Acceso SSH"** en cPanel y **no hay
+Terminal**. Todo se hace desde la interfaz grafica de cPanel. Requiere:
+
+- **Application Manager** (seccion *Software*) con soporte Passenger/Python
+- **Git Version Control** (seccion *Archivos*)
+- **Cron Jobs** / **Trabajos programados** (seccion *Avanzado*)
+- **File Manager** / **Administrador de archivos**
+- **MySQL Databases** / **Bases de datos MySQL**
+
+### B.1 — Crear base de datos (igual que Paso 1)
+
+Sigue el Paso 1 tal cual. Anota host, db, user, password.
+
+### B.2 — Clonar el repo con Git Version Control
+
+1. cPanel → buscador → `git` → abre **Git Version Control**
+2. Clic en **Crear**
+3. Campos:
+   - **Clone URL**: `https://github.com/xguilxr/pmo_app.git`
+     - Si el repo es privado:
+       `https://USUARIO:TOKEN@github.com/xguilxr/pmo_app.git`
+       (crea un PAT en GitHub con scope `repo`)
+   - **Ruta del repositorio**: `/home/tuusuario/pmo_app`
+   - **Nombre**: `pmo_app`
+4. Clic en **Crear**. Espera al "Exito" (30-120s).
+
+Para desplegar una rama especifica:
+
+5. En la fila del repo clic en **Administrar**
+6. Pestaña **Extraer** → selecciona la rama (ej. `claude/enable-ssh-deploy-CUwj1`)
+7. Clic en **Actualizar** → **Extraer**
+
+> **Actualizaciones futuras**: cada vez que hagas merge en GitHub, vuelve a
+> *Git Version Control → Administrar → Extraer* → **Actualizar** para traer
+> los cambios al servidor.
+
+### B.3 — Crear `.env` desde File Manager
+
+1. cPanel → **Administrador de archivos** (File Manager)
+2. Navega a `/home/tuusuario/pmo_app`
+3. Arriba, clic en **+ Archivo** → nombre: `.env` → **Crear nuevo archivo**
+   - Si `.env.example` ya esta ahi, tambien puedes **copiarlo** (clic derecho
+     → Copiar) y renombrar la copia a `.env`
+4. Doble clic en `.env` → **Editar** → pega este contenido ajustando valores:
+
+```env
+APP_ENV=production
+DEBUG=false
+
+# Genera los dos secretos con un generador online (32+ caracteres hex cada uno)
+SECRET_KEY=PEGA_AQUI_UN_STRING_DE_64_CARACTERES
+JWT_SECRET=PEGA_AQUI_OTRO_STRING_DE_64_CARACTERES
+JWT_EXPIRATION_HOURS=24
+
+DATABASE_URL=mysql+pymysql://tuusuario_pmo_user:TU_PASSWORD@localhost:3306/tuusuario_pmo_db?charset=utf8mb4
+DATABASE_POOL_SIZE=5
+
+HOST=127.0.0.1
+PORT=8080
+
+DOMAIN=tudominio.com
+CORS_ORIGINS=["https://tudominio.com","https://www.tudominio.com"]
+
+AI_ENABLED=false
+AI_DEFAULT_ENGINE=disabled
+MPXJ_ENABLED=false
+
+DEFAULT_LOCALE=es
+SUPPORTED_LOCALES=es,en
+
+MAX_UPLOAD_SIZE_MB=25
+UPLOAD_DIR=/home/tuusuario/pmo_app/uploads
+```
+
+5. Guardar.
+
+> Para generar los secretos sin terminal: usa <https://generate-secret.now.sh/64>
+> o similar (NO reutilices secretos de desarrollo).
+
+### B.4 — Registrar la app en Application Manager
+
+1. cPanel → buscador → `application` → abre **Application Manager**
+2. Clic en **Register Application** / **Registrar aplicacion**
+3. Campos:
+   - **Application name**: `pmo_api`
+   - **Deployment domain**: tu dominio (o subdominio `api.tudominio.com`)
+   - **Base URL path**: `/api`
+     (si usas subdominio dedicado, deja `/`)
+   - **Application path**: `pmo_app/backend`
+   - **Application environment**: `Production`
+4. Clic en **Deploy** / **Desplegar**
+5. Al completar, veras la ruta del **virtualenv**, algo como
+   `/home/tuusuario/virtualenv/pmo_app/backend/3.10/`. **Anota esa ruta exacta**,
+   la necesitas en B.5.
+6. En la misma pantalla hay una seccion **Configuration files** — Application
+   Manager detecta automaticamente `passenger_wsgi.py` (ya esta en el repo) y
+   `requirements.txt`. Clic en **Run Pip Install** o similar para instalar las
+   dependencias.
+
+> Si no aparece boton para instalar requirements: la primera peticion HTTP a
+> la app lanza el pip install automaticamente (puede tardar la primera vez).
+
+### B.5 — Correr migraciones y seed con un Cron Job de un disparo
+
+Sin Terminal, usamos Cron Jobs para ejecutar `python -m app.seed --demo` una
+sola vez.
+
+1. cPanel → buscador → `cron` → abre **Trabajos programados** (Cron Jobs)
+2. Arriba, en **Correo electronico** pon tu mail — recibiras la salida del
+   comando ahi, asi sabes si funciono.
+3. En **Agregar un nuevo trabajo Cron**:
+   - **Configuraciones comunes**: *Una vez por minuto* (lo dejamos cada
+     minuto temporalmente y lo borramos despues)
+   - **Comando**: (reemplaza la ruta del venv con la de B.5 paso 5)
+     ```
+     cd /home/tuusuario/pmo_app/backend && /home/tuusuario/virtualenv/pmo_app/backend/3.10/bin/python -m app.seed --demo >> /home/tuusuario/pmo_app/seed.log 2>&1
+     ```
+4. Clic en **Agregar nuevo trabajo Cron**.
+5. Espera 1-2 minutos. Recibiras el correo con la salida. Deberias ver:
+   ```
+   Database seeded successfully!
+     Mode: demo
+     Super Admin: admin / Admin123!
+   ```
+6. **IMPORTANTE**: vuelve a Cron Jobs y **ELIMINA** este cron (no lo quieres
+   corriendo cada minuto). Clic en **Eliminar** en la fila del cron.
+
+> Si recibes error "Table already exists" en intentos siguientes, el seed ya
+> corrio — borralo igual.
+> Si recibes error de import: la primera peticion HTTP a la app no corrio aun
+> el pip install. Abre `https://tudominio.com/api/health` en tu navegador para
+> forzar el bootstrap, espera 1-2 min, y re-habilita el cron.
+
+### B.6 — Frontend: compilar local y subir por File Manager
+
+En tu **maquina local**:
+
+```bash
+cd frontend
+npm install
+echo "VITE_API_URL=https://tudominio.com/api" > .env.production
+npm run build
+# Comprime la carpeta dist/ en un ZIP
+```
+
+Sube el ZIP por cPanel:
+
+1. cPanel → **Administrador de archivos** → navega a `/home/tuusuario/public_html`
+2. **Cargar** / **Upload** → sube `dist.zip`
+3. De vuelta en `public_html`, clic derecho sobre `dist.zip` → **Extract**
+4. Los archivos quedan en `public_html/dist/`. Si quieres que el sitio se sirva
+   directo desde `public_html`, muevelos un nivel arriba:
+   - Entra a `public_html/dist/`
+   - Selecciona todo (Ctrl+A) → **Mover** → destino `/public_html/`
+5. Borra `dist.zip` y la carpeta `dist/` vacia.
+
+### B.7 — `.htaccess` para SPA + proxy al backend
+
+1. En `public_html`, clic en **Configuracion** arriba a la derecha → activa
+   **Mostrar archivos ocultos (dotfiles)**
+2. Si existe `.htaccess`, editalo; si no, crealo (**+ Archivo** → `.htaccess`)
+3. Pega:
+
+```apache
+RewriteEngine On
+
+# Requests a archivos/directorios reales se sirven directo
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Todo lo que NO sea /api/* va a index.html (SPA routing)
+RewriteCond %{REQUEST_URI} !^/api/
+RewriteRule ^ index.html [L]
+```
+
+> Application Manager ya enruta `/api/*` al backend Python automaticamente
+> (por eso en B.4 registraste la app con Base URL `/api`). No necesitas la
+> regla `RewriteRule ^api/(.*)$ ... [P,L]` de la Ruta A.
+
+### B.8 — SSL / HTTPS
+
+cPanel → busca `ssl` → **Let's Encrypt SSL** o **SSL/TLS Status** → emite
+certificado para tu dominio. Espera 2-5 min.
+
+### B.9 — Verificar
+
+1. `https://tudominio.com/api/health` → debe devolver JSON con `"status":"ok"`
+2. `https://tudominio.com` → pantalla de login
+3. Login con `admin` / `Admin123!`
+
+### Mantenimiento en Ruta B
+
+- **Actualizar codigo**: Git Version Control → Administrar → Extraer → **Actualizar**.
+  Luego en Application Manager → clic en **Restart** en la app.
+- **Cambiar variables**: editar `.env` en File Manager + **Restart** en
+  Application Manager.
+- **Logs**: Application Manager muestra stdout/stderr en la fila de la app
+  (icono de log). Tambien `~/pmo_app/seed.log` para el cron.
+- **Reiniciar sin Terminal**: Application Manager → boton **Restart** junto
+  a la app.
 
 ---
 
