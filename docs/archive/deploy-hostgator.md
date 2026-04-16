@@ -13,6 +13,12 @@ Esta guia cubre tanto planes **Shared/Business** (solo cPanel) como planes
 >   feature SSH deshabilitada): **salta el Paso 2** y usa la seccion
 >   [Ruta B: Deploy 100% desde cPanel UI](#ruta-b-deploy-100-desde-cpanel-ui)
 >   que usa Git Version Control + Application Manager + Cron Jobs.
+>
+> **Si tu cPanel NO soporta Python** (Application Manager solo ofrece Node.js,
+> sin selector de version de Python al registrar la app), ni Ruta A ni Ruta B
+> funcionaran. Usa [deploy-render.md](./deploy-render.md) para desplegar el
+> backend en Render free tier con el frontend en HostGator, mientras el
+> soporte de HostGator habilita Python (si es que tu plan lo permite).
 
 ---
 
@@ -523,11 +529,45 @@ touch ~/pmo_app/backend/tmp/restart.txt
 Usar esta ruta cuando **no aparece "Acceso SSH"** en cPanel y **no hay
 Terminal**. Todo se hace desde la interfaz grafica de cPanel. Requiere:
 
-- **Application Manager** (seccion *Software*) con soporte Passenger/Python
+- **Setup Python App** (seccion *Software*) — NO confundir con "Application
+  Manager" a secas, que en HostGator compartido suele ser Node.js-only
 - **Git Version Control** (seccion *Archivos*)
 - **Cron Jobs** / **Trabajos programados** (seccion *Avanzado*)
 - **File Manager** / **Administrador de archivos**
 - **MySQL Databases** / **Bases de datos MySQL**
+
+### B.0 — Pre-chequeo: confirmar que cPanel soporta Python
+
+Antes de clonar nada, verifica que tu plan realmente soporte Python. Es
+**crítico** porque en muchos planes HostGator shared el icono "Application
+Manager" existe pero **solo corre Node.js**, sin opcion de elegir version de
+Python al registrar la app.
+
+1. En el buscador de cPanel escribe **`python`** (NO `application`).
+2. Busca un icono con alguno de estos nombres:
+   - **Setup Python App**
+   - **Python Selector**
+   - **Python Apps**
+3. Abre el que aparezca. La pantalla de creacion debe mostrar un dropdown
+   **Python version** con opciones (`3.8`, `3.9`, `3.10`, `3.11`, ...).
+   - Si ves el dropdown → sigue con B.1, y en B.4 usa **Setup Python App** en
+     vez de "Application Manager".
+   - Si el icono **no existe** o al registrar la app **no te pide version de
+     Python** (solo pide Node, o ningun runtime) → tu plan no tiene Python
+     habilitado. **Detente aqui** y lee la nota de abajo.
+
+> **Si no hay soporte Python en tu cPanel**, tienes tres opciones:
+>
+> 1. **Pedir a soporte HostGator que lo habiliten** (suele tomar 5-30 min,
+>    a veces hasta 24 h, y puede ser rechazado segun el plan). Texto y
+>    canales de contacto en [deploy-render.md](./deploy-render.md).
+> 2. **Backend en Render + frontend en HostGator** (recomendado mientras
+>    esperas el ticket, o permanente si HostGator no habilita Python).
+>    Guia completa: [deploy-render.md](./deploy-render.md). El frontend
+>    estatico queda en `public_html` y el `.htaccess` de B.7 se simplifica
+>    (sin proxy `/api/*`).
+> 3. **Upgrade del plan** a Business/VPS confirmando con soporte que incluya
+>    Setup Python App antes de pagar.
 
 ### B.1 — Crear base de datos (igual que Paso 1)
 
@@ -599,21 +639,49 @@ UPLOAD_DIR=/home/tuusuario/pmo_app/uploads
 > Para generar los secretos sin terminal: usa <https://generate-secret.now.sh/64>
 > o similar (NO reutilices secretos de desarrollo).
 
-### B.4 — Registrar la app en Application Manager
+### B.4 — Registrar la app Python en cPanel
 
-1. cPanel → buscador → `application` → abre **Application Manager**
-2. Clic en **Register Application** / **Registrar aplicacion**
+> Si en B.0 confirmaste que tienes **Setup Python App** / **Python Selector**,
+> usalo. "Application Manager" genérico en HostGator shared suele ser
+> Node.js-only y **no** funcionara para este backend. La señal inequivoca es
+> que el formulario de registro te pida **Python version** en un dropdown.
+
+1. cPanel → buscador → `python` → abre **Setup Python App** (o el icono
+   equivalente confirmado en B.0)
+2. Clic en **Create Application** / **Crear aplicacion**
 3. Campos:
+   - **Python version**: `3.10` o superior (la mas reciente disponible)
    - **Application name**: `pmo_api`
    - **Deployment domain**: tu dominio (o subdominio `api.tudominio.com`)
-   - **Base URL path**: `/api`
+   - **Base URL path** / **Application URL**: `/api`
      (si usas subdominio dedicado, deja `/`)
-   - **Application path**: `pmo_app/backend`
+   - **Application root** / **Application path**: `pmo_app/backend`
+   - **Application startup file**: `passenger_wsgi.py`
+   - **Application Entry point**: `application`
    - **Application environment**: `Production`
-4. Clic en **Deploy** / **Desplegar**
-5. Al completar, veras la ruta del **virtualenv**, algo como
+4. Clic en **Create** / **Deploy**
+5. Al completar, busca la ruta del **virtualenv**, algo como
    `/home/tuusuario/virtualenv/pmo_app/backend/3.10/`. **Anota esa ruta exacta**,
    la necesitas en B.5.
+
+   > **Si la ruta no aparece en la pantalla post-deploy**, tienes 3 formas de
+   > obtenerla:
+   >
+   > - **Opcion 1 (recomendada)**: vuelve a Application Manager, haz clic en el
+   >   nombre de la app (`pmo_api`) para abrir el detalle. Veras un campo
+   >   **"Enter to the virtual environment"** con un comando como
+   >   `source /home/tuusuario/virtualenv/pmo_app/backend/3.10/bin/activate && cd ...`.
+   >   La ruta del venv es todo lo que va antes de `/bin/activate`.
+   > - **Opcion 2 (por patron)**: cPanel siempre usa el mismo formato:
+   >   `/home/TUUSUARIO/virtualenv/pmo_app/backend/3.X/` donde `3.X` es la
+   >   version de Python que elegiste (p.ej. `3.10`, `3.11`, `3.12`). Sustituye
+   >   `TUUSUARIO` por tu usuario de cPanel (lo ves arriba a la derecha, o en
+   >   `/home/` por File Manager).
+   > - **Opcion 3 (verificacion visual)**: cPanel → **Administrador de
+   >   archivos** → navega a `/home/tuusuario/virtualenv/pmo_app/backend/` y
+   >   veras una carpeta con el numero de version (p.ej. `3.10`); esa es la
+   >   ruta completa del venv.
+
 6. En la misma pantalla hay una seccion **Configuration files** — Application
    Manager detecta automaticamente `passenger_wsgi.py` (ya esta en el repo) y
    `requirements.txt`. Clic en **Run Pip Install** o similar para instalar las
@@ -633,7 +701,7 @@ sola vez.
 3. En **Agregar un nuevo trabajo Cron**:
    - **Configuraciones comunes**: *Una vez por minuto* (lo dejamos cada
      minuto temporalmente y lo borramos despues)
-   - **Comando**: (reemplaza la ruta del venv con la de B.5 paso 5)
+   - **Comando**: (reemplaza la ruta del venv con la de B.4 paso 5)
      ```
      cd /home/tuusuario/pmo_app/backend && /home/tuusuario/virtualenv/pmo_app/backend/3.10/bin/python -m app.seed --demo >> /home/tuusuario/pmo_app/seed.log 2>&1
      ```

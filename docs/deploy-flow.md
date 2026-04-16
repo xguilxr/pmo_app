@@ -1,8 +1,10 @@
-# Flujo de Deploy y Gestion de Cambios
+# Flujo de deploy y gestion de cambios
 
-Este documento describe como fluye un cambio desde el codigo hasta el servidor
-productivo en HostGator, y como se manejan los cambios que impactan la base de
-datos.
+Describe como fluye un cambio desde el codigo hasta produccion, y como se
+manejan los cambios de esquema de base de datos.
+
+Complemento de [`deploy-self-hosted.md`](./deploy-self-hosted.md) (arquitectura
+vigente). Para rutas historicas ver [`docs/archive/`](./archive/README.md).
 
 ---
 
@@ -18,8 +20,8 @@ datos.
 | Rama | Proposito | Quien mergea | Impacto |
 |------|-----------|--------------|---------|
 | `claude/<feature>` | Desarrollo individual, un PR por feature | Claude o humano | Ninguno |
-| `dev` | Integracion. Todos los PRs entran aqui. Aqui se prueba. | Merge de PRs | Ninguno (no es desplegada) |
-| `prod` | Lo que corre **en vivo** en HostGator. Solo merges de `dev`. | Humano, explicitamente | **Inmediato tras "Update" en cPanel** |
+| `dev` | Integracion. Todos los PRs entran aqui. Aqui se prueba. | Merge de PRs | Ninguno (puede correr en tu PC para pruebas) |
+| `prod` | Lo que corre **en vivo** (tu PC). Solo merges de `dev`. | Humano, explicitamente | **Inmediato tras `git pull` + restart** |
 
 **Regla de oro**: `prod` **nunca** recibe un push directo ni un PR desde una
 rama feature. Siempre pasa primero por `dev`.
@@ -29,156 +31,181 @@ rama feature. Siempre pasa primero por `dev`.
 1. Claude (o tu) crea rama `claude/<descripcion-NNNN>` desde `dev`.
 2. Commits, push, PR → `dev`.
 3. Revisas en el PR. Si OK, merge.
-4. Validas en el entorno de `dev` (local o staging si lo montamos despues).
+4. Validas en `dev` local (levantas el backend en tu PC apuntando a una BD
+   de pruebas o a un schema separado en HostGator MySQL).
 5. Cuando estas seguro, creas PR `dev` → `prod`, revisas el diff acumulado,
    merge.
-6. En cPanel > **Git Version Control** > repo `pmo_app` > pestana **Extraer**
-   → rama `prod` → **Actualizar**.
-7. cPanel > **Application Manager** > clic en **Restart** sobre la app.
-8. Si hubo cambios de BD, correr el Cron Job de migracion (ver abajo).
+6. En tu PC (PowerShell):
+   ```powershell
+   cd C:\Users\<tu-usuario>\Projects\pmo_app
+   git checkout prod
+   git pull origin prod
+   docker compose -f docker\docker-compose.selfhosted.yml up -d --build
+   ```
+7. Si el cambio incluye frontend, recompila y re-sube `dist.zip` a HostGator
+   (ver S.6 en `deploy-self-hosted.md`).
+8. Si hubo cambios de schema de BD, ver seccion "Cambios de BD" abajo.
 
 ### Configuracion inicial de `prod` (solo una vez)
 
-En tu maquina local, cuando `prod` aun no existe en el remoto:
+Desde tu PC, cuando `prod` aun no existe en el remoto:
 
-```bash
+```powershell
 git fetch origin
 git checkout -b prod origin/dev
 git push -u origin prod
 ```
 
-En cPanel Git Version Control, cambia la rama checkeada a `prod`.
+En tu PC de deploy deja la rama `prod` checkeada:
 
----
-
-## Sincronizacion automatica vs manual en cPanel
-
-**cPanel NO sincroniza automaticamente** con GitHub. Cada cambio en `prod` en
-GitHub requiere un clic en **Actualizar** dentro de Git Version Control.
-
-Pros:
-- Nada se despliega sin intencion explicita.
-- Puedes ver el diff antes de actualizar.
-- Pausa natural para ejecutar migraciones antes del restart.
-
-Contras:
-- Requiere un humano haga el clic.
-
-Si en algun momento quieres automatizarlo, se puede con un **GitHub Action**
-que llame un webhook en el servidor que corra `git pull` + restart. Por ahora
-el clic manual es la opcion mas segura.
-
----
-
-## Cambios que impactan la base de datos
-
-El proyecto usa **Alembic** (`backend/migrations/`) para migraciones.
-
-### Regla general
-
-- **Cambio solo de codigo** (API, UI, logica): flujo normal. `git pull` en
-  cPanel, restart en Application Manager. Listo.
-- **Cambio de schema** (nueva tabla, columna, indice, FK, etc.): requiere
-  **correr una migracion** antes de restart para que el codigo nuevo no
-  explote contra la BD vieja.
-
-### Como identifico si hay cambios de BD en un PR
-
-En el PR mira si toca:
-- `backend/app/models/*.py` (nuevos campos, clases, relaciones)
-- `backend/migrations/versions/*.py` (migracion explicita agregada)
-- `backend/migrations/sync_schema.sql` (schema master)
-
-Si si → hay cambio de BD. Si no → normalmente no.
-
-### Crear una migracion (desde desarrollo)
-
-```bash
-cd backend
-source venv/bin/activate
-alembic revision --autogenerate -m "descripcion breve"
-# Revisa el archivo generado en backend/migrations/versions/
-# y ajusta si es necesario (autogenerate no detecta todo)
+```powershell
+git checkout prod
 ```
 
-Commitea el archivo de migracion junto con el cambio de modelo.
+A partir de aqui el workflow es siempre `git pull origin prod` en la PC.
 
-### Aplicar una migracion en HostGator (sin SSH)
+---
 
-Igual que el seed: con un Cron Job de un disparo.
+## Sincronizacion manual
 
-1. cPanel → **Trabajos programados** (Cron Jobs)
-2. Agrega un cron "una vez por minuto" con el comando:
+Tu PC **no tiene webhook de GitHub**, asi que cada actualizacion requiere
+un `git pull` explicito. Esto es intencional:
 
+**Pros:**
+- Nada se despliega sin que tu lo decidas.
+- Rollback trivial: `git checkout <commit-anterior>` + restart.
+- No hay agentes ni runners que mantener.
+
+**Contras:**
+- Tienes que acordarte de hacer el pull tras cada merge a `prod`.
+- Si olvidas el `--build` de Docker Compose con cambios en `requirements.txt`,
+  el contenedor corre con dependencias viejas. **Regla**: siempre usa
+  `up -d --build` despues de un pull.
+
+### Atajo: script de deploy
+
+Crea `scripts/deploy.ps1` en tu PC (fuera del repo si quieres) con:
+
+```powershell
+# Uso: .\deploy.ps1 [dev|prod]   (default: prod)
+param([string]$Branch = "prod")
+
+$ErrorActionPreference = "Stop"
+Set-Location "C:\Users\<tu-usuario>\Projects\pmo_app"
+
+git fetch origin
+git checkout $Branch
+git pull origin $Branch
+
+docker compose -f docker\docker-compose.selfhosted.yml up -d --build
+
+Write-Host "Deploy de '$Branch' completo. Logs:" -ForegroundColor Green
+docker compose -f docker\docker-compose.selfhosted.yml logs --tail=30 backend
+```
+
+Ejecuta: `.\deploy.ps1 prod`.
+
+---
+
+## Cambios de base de datos
+
+El backend corre `_sync_schema_on_startup()` automaticamente al arrancar
+(ver `backend/app/main.py`). Esto:
+
+1. Ejecuta `Base.metadata.create_all()` — crea tablas faltantes. **Nunca**
+   altera columnas de tablas existentes.
+2. Lee `backend/migrations/sync_schema.sql` (si existe) y aplica cada
+   sentencia `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` en su propia
+   transaccion, ignorando errores "columna ya existe".
+
+### Cuando agregas una columna nueva
+
+1. Edita el modelo en `backend/app/models/*.py`.
+2. Agrega una linea a `backend/migrations/sync_schema.sql`:
+   ```sql
+   ALTER TABLE mi_tabla ADD COLUMN IF NOT EXISTS mi_col VARCHAR(255) NULL;
    ```
-   cd /home/tuusuario/pmo_app/backend && \
-     /home/tuusuario/virtualenv/pmo_app/backend/3.10/bin/python -m alembic upgrade head \
-     >> /home/tuusuario/pmo_app/migrate.log 2>&1
+3. Commit + PR normal.
+4. Al mergear y hacer `git pull + up -d --build`, el backend lanza el
+   `_sync_schema_on_startup()` automaticamente. No necesitas correr
+   Alembic a mano.
+
+### Cuando haces un cambio destructivo (drop column, rename, type change)
+
+`sync_schema.sql` **NO** cubre destructivo. Opciones:
+
+1. **Preferido**: Alembic. Crea la migracion localmente apuntando a una BD
+   de pruebas:
+   ```powershell
+   cd backend
+   $env:DATABASE_URL = "mysql+pymysql://tuusuario_pmo_user:TU_PASSWORD@tudominio.com:3306/tuusuario_pmo_db_test?charset=utf8mb4"
+   alembic revision --autogenerate -m "describe_change"
+   ```
+   Revisa el archivo generado en `backend/migrations/versions/`, commit,
+   merge, y en deploy corre:
+   ```powershell
+   docker compose -f docker\docker-compose.selfhosted.yml exec backend alembic upgrade head
    ```
 
-3. Espera 1-2 min. Revisa el log en File Manager o recibelo por email (pon tu
-   correo en la parte superior de Cron Jobs).
-4. **Elimina** el cron despues del primer disparo exitoso.
-5. Restart en Application Manager.
+2. **Atajo**: SQL manual via DBeaver o phpMyAdmin (cPanel lo incluye). Solo
+   para cambios pequeños y controlados, y solo si no tienes multiples
+   entornos que sincronizar.
 
-### Rollback de una migracion
+### Reseed
 
+Si necesitas resetear datos de demo tras cambios grandes:
+
+```powershell
+docker compose -f docker\docker-compose.selfhosted.yml exec backend python -m app.seed --demo
 ```
-cd /home/tuusuario/pmo_app/backend && \
-  /home/tuusuario/virtualenv/pmo_app/backend/3.10/bin/python -m alembic downgrade -1
-```
 
-Ejecutalo con el mismo patron de Cron Job de un disparo.
+`--demo` es idempotente: `ON DUPLICATE KEY UPDATE` en los inserts, asi que
+no rompe datos reales pero si actualiza los de demo.
 
 ---
 
-## Checklist de deploy de `prod`
+## Checklist por deploy
 
-Antes de hacer clic en **Actualizar** en cPanel Git Version Control:
+Antes de mergear `dev` → `prod`:
 
-- [ ] Los tests pasaron en el CI del PR `dev → prod`.
-- [ ] Identifique si hay cambios de BD (ver arriba).
-- [ ] Tengo el comando de migracion listo para pegarlo en Cron Jobs si aplica.
-- [ ] Tengo el Application Manager abierto en otra pestana para el Restart.
-- [ ] Tengo un plan de rollback: si algo falla, Git Version Control permite
-      regresar a un commit previo con **Extraer** y volver a Actualizar.
+- [ ] CI (si hay) en verde, o pruebas manuales locales OK.
+- [ ] Si hay cambios de BD, `sync_schema.sql` actualizado o migracion
+      Alembic lista.
+- [ ] Si hay cambios en `requirements.txt`, probaste un `--build` local.
+- [ ] Si hay cambios en `.env.example`, actualiza tu `.env` en la PC ANTES
+      de hacer el deploy (variables nuevas con valores por default no
+      crashean, pero obligatorias si.)
+- [ ] Si hay cambios de frontend, tienes un plan para recompilar y resubir
+      a HostGator.
 
-Flujo real:
+Despues del deploy:
 
-1. cPanel → Git Version Control → **Actualizar** rama `prod`.
-2. (Si hay cambio de BD) Cron Job de migracion → espera salida → elimina cron.
-3. Application Manager → **Restart** de `pmo_api`.
-4. Verifica en navegador: `https://tudominio.com/api/health` → JSON ok.
-5. Smoke test de la feature que cambio.
-
----
-
-## Cuando NO usar `prod` y cambiar en vivo
-
-**Nunca editar archivos directamente en el servidor**. Aunque parezca rapido,
-el siguiente `git pull` sobreescribe los cambios o entra en conflicto y
-rompe el deploy.
-
-Si necesitas un hotfix urgente:
-1. Crea una rama `hotfix/<descripcion>` desde `prod`.
-2. Haz el cambio y PR → `prod` directamente (unico caso donde se salta `dev`).
-3. Luego merge `prod` → `dev` para sincronizar.
+- [ ] `curl https://api.tudominio.com/api/health` responde 200.
+- [ ] Login en `https://tudominio.com` funciona.
+- [ ] Al menos 2 rutas criticas probadas (dashboard + un detalle de
+      proyecto).
+- [ ] Logs de `docker compose logs backend` no muestran errores nuevos.
 
 ---
 
-## Resumen visual
+## Rollback rapido
 
+```powershell
+cd C:\Users\<tu-usuario>\Projects\pmo_app
+git log --oneline -5          # ver los ultimos commits
+git checkout <sha-anterior>    # volver a version previa
+docker compose -f docker\docker-compose.selfhosted.yml up -d --build
 ```
-Cambio de codigo normal:
-  commit → PR a dev → merge → PR a prod → merge →
-  cPanel Actualizar prod → Application Manager Restart → listo
 
-Cambio con BD:
-  commit (incl. migration) → PR a dev → merge → PR a prod → merge →
-  cPanel Actualizar prod → Cron Job migracion → borrar cron →
-  Application Manager Restart → verificar → listo
+Si el rollback incluye schema, y ya habias corrido un `create_all()` que
+creo tablas nuevas: el rollback no las borra (no hay mal), y pueden quedar
+ignoradas por la version vieja. Si molesta, dropealas manualmente via
+DBeaver.
 
-Hotfix urgente:
-  branch hotfix/ desde prod → fix → PR prod → merge →
-  Actualizar → Restart → merge prod→dev para sync
+Cuando arregles el problema y quieras volver a `prod` normal:
+
+```powershell
+git checkout prod
+git pull
+docker compose -f docker\docker-compose.selfhosted.yml up -d --build
 ```

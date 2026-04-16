@@ -471,12 +471,21 @@ ollama serve                                  # Start server
 
 ## Despliegue
 
-El proyecto esta preparado para despliegue en **HostGator** (cPanel con MySQL).
+Arquitectura vigente: **self-hosted** — backend FastAPI en la PC del dueño
+(Windows + Docker Desktop) expuesto via **Cloudflare Tunnel**, frontend
+estatico y MySQL en **HostGator**.
 
-- [`docs/deploy-hostgator.md`](docs/deploy-hostgator.md) — guia paso a paso de primer despliegue
-- [`docs/deploy-flow.md`](docs/deploy-flow.md) — estrategia de ramas (`dev` → `prod`), manejo de migraciones y checklist de deploy
+- [`docs/deploy-self-hosted.md`](docs/deploy-self-hosted.md) — guia canonica
+  paso a paso (MySQL remoto en cPanel, Docker Compose en tu PC, Cloudflare
+  Tunnel, frontend en `public_html`)
+- [`docs/deploy-flow.md`](docs/deploy-flow.md) — estrategia de ramas
+  (`dev` → `prod`), cambios de BD y checklist de deploy
 
-Tambien se puede desplegar con **Docker Compose** (ver carpeta `docker/`).
+Rutas de despliegue historicas (HostGator Passenger, Render) archivadas en
+[`docs/archive/`](docs/archive/README.md) con instrucciones para revivirlas.
+
+Para desarrollo local all-in-one (backend + DB + frontend en contenedores),
+ver [`docker/docker-compose.yml`](docker/docker-compose.yml).
 
 ---
 
@@ -487,7 +496,7 @@ Toda la documentacion vive en `docs/`:
 | Archivo | Contenido |
 |---------|-----------|
 | [`docs/setup-guide.md`](docs/setup-guide.md) | Setup de desarrollo local |
-| [`docs/deploy-hostgator.md`](docs/deploy-hostgator.md) | Deploy en HostGator cPanel / WHM |
+| [`docs/deploy-self-hosted.md`](docs/deploy-self-hosted.md) | Deploy self-hosted (PC + Cloudflare Tunnel + HostGator) |
 | [`docs/deploy-flow.md`](docs/deploy-flow.md) | Flujo `dev`→`prod` y gestion de migraciones |
 | [`docs/demo-guiada.md`](docs/demo-guiada.md) | Guion para demos funcionales |
 | [`docs/analisis.md`](docs/analisis.md) | Analisis general de la plataforma |
@@ -496,6 +505,7 @@ Toda la documentacion vive en `docs/`:
 | [`docs/glossary.md`](docs/glossary.md) | Glosario de terminos |
 | [`docs/architecture/`](docs/architecture/) | ADRs de arquitectura |
 | [`docs/epics/`](docs/epics/) | Documentacion de epics |
+| [`docs/archive/`](docs/archive/) | Rutas de deploy historicas (HostGator Passenger, Render) |
 
 ---
 

@@ -5,6 +5,39 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Cambiado
+- **Arquitectura de despliegue**: migracion a self-hosted. El backend ahora
+  corre en la PC del dueño via Docker Desktop + Cloudflare Tunnel; MySQL y
+  frontend estatico permanecen en HostGator. Motivo: el plan HostGator
+  disponible no ofrece soporte Python (Application Manager es Node-only y
+  no hay Setup Python App / Python Selector). Nueva guia canonica:
+  [`docs/deploy-self-hosted.md`](./deploy-self-hosted.md).
+- `docs/deploy-flow.md` reescrito para el nuevo workflow (sin cPanel Git
+  Version Control, sin Application Manager restart, sin Cron Jobs de
+  migracion — ahora es `git pull` + `docker compose up -d --build` en la PC).
+- `docker/docker-compose.selfhosted.yml` nuevo: compose slim para
+  levantar solo el backend apuntando a MySQL remoto.
+- Agent prompts (`backender.md`, `dba.md`) actualizados para reflejar la
+  nueva plataforma.
+
+### Archivado (movido a `docs/archive/`)
+- `deploy-hostgator.md` — ruta 100% HostGator con Passenger; requiere Setup
+  Python App que HostGator shared no ofrece.
+- `deploy-render.md` — hibrido Render + HostGator; free tier tiene cold
+  starts y sin disco persistente, poco practico.
+- `deploy-flow.md` (version previa) — dependia de cPanel Git Version Control
+  y Application Manager.
+- `backend/passenger_wsgi.py` — entry point Passenger WSGI.
+
+### Removido
+- `render.yaml` — blueprint de Render, ruta rechazada.
+- `a2wsgi>=1.10.0` de `backend/requirements.txt` — solo se usaba en
+  `passenger_wsgi.py`.
+
+---
+
 ## [0.2.0] - 2026-03-26
 
 ### Agregado
