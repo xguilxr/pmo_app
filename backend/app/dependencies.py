@@ -36,7 +36,7 @@ def get_current_tenant(
         org_id = tenant_dict["id"]
         user_org_ids = {o.id for o in current_user.organizations}
         if current_user.is_superadmin or org_id in user_org_ids:
-            org = db.query(Organization).get(org_id)
+            org = db.get(Organization, org_id)
             if org:
                 return org
         raise HTTPException(

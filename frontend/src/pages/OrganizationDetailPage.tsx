@@ -61,7 +61,9 @@ export default function OrganizationDetailPage() {
       ]);
       setProjects(projs);
       setPrograms(progs);
-    } catch { /* ignore */ }
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Error al cargar datos de la organización');
+    }
     setLoading(false);
   };
 

@@ -28,7 +28,7 @@ class BrandingResponse(BaseModel):
 
 
 @router.get("/current", response_model=BrandingResponse)
-def get_current_branding(request: Request):
+def get_current_branding(request: Request) -> BrandingResponse:
     """Return branding for the current tenant (resolved from hostname).
 
     No authentication required.  If no tenant is resolved, returns default branding.

@@ -37,25 +37,20 @@ def upload_file(
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail=f"Tipo de archivo no permitido: {ext}")
 
-    # Read file content
     content = file.file.read()
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(status_code=400, detail="El archivo excede el tamaño máximo de 50MB")
 
-    # Create upload directory structure
     date_dir = datetime.now(timezone.utc).strftime("%Y/%m")
     full_dir = os.path.join(UPLOAD_DIR, date_dir)
     os.makedirs(full_dir, exist_ok=True)
 
-    # Generate unique filename
     unique_name = f"{uuid.uuid4().hex}{ext}"
     file_path = os.path.join(full_dir, unique_name)
 
-    # Save file
     with open(file_path, "wb") as f:
         f.write(content)
 
-    # Return file metadata
     relative_path = f"{date_dir}/{unique_name}"
     return {
         "file_path": relative_path,

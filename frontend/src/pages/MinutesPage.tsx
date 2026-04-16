@@ -2,16 +2,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ClipboardList, Sparkles, Upload, Clock, Cpu } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
-import { projects } from '../data/mock';
 import { api } from '../services/api';
 import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';
-
-// Sample minutes for display before backend is connected
-const sampleMinutes = [
-  { id: 1, folio: 'MIN-2026-001', title: 'Kickoff Migración ERP', meeting_date: '2026-01-20', project: 'Migración ERP SAP', source: 'manual' },
-  { id: 2, folio: 'MIN-2026-002', title: 'Revisión Sprint 3 - Portal B2B', meeting_date: '2026-03-15', project: 'Portal Clientes B2B', source: 'ai_generated' },
-  { id: 3, folio: 'MIN-2026-003', title: 'Comité de Riesgos CRM', meeting_date: '2026-03-22', project: 'Implementación CRM Salesforce', source: 'ai_generated' },
-];
+import { useToast } from '../context/ToastContext';
 
 interface ApiMinute {
   id: number;
@@ -46,6 +39,7 @@ function mapApiMinute(m: ApiMinute): Minute {
 
 export default function MinutesPage() {
   const { t } = useTranslation();
+  const { toastError } = useToast();
   const [showAIForm, setShowAIForm] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [projectId, setProjectId] = useState('');
@@ -58,10 +52,11 @@ export default function MinutesPage() {
   const [saved, setSaved] = useState(false);
 
   const { data: apiMinutes, loading, error: fetchError, refetch } = useApi<ApiMinute[]>(() => api.get('/minutes'), []);
+  const { data: apiProjects } = useApi<{ id: number; name: string; phase: string }[]>(() => api.get('/projects'), []);
 
-  const minutes: Minute[] = apiMinutes ? apiMinutes.map(mapApiMinute) : sampleMinutes;
+  const minutes: Minute[] = apiMinutes ? apiMinutes.map(mapApiMinute) : [];
 
-  const activeProjects = projects.filter(p => p.phase !== 'Cerrado');
+  const activeProjects = (apiProjects || []).filter(p => p.phase !== 'Cerrado');
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -132,8 +127,9 @@ export default function MinutesPage() {
         source: 'ai_generated',
       });
       refetch();
-    } catch {
-      // Fallback: just show saved state even if API fails
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Error al guardar minuta');
+      return;
     }
     setSaved(true);
     setTimeout(() => {

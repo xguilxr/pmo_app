@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 
 from app.models.notification import Notification
 from app.models.project import Project
+from app.models.task import Task
+from app.models.modules import Risk, Issue, Change, Document
 from app.models.user import User
 
 
@@ -58,7 +60,7 @@ def notify_users(
 # ── High-level event helpers ──────────────────────────────
 
 
-def on_project_created(db: Session, project: Project, actor_id: int):
+def on_project_created(db: Session, project: Project, actor_id: int) -> None:
     members = _get_project_member_ids(db, project.id)
     notify_users(
         db, members,
@@ -71,7 +73,7 @@ def on_project_created(db: Session, project: Project, actor_id: int):
     )
 
 
-def on_project_phase_changed(db: Session, project: Project, old_phase: str, actor_id: int):
+def on_project_phase_changed(db: Session, project: Project, old_phase: str, actor_id: int) -> None:
     members = _get_project_member_ids(db, project.id)
     notify_users(
         db, members,
@@ -84,7 +86,7 @@ def on_project_phase_changed(db: Session, project: Project, old_phase: str, acto
     )
 
 
-def on_project_health_changed(db: Session, project: Project, old_health: str, actor_id: int):
+def on_project_health_changed(db: Session, project: Project, old_health: str, actor_id: int) -> None:
     labels = {"green": "Verde", "yellow": "Amarillo", "red": "Rojo"}
     members = _get_project_member_ids(db, project.id)
     notify_users(
@@ -98,7 +100,7 @@ def on_project_health_changed(db: Session, project: Project, old_health: str, ac
     )
 
 
-def on_task_assigned(db: Session, task, responsible_id: int, project_id: int, actor_id: int):
+def on_task_assigned(db: Session, task: Task, responsible_id: int, project_id: int, actor_id: int) -> None:
     notify_users(
         db, [responsible_id],
         type="task_assigned",
@@ -111,7 +113,7 @@ def on_task_assigned(db: Session, task, responsible_id: int, project_id: int, ac
     )
 
 
-def on_risk_created(db: Session, risk, project_id: int, actor_id: int):
+def on_risk_created(db: Session, risk: Risk, project_id: int, actor_id: int) -> None:
     pm_id = _get_pm_id(db, project_id)
     targets = [pm_id] if pm_id else []
     severity = (risk.probability or 0) * (risk.impact or 0)
@@ -142,7 +144,7 @@ def on_risk_created(db: Session, risk, project_id: int, actor_id: int):
         )
 
 
-def on_issue_created(db: Session, issue, project_id: int, actor_id: int):
+def on_issue_created(db: Session, issue: Issue, project_id: int, actor_id: int) -> None:
     type_labels = {"action": "Acción", "issue": "Incidencia", "decision": "Decisión"}
     pm_id = _get_pm_id(db, project_id)
     targets = [pm_id] if pm_id else []
@@ -159,7 +161,7 @@ def on_issue_created(db: Session, issue, project_id: int, actor_id: int):
     )
 
 
-def on_change_status_changed(db: Session, change, old_status: str, project_id: int, actor_id: int):
+def on_change_status_changed(db: Session, change: Change, old_status: str, project_id: int, actor_id: int) -> None:
     status_labels = {"approved": "aprobado", "rejected": "rechazado", "implemented": "implementado"}
     new_label = status_labels.get(change.status, change.status)
     members = _get_project_member_ids(db, project_id)
@@ -176,7 +178,7 @@ def on_change_status_changed(db: Session, change, old_status: str, project_id: i
     )
 
 
-def on_document_uploaded(db: Session, doc, project_id: int, actor_id: int):
+def on_document_uploaded(db: Session, doc: Document, project_id: int, actor_id: int) -> None:
     members = _get_project_member_ids(db, project_id)
     notify_users(
         db, members,

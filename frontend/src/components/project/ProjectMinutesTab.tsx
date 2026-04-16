@@ -3,26 +3,7 @@ import { Plus, Edit2, Trash2, X, ClipboardList, Sparkles, FileText, Upload, Aler
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
-
-interface Minute {
-  id: number;
-  folio: string;
-  title: string;
-  meeting_date: string | null;
-  topics: string | null;
-  agreements: string | null;
-  participants: string | null;
-  source: string;
-  ai_model_used: string | null;
-  project_id: number;
-  created_at: string;
-  raid?: {
-    risks: string[];
-    actions: string[];
-    issues: string[];
-    decisions: string[];
-  };
-}
+import type { Minute } from '../../types';
 
 export default function ProjectMinutesTab({ projectId }: { projectId: number }) {
   const { toastSuccess, toastError } = useToast();

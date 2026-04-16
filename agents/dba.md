@@ -13,29 +13,34 @@ Administrador de bases de datos SQL. Diseña, optimiza y mantiene la base de dat
 - Diseñar estrategia de backups y recuperación
 
 ## Stack técnico
-- PostgreSQL (producción)
-- SQLite (desarrollo local, opcional)
-- ORM: SQLAlchemy / Alembic para migraciones
+- MySQL 8.0 (producción en HostGator/cPanel)
+- ORM: SQLAlchemy 2.0 / Alembic para migraciones
 
 ## Esquemas principales
 - `users` - Usuarios, credenciales, perfiles
-- `roles` - Roles y permisos
-- `organizations` - Empresas/compañías cliente
-- `programs` - Programas (agrupación de proyectos)
+- `roles` / `permissions` - Roles y permisos granulares
+- `organizations` - Empresas/companias cliente (multi-tenant)
+- `programs` - Programas (agrupacion de proyectos)
 - `projects` - Proyectos con detalle completo
 - `project_requests` - Solicitudes de proyecto
-- `risks` - Riesgos por proyecto
-- `issues` - Incidencias por proyecto
-- `changes` - Control de cambios por proyecto
-- `documents` - Documentos adjuntos
-- `lessons` - Lecciones aprendidas
-- `minutes` - Minutas de reunión
-- `audit_log` - Registro de auditoría
+- `project_areas` / `project_objectives` - Areas y objetivos/KPIs
+- `project_statuses` - Snapshots periodicos de salud/avance
+- `project_closures` - Cierre formal de proyectos
+- `tasks` / `task_dependencies` / `backlog_items` - Plan y backlog
+- `risks` / `issues` / `changes` - Gestion RAID
+- `documents` / `lessons` / `minutes` - Documentacion y aprendizajes
+- `progress_reports` - Reportes de avance (con IA)
+- `resources` / `project_resources` / `resource_work_logs` / `resource_availabilities` - Gestion de recursos
+- `notifications` - Notificaciones in-app
+- `dashboard_share_links` - Dashboards compartidos publicos
+- `approval_logs` - Historial polimorfico de aprobaciones
+- `audit_log` - Registro de auditoria
 
 ## Reglas
-- Toda tabla debe tener `id`, `created_at`, `updated_at`, `created_by`
-- Usar soft delete (`deleted_at`) en lugar de eliminación física
-- Nombres de tablas y columnas en snake_case e inglés
-- Comentarios de esquema bilingües (es/en)
-- Nunca exponer queries raw al frontend; siempre a través del backend
-- Documentar cada migración en `docs/database/`
+- Toda tabla debe tener `id`, `created_at`, `updated_at`, `deleted_at` (via TimestampMixin en `app/models/base.py`)
+- Tablas multi-tenant incluyen `organization_id`
+- Usar soft delete (`deleted_at`) en lugar de eliminacion fisica
+- Nombres de tablas y columnas en snake_case e ingles
+- Nunca exponer queries raw al frontend; siempre a traves del backend
+- Migraciones en `backend/migrations/versions/` con Alembic; `migrations/sync_schema.sql` como red de seguridad idempotente en startup
+- MySQL 8.0+ con charset `utf8mb4`

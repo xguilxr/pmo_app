@@ -25,29 +25,9 @@ import ProjectMinutesTab from '../components/project/ProjectMinutesTab';
 import ProjectReportsTab from '../components/project/ProjectReportsTab';
 import PageHeader from '../components/common/PageHeader';
 
-interface ApiProject {
-  id: number;
-  folio: string;
-  name: string;
-  description?: string;
-  type: string;
-  priority: string;
-  phase: string;
-  status: string;
-  health: string;
-  start_date: string;
-  end_date: string;
-  budget: number;
-  real_budget?: number;
-  progress: number;
-  planned_progress?: number;
-  organization_id?: number;
-  program_id?: number | null;
-  organization_name?: string;
-  program_name?: string;
-}
+import type { Project } from '../types';
+import type { OrgOption } from '../types';
 
-interface ApiOrg { id: number; name: string; }
 interface ApiProgram { id: number; name: string; organization_id: number; }
 
 const PROJECT_TYPES = ['Tecnología', 'Digital', 'Procesos', 'Infraestructura', 'Regulatorio'];
@@ -79,7 +59,7 @@ export default function ProjectDetailPage() {
 
   const projectId = Number(id);
   const { data: apiProject, loading, refetch } = useApi(
-    () => api.get<ApiProject>(`/projects/${projectId}`).catch(() => null),
+    () => api.get<Project>(`/projects/${projectId}`).catch(() => null),
     [projectId]
   );
 
@@ -267,7 +247,7 @@ function EditProjectModal({
   onClose,
   onSaved,
 }: {
-  project: ApiProject;
+  project: Project;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -290,7 +270,7 @@ function EditProjectModal({
     program_id: project.program_id || 0,
   });
 
-  const { data: orgs } = useApi(() => api.get<ApiOrg[]>('/organizations'), []);
+  const { data: orgs } = useApi(() => api.get<OrgOption[]>('/organizations'), []);
   const { data: programs } = useApi(
     () => form.organization_id ? api.get<ApiProgram[]>(`/programs?organization_id=${form.organization_id}`) : Promise.resolve([]),
     [form.organization_id]

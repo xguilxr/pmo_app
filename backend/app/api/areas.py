@@ -1,18 +1,16 @@
-import logging
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
 from app.models.organization import Organization
-from app.models.project import Project
 from app.models.area import ProjectArea
 from app.schemas.area import AreaCreate, AreaUpdate, AreaResponse
 from app.auth.security import get_current_user
 from app.dependencies import get_current_tenant
 from app.utils.tenant_query import verify_project_tenant
-
-logger = logging.getLogger(__name__)
+from app.utils.crud_helpers import soft_delete
 
 router = APIRouter(prefix="/projects/{project_id}/areas", tags=["Project Areas"])
 
@@ -38,23 +36,22 @@ def list_areas(project_id: int, db: Session = Depends(get_db), current_user: Use
 @router.post("", response_model=AreaResponse, status_code=status.HTTP_201_CREATED)
 def create_area(project_id: int, data: AreaCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user), tenant: Organization = Depends(get_current_tenant)):
     verify_project_tenant(db, project_id, tenant)
+    area = ProjectArea(
+        name=data.name,
+        description=data.description,
+        role_in_project=data.role_in_project,
+        responsible_name_text=data.responsible_name,
+        project_id=project_id,
+        organization_id=tenant.id,
+        responsible_id=data.responsible_id,
+    )
+    db.add(area)
     try:
-        area = ProjectArea(
-            name=data.name,
-            description=data.description,
-            role_in_project=data.role_in_project,
-            responsible_name_text=data.responsible_name,
-            project_id=project_id,
-            organization_id=tenant.id,
-            responsible_id=data.responsible_id,
-        )
-        db.add(area)
         db.commit()
-        db.refresh(area)
-    except Exception as exc:
+    except IntegrityError:
         db.rollback()
-        logger.exception("Failed to create project area for project_id=%s", project_id)
-        raise HTTPException(status_code=500, detail=f"Error al crear el área: {exc}")
+        raise HTTPException(status_code=400, detail="Error de integridad al crear el área")
+    db.refresh(area)
     resp = AreaResponse.model_validate(area)
     if area.responsible:
         resp.responsible_name = area.responsible.full_name
@@ -97,6 +94,4 @@ def delete_area(project_id: int, area_id: int, db: Session = Depends(get_db), cu
     ).first()
     if not area:
         raise HTTPException(status_code=404, detail="Área no encontrada")
-    from datetime import datetime, timezone
-    area.deleted_at = datetime.now(timezone.utc)
-    db.commit()
+    soft_delete(db, area)

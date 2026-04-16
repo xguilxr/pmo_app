@@ -11,6 +11,7 @@ from app.models.organization import Organization
 from app.models.project_request import ProjectRequest
 from app.auth.security import get_current_user
 from app.dependencies import get_current_tenant
+from app.utils.crud_helpers import get_or_404, apply_update
 from app.services.folio import generate_folio
 
 router = APIRouter(prefix="/requests", tags=["Project Requests"])
@@ -108,10 +109,7 @@ def list_requests(
 
 @router.get("/{request_id}", response_model=RequestResponse)
 def get_request(request_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    req = db.query(ProjectRequest).filter(ProjectRequest.id == request_id, ProjectRequest.deleted_at.is_(None)).first()
-    if not req:
-        raise HTTPException(status_code=404, detail="Solicitud no encontrada")
-    return req
+    return get_or_404(db, ProjectRequest, request_id, detail="Solicitud no encontrada")
 
 
 @router.post("", response_model=RequestResponse, status_code=status.HTTP_201_CREATED)
@@ -160,13 +158,8 @@ def update_request(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    req = db.query(ProjectRequest).filter(ProjectRequest.id == request_id, ProjectRequest.deleted_at.is_(None)).first()
-    if not req:
-        raise HTTPException(status_code=404, detail="Solicitud no encontrada")
-    for field, value in data.model_dump(exclude_unset=True).items():
-        setattr(req, field, value)
-    db.commit()
-    db.refresh(req)
+    req = get_or_404(db, ProjectRequest, request_id, detail="Solicitud no encontrada")
+    apply_update(db, req, data)
     return req
 
 
@@ -176,9 +169,7 @@ def approve_request(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    req = db.query(ProjectRequest).filter(ProjectRequest.id == request_id, ProjectRequest.deleted_at.is_(None)).first()
-    if not req:
-        raise HTTPException(status_code=404, detail="Solicitud no encontrada")
+    req = get_or_404(db, ProjectRequest, request_id, detail="Solicitud no encontrada")
     if req.status != "in_review":
         raise HTTPException(status_code=400, detail="Solo se pueden aprobar solicitudes en revisión")
     req.status = "approved"
@@ -232,9 +223,7 @@ def reject_request(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    req = db.query(ProjectRequest).filter(ProjectRequest.id == request_id, ProjectRequest.deleted_at.is_(None)).first()
-    if not req:
-        raise HTTPException(status_code=404, detail="Solicitud no encontrada")
+    req = get_or_404(db, ProjectRequest, request_id, detail="Solicitud no encontrada")
     if req.status != "in_review":
         raise HTTPException(status_code=400, detail="Solo se pueden rechazar solicitudes en revisión")
     req.status = "rejected"
@@ -256,9 +245,7 @@ def cancel_request(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    req = db.query(ProjectRequest).filter(ProjectRequest.id == request_id, ProjectRequest.deleted_at.is_(None)).first()
-    if not req:
-        raise HTTPException(status_code=404, detail="Solicitud no encontrada")
+    req = get_or_404(db, ProjectRequest, request_id, detail="Solicitud no encontrada")
     if req.status not in ("in_review", "info_requested"):
         raise HTTPException(status_code=400, detail="Solo se pueden cancelar solicitudes en revisión o con información solicitada")
     req.status = "cancelled"

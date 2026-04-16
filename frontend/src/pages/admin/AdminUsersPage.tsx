@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Plus, Edit2, Trash2, X, Check } from 'lucide-react';
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner, ErrorMessage } from '../../hooks/useApi';
+import { useToast } from '../../context/ToastContext';
 
 interface UserItem {
   id: number;
@@ -25,8 +26,19 @@ interface OrgOption {
   name: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapApiUser(raw: any): UserItem {
+interface ApiUserResponse {
+  id: number;
+  username: string;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  last_login: string | null;
+  roles: string[];
+  organizations: string[];
+  created_at: string;
+}
+
+function mapApiUser(raw: ApiUserResponse): UserItem {
   return {
     id: raw.id,
     username: raw.username || '',
@@ -41,6 +53,7 @@ function mapApiUser(raw: any): UserItem {
 
 export default function AdminUsersPage() {
   const { t } = useTranslation();
+  const { toastError } = useToast();
   const [users, setUsers] = useState<UserItem[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<UserItem | null>(null);
@@ -52,15 +65,13 @@ export default function AdminUsersPage() {
 
   // Fetch available orgs and roles
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    api.get<any[]>('/organizations').then(orgs => setAvailableOrgs(orgs.map((o: any) => ({ id: o.id, name: o.name })))).catch(() => {});
+    api.get<OrgOption[]>('/organizations').then(orgs => setAvailableOrgs(orgs.map((o: OrgOption) => ({ id: o.id, name: o.name })))).catch(() => {});
     api.get<Array<{id: number; name: string}>>('/users/roles').then(r => setAvailableRoles(r.map(role => ({ id: role.id, name: role.name })))).catch(() => {});
   }, []);
 
   // Fetch users from API
   const { data: apiUsers, loading, error, refetch } = useApi<UserItem[]>(async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const raw = await api.get<any[]>('/users');
+    const raw = await api.get<ApiUserResponse[]>('/users');
     return raw.map(mapApiUser);
   }, []);
 
@@ -115,7 +126,7 @@ export default function AdminUsersPage() {
       }
       refetch();
     } catch (err) {
-      console.error('Failed to save user:', err);
+      toastError(err instanceof Error ? err.message : 'Error al guardar usuario');
     }
     setShowModal(false);
   };
@@ -125,8 +136,8 @@ export default function AdminUsersPage() {
     try {
       await api.delete(`/users/${deleteTarget.id}`);
       refetch();
-    } catch {
-      setUsers(users.filter(u => u.id !== deleteTarget.id));
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Error al eliminar usuario');
     }
     setDeleteTarget(null);
   };

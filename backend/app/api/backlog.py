@@ -12,7 +12,7 @@ from app.models.backlog import BacklogItem
 from app.auth.security import get_current_user
 from app.dependencies import get_current_tenant
 from app.utils.tenant_query import verify_project_tenant
-from app.services.folio import generate_folio
+from app.utils.crud_helpers import get_or_404, apply_update, soft_delete
 
 router = APIRouter(prefix="/backlog", tags=["Backlog"])
 
@@ -123,10 +123,7 @@ def create_backlog_item(
 
 @router.get("/{item_id}", response_model=BacklogResponse)
 def get_backlog_item(item_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    item = db.query(BacklogItem).filter(BacklogItem.id == item_id, BacklogItem.deleted_at.is_(None)).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Elemento de backlog no encontrado")
-    return item
+    return get_or_404(db, BacklogItem, item_id, detail="Elemento de backlog no encontrado")
 
 
 @router.patch("/{item_id}", response_model=BacklogResponse)
@@ -136,20 +133,11 @@ def update_backlog_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    item = db.query(BacklogItem).filter(BacklogItem.id == item_id, BacklogItem.deleted_at.is_(None)).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Elemento de backlog no encontrado")
-    for field, value in data.model_dump(exclude_unset=True).items():
-        setattr(item, field, value)
-    db.commit()
-    db.refresh(item)
+    item = get_or_404(db, BacklogItem, item_id, detail="Elemento de backlog no encontrado")
+    apply_update(db, item, data)
     return item
 
 
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_backlog_item(item_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    item = db.query(BacklogItem).filter(BacklogItem.id == item_id, BacklogItem.deleted_at.is_(None)).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Elemento de backlog no encontrado")
-    item.deleted_at = datetime.now(timezone.utc)
-    db.commit()
+    soft_delete(db, get_or_404(db, BacklogItem, item_id, detail="Elemento de backlog no encontrado"))

@@ -1,6 +1,6 @@
 # Analisis Completo - PMO_APP Platform
 
-**Fecha:** 6 de abril de 2026
+**Fecha:** 16 de abril de 2026
 **Version:** 2.0 (post-cierre de gaps)
 
 ---
@@ -15,7 +15,7 @@ PMO_APP es una plataforma moderna de gestion de portafolio de proyectos (PMO) co
 |-----------|-----------|
 | **Backend** | FastAPI (Python 3.11+) + SQLAlchemy 2.0 |
 | **Frontend** | React 19 + TypeScript + Vite + Tailwind CSS 4 |
-| **Base de Datos** | PostgreSQL 15+ |
+| **Base de Datos** | MySQL 8.0 |
 | **Motor IA** | Ollama (Qwen 2.5 7B local) + Claude API (fallback) |
 | **Importacion MS Project** | mpxj (Java) |
 | **Autenticacion** | JWT (python-jose) + bcrypt |
@@ -43,7 +43,7 @@ PMO_APP es una plataforma moderna de gestion de portafolio de proyectos (PMO) co
 │  │ Notific. │ │  JWT/BC  │ │          │ │          │   │
 │  └──────────┘ └──────────┘ └──────────┘ └──────────┘   │
 ├─────────────────────────────────────────────────────────┤
-│                   PostgreSQL 15+                         │
+│                      MySQL 8.0                           │
 │            26 tablas + soft delete universal              │
 ├─────────────────────────────────────────────────────────┤
 │              INTEGRACIONES EXTERNAS                       │
@@ -435,4 +435,4 @@ erDiagram
 
 ---
 
-*Documento generado el 6 de abril de 2026 para PMO_APP v2.0*
+*Documento generado el 16 de abril de 2026 para PMO_APP v2.0*

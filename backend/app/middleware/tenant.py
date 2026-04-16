@@ -24,12 +24,14 @@ from app.models.organization import Organization
 
 logger = logging.getLogger(__name__)
 
+TenantDict = dict[str, int | str | bool | dict | None]
+
 # In-memory tenant cache: hostname -> (Organization dict, expiry timestamp)
-_tenant_cache: dict[str, tuple[Optional[dict], float]] = {}
+_tenant_cache: dict[str, tuple[Optional[TenantDict], float]] = {}
 _CACHE_TTL_SECONDS = 300  # 5 minutes
 
 
-def _org_to_dict(org: Organization) -> dict:
+def _org_to_dict(org: Organization) -> TenantDict:
     """Serialize an Organization row to a plain dict for caching."""
     return {
         "id": org.id,
@@ -44,7 +46,7 @@ def _org_to_dict(org: Organization) -> dict:
     }
 
 
-def _resolve_tenant(hostname: str) -> Optional[dict]:
+def _resolve_tenant(hostname: str) -> Optional[TenantDict]:
     """Look up a tenant by hostname.  Returns a dict or None."""
     now = time.time()
 
@@ -90,7 +92,7 @@ def _resolve_tenant(hostname: str) -> Optional[dict]:
         db.close()
 
 
-def invalidate_tenant_cache(hostname: Optional[str] = None):
+def invalidate_tenant_cache(hostname: Optional[str] = None) -> None:
     """Clear the tenant cache.  If hostname is None, clear everything."""
     if hostname:
         _tenant_cache.pop(hostname, None)

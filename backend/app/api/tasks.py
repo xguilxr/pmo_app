@@ -18,6 +18,7 @@ from app.models.modules import Document
 from app.auth.security import get_current_user
 from app.dependencies import get_current_tenant
 from app.utils.tenant_query import verify_project_tenant
+from app.utils.crud_helpers import get_or_404, soft_delete
 from app.services.folio import generate_folio
 from app.services import notifications as notif_svc
 
@@ -192,10 +193,7 @@ def create_task(
 
 @router.get("/{task_id}", response_model=TaskResponse)
 def get_task(task_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    task = db.query(Task).filter(Task.id == task_id, Task.deleted_at.is_(None)).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Tarea no encontrada")
-    return task
+    return get_or_404(db, Task, task_id, detail="Tarea no encontrada")
 
 
 @router.patch("/{task_id}", response_model=TaskResponse)
@@ -205,9 +203,7 @@ def update_task(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    task = db.query(Task).filter(Task.id == task_id, Task.deleted_at.is_(None)).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+    task = get_or_404(db, Task, task_id, detail="Tarea no encontrada")
     old_responsible = task.responsible_id
     update_data = data.model_dump(exclude_unset=True)
     # Validate status if provided
@@ -230,11 +226,7 @@ def update_task(
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task(task_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    task = db.query(Task).filter(Task.id == task_id, Task.deleted_at.is_(None)).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Tarea no encontrada")
-    task.deleted_at = datetime.now(timezone.utc)
-    db.commit()
+    soft_delete(db, get_or_404(db, Task, task_id, detail="Tarea no encontrada"))
 
 
 @router.post("/import", response_model=list[TaskResponse], status_code=status.HTTP_201_CREATED)

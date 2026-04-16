@@ -13,8 +13,8 @@
 
 [Unit]
 Description=PMO Platform Backend (Gunicorn + Uvicorn)
-After=network.target postgresql.service
-Wants=postgresql.service
+After=network.target mysql.service
+Wants=mysql.service
 
 [Service]
 Type=notify

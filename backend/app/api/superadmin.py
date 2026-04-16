@@ -10,7 +10,7 @@ can access these endpoints.  Provides:
 import os
 import platform
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -28,10 +28,6 @@ from app.models.project import Project
 from app.models.user import User
 
 router = APIRouter(prefix="/superadmin", tags=["Super Admin"])
-
-# ---------------------------------------------------------------------------
-# Schemas
-# ---------------------------------------------------------------------------
 
 
 class TenantCreate(BaseModel):
@@ -132,10 +128,6 @@ class ServerHealthResponse(BaseModel):
     db_project_count: int
     uptime_info: Optional[str] = None
 
-
-# ---------------------------------------------------------------------------
-# Tenant CRUD
-# ---------------------------------------------------------------------------
 
 
 @router.get("/tenants", response_model=list[TenantResponse])
@@ -436,10 +428,6 @@ def deactivate_tenant(
     invalidate_tenant_cache()
 
 
-# ---------------------------------------------------------------------------
-# Tenant Provisioning
-# ---------------------------------------------------------------------------
-
 
 @router.post("/provision", response_model=ProvisionResponse, status_code=status.HTTP_201_CREATED)
 def provision_tenant(
@@ -522,10 +510,6 @@ def provision_tenant(
     )
 
 
-# ---------------------------------------------------------------------------
-# Server Monitoring
-# ---------------------------------------------------------------------------
-
 
 @router.get("/health", response_model=ServerHealthResponse)
 def server_health(
@@ -587,9 +571,6 @@ def server_health(
     )
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 _TENANT_STATIC_ROOT = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))),

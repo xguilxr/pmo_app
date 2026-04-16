@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-# PostgreSQL Backup Script for PMO Platform
+# MySQL Backup Script for PMO Platform
 #
 # Creates timestamped, compressed backups and rotates old ones.
 #
@@ -12,7 +12,7 @@
 #   0 2 * * * /opt/pmo_app/scripts/backup_db.sh >> /var/log/pmo/backup.log 2>&1
 #
 # Required env vars (or defaults):
-#   DB_HOST, DB_PORT, DB_NAME, DB_USER, PGPASSWORD
+#   DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
 # ============================================================================
 
 set -euo pipefail
@@ -21,10 +21,10 @@ set -euo pipefail
 # Configuration (override via environment)
 # ---------------------------------------------------------------------------
 DB_HOST="${DB_HOST:-localhost}"
-DB_PORT="${DB_PORT:-5432}"
+DB_PORT="${DB_PORT:-3306}"
 DB_NAME="${DB_NAME:-pmo_db}"
 DB_USER="${DB_USER:-pmo_user}"
-# PGPASSWORD must be set in environment or .pgpass
+DB_PASSWORD="${DB_PASSWORD:-}"
 
 BACKUP_DIR="${BACKUP_DIR:-/opt/pmo_app/backups}"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"           # Delete backups older than this
@@ -42,8 +42,8 @@ err()  { echo -e "${RED}[ERROR $(date '+%Y-%m-%d %H:%M:%S')]${NC} $*" >&2; }
 # ---------------------------------------------------------------------------
 # Pre-flight
 # ---------------------------------------------------------------------------
-if ! command -v pg_dump &>/dev/null; then
-    err "pg_dump not found. Install postgresql-client."
+if ! command -v mysqldump &>/dev/null; then
+    err "mysqldump not found. Install mysql-client."
     exit 1
 fi
 
@@ -54,9 +54,10 @@ mkdir -p "$BACKUP_DIR"
 # ---------------------------------------------------------------------------
 log "Starting backup of ${DB_NAME}@${DB_HOST}:${DB_PORT}..."
 
-if pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
-    --no-owner --no-acl --clean --if-exists \
-    | gzip > "$BACKUP_FILE"; then
+if mysqldump -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" \
+    ${DB_PASSWORD:+--password="$DB_PASSWORD"} \
+    --single-transaction --routines --triggers --events \
+    "$DB_NAME" | gzip > "$BACKUP_FILE"; then
 
     SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
     log "Backup complete: ${BACKUP_FILE} (${SIZE})"
@@ -67,7 +68,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Rotation — delete backups older than RETENTION_DAYS
+# Rotation -- delete backups older than RETENTION_DAYS
 # ---------------------------------------------------------------------------
 DELETED=$(find "$BACKUP_DIR" -name "pmo_backup_*.sql.gz" -type f -mtime +"$RETENTION_DAYS" -print -delete | wc -l)
 if [[ "$DELETED" -gt 0 ]]; then
@@ -79,4 +80,4 @@ fi
 # ---------------------------------------------------------------------------
 TOTAL=$(find "$BACKUP_DIR" -name "pmo_backup_*.sql.gz" -type f | wc -l)
 TOTAL_SIZE=$(du -sh "$BACKUP_DIR" | cut -f1)
-log "Backup directory: ${BACKUP_DIR} — ${TOTAL} file(s), ${TOTAL_SIZE} total"
+log "Backup directory: ${BACKUP_DIR} -- ${TOTAL} file(s), ${TOTAL_SIZE} total"

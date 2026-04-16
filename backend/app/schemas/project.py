@@ -87,8 +87,8 @@ class DashboardKPIs(BaseModel):
     # Enhanced metrics (G14)
     total_real_budget: float = 0
     budget_variance: float = 0
-    projects_by_phase: dict = {}
-    projects_by_health: dict = {}
+    projects_by_phase: dict[str, int] = {}
+    projects_by_health: dict[str, int] = {}
     total_resources: int = 0
-    projects_by_type: dict = {}
-    top_projects_by_progress: list = []
+    projects_by_type: dict[str, int] = {}
+    top_projects_by_progress: list[dict[str, str | float]] = []

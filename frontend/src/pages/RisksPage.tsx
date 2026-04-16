@@ -6,19 +6,7 @@ import PageHeader from '../components/common/PageHeader';
 import { api } from '../services/api';
 import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';
 
-interface Risk {
-  id: number;
-  folio: string;
-  title: string;
-  category: string;
-  probability: number;
-  impact: number;
-  severity: number;
-  status: string;
-  projectName: string;
-  projectId: number;
-  identificationDate: string;
-}
+import type { RiskWithProject } from '../types';
 
 interface ApiRisk {
   id: number;
@@ -35,7 +23,7 @@ interface ApiRisk {
   created_at?: string;
 }
 
-function mapApiRisk(r: ApiRisk): Risk {
+function mapApiRisk(r: ApiRisk): RiskWithProject {
   return {
     id: r.id,
     folio: r.folio,
@@ -45,9 +33,9 @@ function mapApiRisk(r: ApiRisk): Risk {
     impact: r.impact ?? 0,
     severity: r.severity ?? (r.probability ?? 0) * (r.impact ?? 0),
     status: r.status,
-    projectName: r.project_name || '',
-    projectId: r.project_id,
-    identificationDate: r.identification_date || r.created_at || '',
+    project_name: r.project_name || '',
+    project_id: r.project_id,
+    identification_date: r.identification_date || r.created_at || '',
   };
 }
 
@@ -63,9 +51,9 @@ export default function RisksPage() {
 
   const { data: apiRisks, loading, error, refetch } = useApi<ApiRisk[]>(() => api.get('/risks'), []);
 
-  const risks: Risk[] = apiRisks ? apiRisks.map(mapApiRisk) : [];
+  const risks: RiskWithProject[] = apiRisks ? apiRisks.map(mapApiRisk) : [];
 
-  const uniqueProjects = [...new Set(risks.map(r => r.projectName))];
+  const uniqueProjects = [...new Set(risks.map(r => r.project_name))];
 
   const severityColor = (s: number) => s >= 15 ? 'bg-red-100 text-red-700' : s >= 8 ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700';
   const statusBadge = (s: string) => {
@@ -76,7 +64,7 @@ export default function RisksPage() {
 
   const filtered = risks.filter(r => {
     if (statusFilter !== 'all' && r.status !== statusFilter) return false;
-    if (projectFilter !== 'all' && r.projectName !== projectFilter) return false;
+    if (projectFilter !== 'all' && r.project_name !== projectFilter) return false;
     if (severityMin && r.severity < Number(severityMin)) return false;
     if (severityMax && r.severity > Number(severityMax)) return false;
     if (dateFrom && r.identificationDate < dateFrom) return false;
@@ -158,7 +146,7 @@ export default function RisksPage() {
               <tr key={r.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/projects/${r.projectId}`)}>
                 <td className="px-4 py-3 font-mono text-xs text-gray-500">{r.folio}</td>
                 <td className="px-4 py-3 font-medium text-gray-900">{r.title}</td>
-                <td className="px-4 py-3 text-blue-600 text-xs">{r.projectName}</td>
+                <td className="px-4 py-3 text-blue-600 text-xs">{r.project_name}</td>
                 <td className="px-4 py-3 text-gray-600">{r.category}</td>
                 <td className="px-4 py-3 text-center">{r.probability}</td>
                 <td className="px-4 py-3 text-center">{r.impact}</td>

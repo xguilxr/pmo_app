@@ -11,18 +11,8 @@ export function getToken(): string | null {
   return localStorage.getItem('pmo_token');
 }
 
-// Tenant ID management — selected org for multi-tenant scoping
-export function setActiveTenantId(id: number | null) {
-  if (id !== null) localStorage.setItem('pmo_tenant_id', String(id));
-  else localStorage.removeItem('pmo_tenant_id');
-}
-
-export function getActiveTenantId(): string | null {
-  return localStorage.getItem('pmo_tenant_id');
-}
-
 // Generic fetch wrapper with auth header and tenant header
-export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('pmo_token');
   const tenantId = localStorage.getItem('pmo_tenant_id');
   const headers: Record<string, string> = {
