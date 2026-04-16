@@ -723,6 +723,70 @@ certificado para tu dominio. Espera 2-5 min.
 
 ---
 
+## Configuracion del Motor de IA
+
+El backend soporta tres motores de IA para generar minutas y reportes:
+
+| Motor | `AI_DEFAULT_ENGINE` | Dónde corre | Costo | Apto para cPanel |
+|---|---|---|---|---|
+| Gemini 2.0 Flash | `gemini` | Google Cloud | Free tier ~1.500 req/dia, luego $0.10/$0.40 por 1M tok | Sí |
+| Claude API | `claude_api` | Anthropic | ~$3/1M input, ~$15/1M output (Sonnet) | Sí |
+| Ollama + Qwen | `ollama` | Tu máquina / VPS | Gratis pero requiere 8GB+ RAM | **No** (no corre en shared) |
+
+### Opcion 1 — Gemini 2.0 Flash (recomendado para empezar, free tier)
+
+1. Entra a <https://aistudio.google.com/apikey> con tu cuenta Google.
+2. Clic en **Create API key** → selecciona un proyecto (o crea uno nuevo).
+3. Copia la key (empieza con `AIzaSy...`).
+4. En cPanel → **Administrador de archivos** → edita `$HOME/pmo_app/.env`:
+   ```env
+   AI_ENABLED=true
+   AI_DEFAULT_ENGINE=gemini
+   GEMINI_API_KEY=AIzaSy_tu_key_aqui
+   GEMINI_MODEL=gemini-2.0-flash
+   ```
+5. Application Manager → **Restart** en la app `pmo_api`.
+6. Prueba generando una minuta desde el frontend.
+
+> **Free tier**: 15 req/min, 1.500 req/día, 1M tokens/día para `gemini-2.0-flash`.
+> Al superarlo cobra a tarifa estándar. Monitorea uso en
+> <https://aistudio.google.com/> → *Usage*.
+
+### Opcion 2 — Claude API (premium / fallback)
+
+1. Entra a <https://console.anthropic.com/> → **API Keys** → **Create Key**.
+2. Añade saldo en **Billing** (mínimo $5).
+3. Edita `$HOME/pmo_app/.env`:
+   ```env
+   AI_ENABLED=true
+   AI_DEFAULT_ENGINE=claude_api
+   ANTHROPIC_API_KEY=sk-ant-api03-...
+   CLAUDE_MODEL=claude-haiku-4-5-20251001
+   ```
+   > Para mínimo costo usa `claude-haiku-4-5-20251001` (Haiku 4.5) en lugar
+   > de Sonnet — ~5× más barato y suficiente para minutas/reportes.
+4. Application Manager → **Restart**.
+
+### Fallback automatico
+
+Si configuras **ambas** keys (`GEMINI_API_KEY` + `ANTHROPIC_API_KEY`) y el
+motor principal falla (p. ej. Gemini devuelve 429 por rate limit), el backend
+cae automáticamente a Claude. Esto te protege ante cortes del free tier sin
+intervención manual.
+
+### Desactivar IA
+
+Si no quieres exponer ninguna key ni usar IA:
+
+```env
+AI_ENABLED=false
+```
+
+Las funciones de generación devolverán error 503, pero el resto de la
+plataforma funciona normal.
+
+---
+
 ## Estructura de Archivos en el Servidor
 
 ```

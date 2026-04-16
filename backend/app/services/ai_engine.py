@@ -1,5 +1,6 @@
 """
-AI Engine: generates meeting minutes and project reports from data using Ollama (local) or Claude API.
+AI Engine: generates meeting minutes and project reports from data using
+Ollama (local), Claude API or Gemini API.
 """
 import time
 import httpx
@@ -314,6 +315,41 @@ async def generate_with_claude(prompt: str) -> dict:
     }
 
 
+async def generate_with_gemini(prompt: str) -> dict:
+    """Generate text using Google Gemini API (native REST endpoint)."""
+    start = time.time()
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{settings.gemini_model}:generateContent"
+    )
+    async with httpx.AsyncClient(timeout=120) as client:
+        response = await client.post(
+            url,
+            params={"key": settings.gemini_api_key},
+            headers={"content-type": "application/json"},
+            json={
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {
+                    "temperature": settings.ai_temperature,
+                    "maxOutputTokens": settings.gemini_max_tokens,
+                },
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+
+    elapsed_ms = int((time.time() - start) * 1000)
+    candidates = data.get("candidates") or []
+    parts = (candidates[0].get("content", {}).get("parts", []) if candidates else [])
+    text = "".join(p.get("text", "") for p in parts)
+    return {
+        "text": text,
+        "model": settings.gemini_model,
+        "generation_time_ms": elapsed_ms,
+        "engine": "gemini",
+    }
+
+
 async def _generate(prompt: str) -> dict:
     """Route to configured AI engine with fallback."""
     if not settings.ai_enabled:
@@ -333,6 +369,16 @@ async def _generate(prompt: str) -> dict:
         if not settings.anthropic_api_key:
             raise RuntimeError("Claude API key not configured. Set ANTHROPIC_API_KEY in .env")
         return await generate_with_claude(prompt)
+
+    elif engine == "gemini":
+        if not settings.gemini_api_key:
+            raise RuntimeError("Gemini API key not configured. Set GEMINI_API_KEY in .env")
+        try:
+            return await generate_with_gemini(prompt)
+        except Exception as e:
+            if settings.anthropic_api_key:
+                return await generate_with_claude(prompt)
+            raise RuntimeError(f"Gemini error: {e}. Configure ANTHROPIC_API_KEY for fallback.")
 
     else:
         raise RuntimeError(f"Unknown AI engine: {engine}")
