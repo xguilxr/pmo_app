@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     claude_model: str = "claude-sonnet-4-20250514"
     claude_max_tokens: int = 4096
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.0-flash"
+    gemini_max_tokens: int = 4096
     ai_temperature: float = 0.3
     ai_output_language: str = "es"
 
