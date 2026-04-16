@@ -9,6 +9,8 @@ can access these endpoints.  Provides:
 
 import os
 import platform
+import re
+import secrets
 import shutil
 from datetime import datetime
 from typing import Optional
@@ -25,6 +27,7 @@ from app.middleware.tenant import invalidate_tenant_cache
 from app.models.organization import Organization
 from app.models.program import Program
 from app.models.project import Project
+from app.models.role import Role
 from app.models.user import User
 
 router = APIRouter(prefix="/superadmin", tags=["Super Admin"])
@@ -45,6 +48,12 @@ class TenantCreate(BaseModel):
     secondary_color: str = "#6366F1"
     config_json: Optional[dict] = None
     is_active: bool = True
+    # Initial admin user — optional. If omitted, a default admin is auto-generated
+    # from the tenant slug + a random password (returned in the response once).
+    admin_username: Optional[str] = None
+    admin_email: Optional[EmailStr] = None
+    admin_full_name: Optional[str] = None
+    admin_password: Optional[str] = None
 
 
 class TenantUpdate(BaseModel):
@@ -87,8 +96,26 @@ class TenantResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TenantCreateResponse(TenantResponse):
+    """Tenant response including the auto-provisioned admin's credentials.
+
+    The password is only returned **once**, right after creation. Save it now —
+    it is stored hashed and cannot be recovered.
+    """
+    admin_user_id: int
+    admin_username: str
+    admin_email: str
+    admin_password: str  # plaintext, first and last time it's exposed
+
+
 class ProvisionRequest(BaseModel):
-    """Create a new tenant with an initial admin user in one step."""
+    """Create a new tenant with an initial admin user in one step.
+
+    All ``admin_*`` fields are optional. If omitted, the endpoint generates a
+    sensible default (``{slug}_admin`` username, contact email or
+    ``admin@{slug}.local``, random password) so *every* tenant ends up with a
+    working admin. The generated password is returned in the response once.
+    """
     # Organization fields
     name: str
     legal_name: Optional[str] = None
@@ -100,17 +127,19 @@ class ProvisionRequest(BaseModel):
     primary_color: str = "#3B82F6"
     secondary_color: str = "#6366F1"
     config_json: Optional[dict] = None
-    # Initial admin user fields
-    admin_username: str
-    admin_email: EmailStr
-    admin_full_name: str
-    admin_password: str
+    # Initial admin user fields (optional, auto-generated if not provided)
+    admin_username: Optional[str] = None
+    admin_email: Optional[EmailStr] = None
+    admin_full_name: Optional[str] = None
+    admin_password: Optional[str] = None
 
 
 class ProvisionResponse(BaseModel):
     tenant: TenantResponse
     admin_user_id: int
     admin_username: str
+    admin_email: str
+    admin_password: str  # plaintext, shown once so the operator can save it
     asset_directory: str
 
 
@@ -211,7 +240,6 @@ def get_tenant_detail(
 ):
     """Get tenant with full detail: programs, projects, users, requests."""
     from app.models.project_request import ProjectRequest
-    from app.models.role import Role
 
     org = db.query(Organization).filter(
         Organization.id == tenant_id, Organization.deleted_at.is_(None)
@@ -310,16 +338,52 @@ def get_tenant_detail(
     return resp
 
 
-@router.post("/tenants", response_model=TenantResponse, status_code=status.HTTP_201_CREATED)
+def _slugify(value: str) -> str:
+    """Normalize a string into a lowercase, dash-separated slug."""
+    value = re.sub(r"[^a-zA-Z0-9]+", "-", value or "").strip("-").lower()
+    return value or "tenant"
+
+
+def _resolve_admin_credentials(data: TenantCreate, slug: str) -> tuple[str, str, str, str]:
+    """Return (username, email, full_name, password) for the tenant admin.
+
+    Missing fields are auto-generated from the tenant slug so that *every*
+    tenant always ends up with a working admin user.
+    """
+    username = (data.admin_username or f"{slug}_admin").strip()
+    email = (
+        data.admin_email
+        or data.contact_email
+        or f"admin@{slug}.local"
+    )
+    full_name = (data.admin_full_name or f"Admin {data.name}").strip()
+    password = data.admin_password or secrets.token_urlsafe(12)
+    return username, str(email), full_name, password
+
+
+@router.post(
+    "/tenants",
+    response_model=TenantCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_tenant(
     data: TenantCreate,
     db: Session = Depends(get_db),
     admin: User = Depends(get_superadmin_user),
 ):
+    """Create a tenant **and** its initial admin user in one transaction.
+
+    Every tenant is guaranteed to have a working Administrador account. If the
+    caller does not supply ``admin_*`` fields, sensible defaults are generated
+    from the slug and a random password is returned once in the response.
+    """
+    slug = data.slug or _slugify(data.name)
+    username, email, full_name, password = _resolve_admin_credentials(data, slug)
+
     org = Organization(
         name=data.name,
         legal_name=data.legal_name,
-        slug=data.slug,
+        slug=slug,
         domain=data.domain,
         industry=data.industry,
         country=data.country,
@@ -335,23 +399,72 @@ def create_tenant(
     )
     db.add(org)
     try:
-        db.commit()
+        db.flush()
     except IntegrityError:
         db.rollback()
         raise HTTPException(
             status_code=400,
             detail="Ya existe un tenant con ese nombre o slug",
         )
+
+    new_admin = User(
+        username=username,
+        email=email,
+        full_name=full_name,
+        hashed_password=hash_password(password),
+        is_active=True,
+        is_superadmin=False,
+    )
+    db.add(new_admin)
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Ya existe un usuario con el username '{username}' o email '{email}'. "
+                "Indica admin_username / admin_email explicitos."
+            ),
+        )
+
+    new_admin.organizations.append(org)
+    admin_role = db.query(Role).filter(Role.name == "Administrador").first()
+    if admin_role:
+        new_admin.roles.append(admin_role)
+
+    db.commit()
     db.refresh(org)
+    db.refresh(new_admin)
 
     # Create static asset directory for this tenant
-    if org.slug:
-        _ensure_asset_dir(org.slug)
+    _ensure_asset_dir(org.slug)
+    invalidate_tenant_cache()
 
-    resp = TenantResponse.model_validate(org)
-    resp.user_count = 0
-    resp.project_count = 0
-    return resp
+    return TenantCreateResponse(
+        id=org.id,
+        name=org.name,
+        legal_name=org.legal_name,
+        slug=org.slug,
+        domain=org.domain,
+        industry=org.industry,
+        country=org.country,
+        contact_name=org.contact_name,
+        contact_email=org.contact_email,
+        contact_phone=org.contact_phone,
+        logo_url=org.logo_url,
+        primary_color=org.primary_color,
+        secondary_color=org.secondary_color,
+        config_json=org.config_json,
+        is_active=org.is_active,
+        created_at=org.created_at,
+        user_count=1,
+        project_count=0,
+        admin_user_id=new_admin.id,
+        admin_username=new_admin.username,
+        admin_email=new_admin.email,
+        admin_password=password,
+    )
 
 
 @router.patch("/tenants/{tenant_id}", response_model=TenantResponse)
@@ -435,10 +548,13 @@ def provision_tenant(
     db: Session = Depends(get_db),
     admin: User = Depends(get_superadmin_user),
 ):
-    """One-step tenant provisioning: create org + asset dir + initial admin user."""
+    """One-step tenant provisioning — thin wrapper around ``POST /tenants``.
 
-    # 1. Create organization
-    org = Organization(
+    Kept for backwards compatibility with existing frontend clients. Both
+    endpoints now share the same logic (``create_tenant``), so every tenant
+    always ends up with an initial admin user.
+    """
+    create = TenantCreate(
         name=data.name,
         legal_name=data.legal_name,
         slug=data.slug,
@@ -448,64 +564,25 @@ def provision_tenant(
         contact_email=data.contact_email,
         primary_color=data.primary_color,
         secondary_color=data.secondary_color,
-        config_json=data.config_json or {},
+        config_json=data.config_json,
         is_active=True,
-        created_by_id=admin.id,
+        admin_username=data.admin_username,
+        admin_email=data.admin_email,
+        admin_full_name=data.admin_full_name,
+        admin_password=data.admin_password,
     )
-    db.add(org)
-    try:
-        db.flush()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="Ya existe un tenant con ese nombre o slug",
-        )
+    result = create_tenant(create, db=db, admin=admin)
+    asset_dir = os.path.join(_TENANT_STATIC_ROOT, result.slug or data.slug)
 
-    # 2. Create initial admin user for this tenant
-    new_user = User(
-        username=data.admin_username,
-        email=data.admin_email,
-        full_name=data.admin_full_name,
-        hashed_password=hash_password(data.admin_password),
-        is_active=True,
-        is_superadmin=False,
+    tenant_data = result.model_dump(
+        exclude={"admin_user_id", "admin_username", "admin_email", "admin_password"}
     )
-    db.add(new_user)
-    try:
-        db.flush()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="Ya existe un usuario con ese username o email",
-        )
-
-    # Assign user to organization
-    new_user.organizations.append(org)
-
-    # Assign the "Administrador" role if it exists
-    from app.models.role import Role
-    admin_role = db.query(Role).filter(Role.name == "Administrador").first()
-    if admin_role:
-        new_user.roles.append(admin_role)
-
-    db.commit()
-    db.refresh(org)
-    db.refresh(new_user)
-
-    # 3. Create static asset directory
-    asset_dir = _ensure_asset_dir(data.slug)
-
-    # Build response with counts
-    tenant_resp = TenantResponse.model_validate(org)
-    tenant_resp.user_count = 1
-    tenant_resp.project_count = 0
-
     return ProvisionResponse(
-        tenant=tenant_resp,
-        admin_user_id=new_user.id,
-        admin_username=new_user.username,
+        tenant=TenantResponse.model_validate(tenant_data),
+        admin_user_id=result.admin_user_id,
+        admin_username=result.admin_username,
+        admin_email=result.admin_email,
+        admin_password=result.admin_password,
         asset_directory=asset_dir,
     )
 
