@@ -611,9 +611,28 @@ UPLOAD_DIR=/home/tuusuario/pmo_app/uploads
    - **Application path**: `pmo_app/backend`
    - **Application environment**: `Production`
 4. Clic en **Deploy** / **Desplegar**
-5. Al completar, veras la ruta del **virtualenv**, algo como
+5. Al completar, busca la ruta del **virtualenv**, algo como
    `/home/tuusuario/virtualenv/pmo_app/backend/3.10/`. **Anota esa ruta exacta**,
    la necesitas en B.5.
+
+   > **Si la ruta no aparece en la pantalla post-deploy**, tienes 3 formas de
+   > obtenerla:
+   >
+   > - **Opcion 1 (recomendada)**: vuelve a Application Manager, haz clic en el
+   >   nombre de la app (`pmo_api`) para abrir el detalle. Veras un campo
+   >   **"Enter to the virtual environment"** con un comando como
+   >   `source /home/tuusuario/virtualenv/pmo_app/backend/3.10/bin/activate && cd ...`.
+   >   La ruta del venv es todo lo que va antes de `/bin/activate`.
+   > - **Opcion 2 (por patron)**: cPanel siempre usa el mismo formato:
+   >   `/home/TUUSUARIO/virtualenv/pmo_app/backend/3.X/` donde `3.X` es la
+   >   version de Python que elegiste (p.ej. `3.10`, `3.11`, `3.12`). Sustituye
+   >   `TUUSUARIO` por tu usuario de cPanel (lo ves arriba a la derecha, o en
+   >   `/home/` por File Manager).
+   > - **Opcion 3 (verificacion visual)**: cPanel → **Administrador de
+   >   archivos** → navega a `/home/tuusuario/virtualenv/pmo_app/backend/` y
+   >   veras una carpeta con el numero de version (p.ej. `3.10`); esa es la
+   >   ruta completa del venv.
+
 6. En la misma pantalla hay una seccion **Configuration files** — Application
    Manager detecta automaticamente `passenger_wsgi.py` (ya esta en el repo) y
    `requirements.txt`. Clic en **Run Pip Install** o similar para instalar las
@@ -633,7 +652,7 @@ sola vez.
 3. En **Agregar un nuevo trabajo Cron**:
    - **Configuraciones comunes**: *Una vez por minuto* (lo dejamos cada
      minuto temporalmente y lo borramos despues)
-   - **Comando**: (reemplaza la ruta del venv con la de B.5 paso 5)
+   - **Comando**: (reemplaza la ruta del venv con la de B.4 paso 5)
      ```
      cd /home/tuusuario/pmo_app/backend && /home/tuusuario/virtualenv/pmo_app/backend/3.10/bin/python -m app.seed --demo >> /home/tuusuario/pmo_app/seed.log 2>&1
      ```
