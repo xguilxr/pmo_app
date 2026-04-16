@@ -476,6 +476,9 @@ Python venv + **uvicorn** corriendo como servicio de Windows (via NSSM) en
 la PC del dueño, expuesto al internet via **Cloudflare Tunnel**. Frontend
 estatico y MySQL en **HostGator**.
 
+- [`docs/deploy-demo-ngrok.md`](docs/deploy-demo-ngrok.md) — **ruta corta
+  para demos** (mismo backend NSSM + ngrok como tunnel publico, sin
+  comprar dominio)
 - [`docs/deploy-self-hosted.md`](docs/deploy-self-hosted.md) — guia canonica
   paso a paso (MySQL remoto en cPanel, venv + uvicorn + NSSM en tu PC,
   Cloudflare Tunnel, frontend en `public_html`)
@@ -498,6 +501,7 @@ Toda la documentacion vive en `docs/`:
 | Archivo | Contenido |
 |---------|-----------|
 | [`docs/setup-guide.md`](docs/setup-guide.md) | Setup de desarrollo local |
+| [`docs/deploy-demo-ngrok.md`](docs/deploy-demo-ngrok.md) | Demo rapido: mismo backend NSSM + ngrok (sin dominio) |
 | [`docs/deploy-self-hosted.md`](docs/deploy-self-hosted.md) | Deploy self-hosted (PC + Cloudflare Tunnel + HostGator) |
 | [`docs/deploy-flow.md`](docs/deploy-flow.md) | Flujo `dev`→`prod` y gestion de migraciones |
 | [`docs/demo-guiada.md`](docs/demo-guiada.md) | Guion para demos funcionales |

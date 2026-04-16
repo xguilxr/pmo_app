@@ -294,26 +294,24 @@ def get_tenant_detail(
             "budget": prj.budget or 0, "program_name": prog_name,
         })
 
-    # Users in this org
-    user_rows = db.execute(
-        text("""
-            SELECT u.id, u.username, u.full_name, u.email, u.is_active, u.last_login
-            FROM users u
-            JOIN user_organizations uo ON uo.user_id = u.id
-            WHERE uo.organization_id = :oid AND u.deleted_at IS NULL
-            ORDER BY u.full_name
-        """),
-        {"oid": org.id},
-    ).fetchall()
+    # Users in this org — single query with ORM, roles auto-loaded via selectin
+    user_objs = (
+        db.query(User)
+        .join(User.organizations)
+        .filter(Organization.id == org.id, User.deleted_at.is_(None))
+        .order_by(User.full_name)
+        .all()
+    )
     users_data = []
-    for row in user_rows:
-        user_obj = db.query(User).get(row[0])
-        roles = [r.name for r in user_obj.roles] if user_obj else []
+    for u in user_objs:
         users_data.append({
-            "id": row[0], "username": row[1], "full_name": row[2],
-            "email": row[3], "is_active": row[4],
-            "last_login": str(row[5]) if row[5] else None,
-            "roles": roles,
+            "id": u.id,
+            "username": u.username,
+            "full_name": u.full_name,
+            "email": u.email,
+            "is_active": u.is_active,
+            "last_login": str(u.last_login) if u.last_login else None,
+            "roles": [r.name for r in (u.roles or [])],
         })
 
     # Project requests

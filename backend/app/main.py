@@ -5,8 +5,11 @@ import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+import traceback
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 
@@ -159,6 +162,22 @@ os.makedirs(uploads_dir, exist_ok=True)
 tenant_static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "tenants")
 os.makedirs(tenant_static_dir, exist_ok=True)
 app.mount("/static/tenants", StaticFiles(directory=tenant_static_dir), name="tenant-assets")
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Log full traceback for any uncaught error and return a debuggable JSON body."""
+    tb = traceback.format_exc()
+    _log.error("UNHANDLED %s %s: %s\n%s", request.method, request.url.path, exc, tb)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal server error",
+            "error_type": exc.__class__.__name__,
+            "error_message": str(exc),
+            "path": request.url.path,
+        },
+    )
 
 
 @app.get("/api/health")
