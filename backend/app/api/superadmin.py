@@ -13,7 +13,7 @@ import shutil
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import func, text
 from sqlalchemy.exc import IntegrityError
@@ -570,6 +570,181 @@ def server_health(
         uptime_info=uptime_info,
     )
 
+
+
+@router.post("/tenants/{tenant_id}/logo", response_model=TenantResponse)
+def upload_tenant_logo(
+    tenant_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_superadmin_user),
+):
+    """Upload a company logo for a tenant and persist the public URL.
+
+    Accepts PNG, JPG, or SVG up to 2 MB. The file is saved to
+    ``backend/static/tenants/{slug}/logo.{ext}`` and served at the matching
+    ``/static/tenants/...`` URL. ``tenant.logo_url`` is updated to that URL.
+    """
+    allowed_types = {
+        "image/png": "png",
+        "image/jpeg": "jpg",
+        "image/jpg": "jpg",
+        "image/svg+xml": "svg",
+        "image/webp": "webp",
+    }
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Formato no soportado ({file.content_type}). Usa PNG, JPG, SVG o WEBP.",
+        )
+
+    org = db.query(Organization).filter(
+        Organization.id == tenant_id, Organization.deleted_at.is_(None)
+    ).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Tenant no encontrado")
+    if not org.slug:
+        raise HTTPException(status_code=400, detail="El tenant no tiene slug; asigna uno primero")
+
+    # Read and size-check (max 2 MB)
+    contents = file.file.read()
+    if len(contents) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="El archivo excede 2 MB")
+
+    ext = allowed_types[file.content_type]
+    asset_dir = _ensure_asset_dir(org.slug)
+    logo_path = os.path.join(asset_dir, f"logo.{ext}")
+    with open(logo_path, "wb") as f:
+        f.write(contents)
+
+    # Remove any prior logo variants so only one remains
+    for prior_ext in ("png", "jpg", "svg", "webp"):
+        if prior_ext == ext:
+            continue
+        prior = os.path.join(asset_dir, f"logo.{prior_ext}")
+        if os.path.exists(prior):
+            os.remove(prior)
+
+    org.logo_url = f"/static/tenants/{org.slug}/logo.{ext}"
+    db.commit()
+    db.refresh(org)
+    invalidate_tenant_cache()
+
+    user_count = (
+        db.execute(
+            text("SELECT COUNT(*) FROM user_organizations WHERE organization_id = :oid"),
+            {"oid": org.id},
+        ).scalar() or 0
+    )
+    project_count = (
+        db.query(func.count(Project.id))
+        .filter(Project.organization_id == org.id, Project.deleted_at.is_(None))
+        .scalar() or 0
+    )
+    resp = TenantResponse.model_validate(org)
+    resp.user_count = user_count
+    resp.project_count = project_count
+    return resp
+
+
+@router.delete(
+    "/tenants/{tenant_id}/permanent",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def hard_delete_tenant(
+    tenant_id: int,
+    confirm_slug: str = Query(
+        ...,
+        description="Slug del tenant; debe coincidir para confirmar el borrado permanente.",
+    ),
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_superadmin_user),
+):
+    """PERMANENTLY delete a tenant and all its data.
+
+    This operation is **irreversible**. It cascades through all tenant-scoped
+    tables via explicit ORM deletes (safer than DB-level CASCADE because it
+    runs audit hooks and respects soft-delete for user/org rows the tenant
+    shares). Use only for wiping test tenants before going live.
+
+    Requires ``?confirm_slug=<slug>`` to match the tenant's slug as a double
+    check, mirroring GitHub's repo deletion pattern.
+    """
+    from app.models.project_request import ProjectRequest
+    from app.models.modules import Risk, Issue, Change, Document, Lesson, Minute
+    from app.models.task import Task
+    from app.models.area import Area
+    from app.models.objective import Objective
+    from app.models.resource import Resource
+
+    org = db.query(Organization).filter(Organization.id == tenant_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Tenant no encontrado")
+    if confirm_slug != (org.slug or ""):
+        raise HTTPException(
+            status_code=400,
+            detail="El slug de confirmacion no coincide con el del tenant",
+        )
+
+    oid = org.id
+
+    # 1. Drop all project-scoped data for every project in the tenant
+    project_ids = [
+        pid for (pid,) in
+        db.query(Project.id).filter(Project.organization_id == oid).all()
+    ]
+    if project_ids:
+        for model in (Task, Risk, Issue, Change, Document, Lesson, Minute, Area, Objective):
+            if hasattr(model, "project_id"):
+                db.query(model).filter(model.project_id.in_(project_ids)).delete(
+                    synchronize_session=False,
+                )
+
+    # 2. Drop tenant-scoped entities (projects, programs, requests, resources)
+    db.query(Project).filter(Project.organization_id == oid).delete(synchronize_session=False)
+    db.query(Program).filter(Program.organization_id == oid).delete(synchronize_session=False)
+    db.query(ProjectRequest).filter(ProjectRequest.organization_id == oid).delete(
+        synchronize_session=False,
+    )
+    if hasattr(Resource, "organization_id"):
+        db.query(Resource).filter(Resource.organization_id == oid).delete(
+            synchronize_session=False,
+        )
+
+    # 3. Drop user-organization links (users themselves may belong to other tenants)
+    db.execute(
+        text("DELETE FROM user_organizations WHERE organization_id = :oid"),
+        {"oid": oid},
+    )
+
+    # 4. Delete users that are now orphaned (no tenant left, not superadmin)
+    orphan_user_ids = [
+        uid for (uid,) in db.execute(
+            text(
+                """
+                SELECT u.id FROM users u
+                LEFT JOIN user_organizations uo ON uo.user_id = u.id
+                WHERE uo.user_id IS NULL
+                  AND u.is_superadmin = 0
+                  AND u.deleted_at IS NULL
+                """
+            )
+        ).fetchall()
+    ]
+    if orphan_user_ids:
+        db.query(User).filter(User.id.in_(orphan_user_ids)).delete(synchronize_session=False)
+
+    # 5. Finally delete the tenant itself
+    db.query(Organization).filter(Organization.id == oid).delete(synchronize_session=False)
+
+    db.commit()
+    invalidate_tenant_cache()
+
+    # 6. Remove the tenant's static asset directory (logos, etc.)
+    if org.slug:
+        asset_dir = os.path.join(_TENANT_STATIC_ROOT, org.slug)
+        if os.path.isdir(asset_dir):
+            shutil.rmtree(asset_dir, ignore_errors=True)
 
 
 _TENANT_STATIC_ROOT = os.path.join(

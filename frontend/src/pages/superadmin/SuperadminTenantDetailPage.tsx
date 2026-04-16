@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useRef, useState } from 'react';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Building2, Users, FolderKanban, Layers,
-  FileText, Power, PowerOff, Edit2, Save, X,
+  FileText, Power, PowerOff, Edit2, Save, X, Upload, Trash2, AlertTriangle,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
@@ -22,6 +22,7 @@ interface TenantDetail {
   contact_name: string | null;
   contact_email: string | null;
   contact_phone: string | null;
+  logo_url: string | null;
   primary_color: string | null;
   secondary_color: string | null;
   is_active: boolean;
@@ -95,11 +96,17 @@ const statusLabels: Record<string, string> = {
 
 export default function SuperadminTenantDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { toastError } = useToast();
+  const navigate = useNavigate();
+  const { toastError, toastSuccess } = useToast();
   const [activeTab, setActiveTab] = useState<'overview' | 'programs' | 'projects' | 'users' | 'requests'>('overview');
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, string | boolean>>({});
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const { data: tenant, loading, refetch } = useApi(
     () => api.get<TenantDetail>(`/superadmin/tenants/${id}/detail`), [id]
@@ -128,6 +135,43 @@ export default function SuperadminTenantDetailPage() {
       toastError(err instanceof Error ? err.message : 'Error al cambiar estado del tenant');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toastError('El archivo excede 2 MB');
+      return;
+    }
+    setUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      await api.postForm(`/superadmin/tenants/${id}/logo`, formData);
+      toastSuccess('Logo actualizado');
+      refetch();
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Error al subir el logo');
+    } finally {
+      setUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+    }
+  };
+
+  const handleHardDelete = async () => {
+    if (!tenant || !tenant.slug || deleteConfirm !== tenant.slug) return;
+    setDeleting(true);
+    try {
+      await api.delete(
+        `/superadmin/tenants/${id}/permanent?confirm_slug=${encodeURIComponent(tenant.slug)}`,
+      );
+      toastSuccess('Tenant eliminado permanentemente');
+      navigate('/superadmin');
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Error al eliminar el tenant');
+      setDeleting(false);
     }
   };
 
@@ -169,6 +213,13 @@ export default function SuperadminTenantDetailPage() {
             >
               {tenant.is_active ? <><PowerOff className="w-3.5 h-3.5" /> Desactivar</> : <><Power className="w-3.5 h-3.5" /> Activar</>}
             </button>
+            <button
+              onClick={() => { setShowDeleteModal(true); setDeleteConfirm(''); }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
+              title="Eliminar permanentemente"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Eliminar
+            </button>
             <Link
               to="/superadmin"
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border text-[12px] text-text-secondary hover:bg-surface-hover transition-colors"
@@ -182,11 +233,38 @@ export default function SuperadminTenantDetailPage() {
       {/* Tenant Header Card */}
       <div className="liquid-glass-border rounded-2xl p-6 card-glow">
         <div className="flex items-start gap-5">
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shrink-0"
-            style={{ backgroundColor: tenant.primary_color || '#3B82F6' }}
-          >
-            {tenant.name.charAt(0).toUpperCase()}
+          <div className="relative group shrink-0">
+            {tenant.logo_url ? (
+              <img
+                src={tenant.logo_url}
+                alt={`Logo ${tenant.name}`}
+                className="w-16 h-16 rounded-2xl object-contain bg-white/5 p-1.5"
+              />
+            ) : (
+              <div
+                className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-2xl"
+                style={{ backgroundColor: tenant.primary_color || '#3B82F6' }}
+              >
+                {tenant.name.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => logoInputRef.current?.click()}
+              disabled={uploadingLogo}
+              className="absolute inset-0 flex items-center justify-center gap-1 bg-black/60 text-white text-[10px] rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40"
+              title="Subir logo (PNG, JPG, SVG, WEBP — max 2 MB)"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              {uploadingLogo ? '...' : 'Logo'}
+            </button>
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/svg+xml,image/webp"
+              className="hidden"
+              onChange={handleLogoUpload}
+            />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-1">
@@ -466,6 +544,54 @@ export default function SuperadminTenantDetailPage() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Hard delete confirmation modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-surface-elevated border border-red-500/30 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+              </div>
+              <h3 className="text-[15px] font-medium text-text-primary">Eliminar tenant permanentemente</h3>
+            </div>
+            <p className="text-[12px] text-text-secondary mb-2">
+              Esto borrara <strong>todos los datos</strong> del tenant <strong>{tenant.name}</strong>:
+              programas, proyectos, solicitudes, usuarios exclusivos, riesgos, issues, minutas y archivos.
+            </p>
+            <p className="text-[12px] text-red-400 mb-4">
+              Esta accion <strong>no se puede deshacer</strong>.
+            </p>
+            <p className="text-[11px] text-text-tertiary mb-2">
+              Para confirmar, escribe el slug <code className="text-red-400">{tenant.slug}</code> a continuacion:
+            </p>
+            <input
+              type="text"
+              value={deleteConfirm}
+              onChange={e => setDeleteConfirm(e.target.value)}
+              placeholder={tenant.slug || ''}
+              className="w-full px-3 py-2 rounded-xl bg-surface-secondary border border-border text-[13px] text-text-primary mb-4 focus:outline-none focus:ring-2 focus:ring-red-500/40"
+              autoFocus
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="px-4 py-2 rounded-xl border border-border text-[13px] text-text-secondary hover:bg-surface-hover transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleHardDelete}
+                disabled={deleting || deleteConfirm !== tenant.slug}
+                className="px-4 py-2 rounded-xl bg-red-500 text-white text-[13px] font-medium hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                {deleting ? 'Eliminando...' : 'Eliminar permanentemente'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

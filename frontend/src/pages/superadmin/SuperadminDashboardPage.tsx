@@ -17,6 +17,7 @@ interface Tenant {
   industry: string | null;
   country: string | null;
   contact_email: string | null;
+  logo_url: string | null;
   primary_color: string | null;
   secondary_color: string | null;
   is_active: boolean;
@@ -205,12 +206,20 @@ export default function SuperadminDashboardPage() {
           >
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div
-                  className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-[15px]"
-                  style={{ backgroundColor: tenant.primary_color || '#3B82F6' }}
-                >
-                  {tenant.name.charAt(0).toUpperCase()}
-                </div>
+                {tenant.logo_url ? (
+                  <img
+                    src={tenant.logo_url}
+                    alt={`Logo ${tenant.name}`}
+                    className="w-11 h-11 rounded-xl object-contain bg-white/5 p-1"
+                  />
+                ) : (
+                  <div
+                    className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-[15px]"
+                    style={{ backgroundColor: tenant.primary_color || '#3B82F6' }}
+                  >
+                    {tenant.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div>
                   <h3 className="text-[14px] font-medium text-text-primary group-hover:text-accent transition-colors">
                     {tenant.name}
