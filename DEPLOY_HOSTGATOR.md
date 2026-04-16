@@ -39,17 +39,94 @@ Guia paso a paso para desplegar la plataforma PMO en un hosting HostGator con cP
 
 ## Paso 2: Habilitar Acceso SSH
 
-1. En cPanel, busca **Security** > **SSH Access** (o **Manage SSH Keys**)
-2. Si no tienes llave SSH:
-   - Clic en **Generate a New Key**
-   - Deja los defaults, pon una passphrase
-   - Clic en **Generate Key**
-   - Regresa y haz clic en **Manage** junto a la llave publica, luego **Authorize**
-3. Ahora puedes conectarte por SSH:
-   ```bash
-   ssh tuusuario@tudominio.com -p 2222
-   ```
-   (HostGator usa puerto **2222** para SSH, no el 22 estandar)
+> **Importante: WHM vs cPanel**
+>
+> - **WHM** (WebHost Manager, normalmente puerto **2087**): interfaz de
+>   administracion a nivel servidor/reseller. Aqui se **autoriza** el acceso
+>   shell para cada cuenta de cPanel.
+> - **cPanel** (puerto **2083**): interfaz de la cuenta final. Aqui se
+>   **gestionan las llaves** SSH una vez que el shell ya esta habilitado.
+>
+> Si entras a la URL y ves un menu con secciones como "Account Information",
+> "Account Functions", "Server Configuration", "Service Configuration", etc.,
+> estas en **WHM**. Si ves "Files", "Databases", "Domains", "Email", estas en
+> **cPanel**.
+
+### 2.1 (Solo WHM) Habilitar Shell Access para la cuenta
+
+Si tienes WHM (eres reseller/admin), primero hay que habilitar el shell de la
+cuenta cPanel; de lo contrario la opcion "SSH Access" **no aparecera** dentro
+de cPanel o aparecera deshabilitada.
+
+1. Entra a WHM: `https://tudominio.com:2087` (o el hostname del servidor)
+2. En la barra de busqueda superior izquierda escribe **"shell"**
+3. Abre **Manage Shell Access** (ruta: *Home > Account Functions > Manage
+   Shell Access*)
+4. Localiza la cuenta cPanel a la que vas a desplegar
+5. Cambia el dropdown a **Normal Shell** (acceso completo) o **Jailed Shell**
+   (recomendado: aislado al home del usuario, suficiente para este deploy)
+6. Clic en **Save** (los cambios se aplican de inmediato)
+
+> Si tu plan de HostGator es compartido y no ves WHM, el shell viene
+> habilitado por defecto solo en planes Business+. En planes Hatchling/Baby
+> normalmente hay que **abrir un ticket** a soporte de HostGator pidiendo
+> "habilitar Jailed Shell para mi cuenta cPanel". Suele tomar 5-15 min.
+
+### 2.2 (Opcional WHM) Confirmar que el servicio SSH escucha
+
+Tambien desde WHM puedes verificar/abrir el puerto:
+
+1. Busca **"SSH Configuration"** (*Home > Service Configuration > SSH Password
+   Authorization Tweak* o *SSH Server Configuration*)
+2. Confirma que el puerto sea **2222** (estandar HostGator) o el que use tu
+   servidor
+3. Si usas **ConfigServer Firewall (CSF)** y el puerto esta bloqueado: busca
+   **"ConfigServer Security & Firewall"** > *Firewall Configuration* > seccion
+   `TCP_IN` y agrega `2222`
+
+### 2.3 (cPanel) Generar y autorizar la llave SSH
+
+Ahora si, entra a **cPanel** del usuario destino:
+`https://tudominio.com:2083` o `https://tudominio.com/cpanel`
+
+1. En el buscador de cPanel escribe **"ssh"**
+2. Abre **SSH Access** (a veces aparece como **Manage SSH Keys** o
+   **SSH/Shell Access**, en la seccion **Security**)
+3. Clic en **Manage SSH Keys**
+4. **Import Key** (recomendado si ya tienes una llave en tu maquina) o
+   **Generate a New Key**:
+   - Si generas: deja defaults, pon una passphrase, clic en **Generate Key**
+5. En la lista de llaves publicas, junto a la nueva llave, clic en **Manage** >
+   **Authorize**
+6. Si generaste la llave en el servidor, descarga la **privada** desde la misma
+   pantalla y guardala en tu maquina como `~/.ssh/hostgator_pmo` con permisos
+   `chmod 600`
+
+### 2.4 Probar la conexion
+
+Desde tu maquina local:
+
+```bash
+# Si importaste tu llave existente
+ssh tuusuario@tudominio.com -p 2222
+
+# Si descargaste la privada generada en el servidor
+ssh -i ~/.ssh/hostgator_pmo tuusuario@tudominio.com -p 2222
+```
+
+> HostGator usa el puerto **2222** para SSH, no el 22 estandar. Si falla con
+> "Connection refused" revisa que el shell este habilitado (Paso 2.1) y el
+> firewall permita 2222 (Paso 2.2).
+
+### 2.5 Alternativa rapida: Terminal en cPanel
+
+Si solo quieres ejecutar comandos sin configurar llaves locales, muchos
+cPanel tienen un **Terminal** integrado:
+
+1. En cPanel busca **Terminal** (seccion **Advanced**)
+2. Acepta el aviso y tendras una shell del servidor en el navegador
+
+Sirve para los pasos 3-8 de esta guia (no para `scp` desde tu maquina, paso 9).
 
 ---
 
@@ -308,6 +385,34 @@ RewriteRule ^ index.html [L]
 ---
 
 ## Troubleshooting
+
+### "No veo SSH Access en cPanel" / "La opcion esta deshabilitada"
+
+Sintoma: entras a cPanel, buscas "ssh" y no aparece nada, o aparece pero al
+abrirlo dice "Shell access has been disabled for this account".
+
+Causa: el shell no esta habilitado a nivel servidor.
+
+Solucion:
+1. Si tienes WHM: ve a *Account Functions > Manage Shell Access* y pon
+   **Jailed Shell** para tu cuenta (ver Paso 2.1).
+2. Si NO tienes WHM (plan compartido sin reseller): abre un ticket a soporte
+   de HostGator con este texto:
+
+   > Hola, necesito habilitar Jailed Shell (SSH) en mi cuenta cPanel
+   > `tuusuario` para poder hacer deploy de una aplicacion Python. Por favor
+   > confirmen el puerto SSH del servidor.
+
+3. Mientras esperan respuesta, puedes adelantar los pasos 1, 9 y 10 que se
+   hacen desde **File Manager** sin SSH.
+
+### "Permission denied (publickey)" al conectar por SSH
+
+- Verifica que **autorizaste** la llave publica en cPanel (Paso 2.3 punto 5)
+- Verifica que usas el puerto correcto: `-p 2222`
+- Si usas llave generada en el servidor, asegurate que la privada local
+  tiene permisos `600`: `chmod 600 ~/.ssh/hostgator_pmo`
+- Prueba con `-v` para ver detalles: `ssh -v -p 2222 tuusuario@tudominio.com`
 
 ### "502 Bad Gateway" o "Application Error"
 
