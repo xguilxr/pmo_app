@@ -6,13 +6,6 @@ import { api } from '../services/api';
 import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
 
-// Sample minutes for display before backend is connected
-const sampleMinutes = [
-  { id: 1, folio: 'MIN-2026-001', title: 'Kickoff Migración ERP', meeting_date: '2026-01-20', project: 'Migración ERP SAP', source: 'manual' },
-  { id: 2, folio: 'MIN-2026-002', title: 'Revisión Sprint 3 - Portal B2B', meeting_date: '2026-03-15', project: 'Portal Clientes B2B', source: 'ai_generated' },
-  { id: 3, folio: 'MIN-2026-003', title: 'Comité de Riesgos CRM', meeting_date: '2026-03-22', project: 'Implementación CRM Salesforce', source: 'ai_generated' },
-];
-
 interface ApiMinute {
   id: number;
   folio: string;
@@ -61,7 +54,7 @@ export default function MinutesPage() {
   const { data: apiMinutes, loading, error: fetchError, refetch } = useApi<ApiMinute[]>(() => api.get('/minutes'), []);
   const { data: apiProjects } = useApi<{ id: number; name: string; phase: string }[]>(() => api.get('/projects'), []);
 
-  const minutes: Minute[] = apiMinutes ? apiMinutes.map(mapApiMinute) : sampleMinutes;
+  const minutes: Minute[] = apiMinutes ? apiMinutes.map(mapApiMinute) : [];
 
   const activeProjects = (apiProjects || []).filter(p => p.phase !== 'Cerrado');
 

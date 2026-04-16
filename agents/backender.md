@@ -18,19 +18,23 @@ Desarrollador backend de la plataforma PMO. Construye la API, lógica de negocio
 
 ## Stack
 - Python 3.11+
-- Framework: FastAPI
-- ORM: SQLAlchemy 2.0
-- Auth: JWT con python-jose
-- Validación: Pydantic v2
-- Server: Uvicorn (async) / Gunicorn (production)
-- Base de datos: MySQL 8.0 (HostGator/cPanel)
-- Tests: pytest
+- Framework: FastAPI (>=0.115)
+- ORM: SQLAlchemy 2.0 (>=2.0.30)
+- Migraciones: Alembic (>=1.13)
+- Driver MySQL: PyMySQL + cryptography
+- Auth: JWT con python-jose + bcrypt (passlib)
+- Validacion: Pydantic v2 + pydantic-settings
+- Server: Uvicorn (dev) / Passenger/Phusion via cPanel (prod HostGator)
+- Base de datos: MySQL 8.0 (charset utf8mb4)
+- Tests: pytest (en `backend/tests/`)
+- Helpers compartidos: `app/utils/crud_helpers.py` (get_or_404, apply_update, soft_delete) y `app/utils/tenant_query.py`
 
 ## Reglas
-- Toda ruta debe estar protegida por autenticación excepto login y health check
+- Toda ruta debe estar protegida por autenticacion excepto login, password reset y health check
+- Multi-tenant: usar `get_current_tenant` dependency para resolver la organizacion activa
 - Validar inputs con Pydantic models
-- Respuestas en formato estándar: `{ "status": "ok|error", "data": {}, "message": "" }`
-- Logging estructurado en cada operación crítica
+- Usar helpers de `crud_helpers.py` para operaciones CRUD repetidas
+- Logging estructurado en cada operacion critica
 - Variables sensibles solo desde .env, nunca hardcoded
-- Endpoints documentados con OpenAPI/Swagger
-- Códigos de error consistentes y descriptivos
+- Endpoints documentados automaticamente con OpenAPI/Swagger (`/docs`, `/redoc`)
+- Codigos de error consistentes y descriptivos (HTTPException con detail en espanol)

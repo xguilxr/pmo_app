@@ -67,14 +67,10 @@ export default function RequestsPage() {
   const [form, setForm] = useState({ projectName: '', description: '', objective: '', businessCase: '', requestedBy: '', sponsorEmail: '', organization: '', organizationId: 0, estimatedBudget: 0, priority: 'Media', startDate: '', strategic_alignment: '', what_if_not_done: '', key_stakeholders: '', expected_deliverables: '' });
   const { data: orgs } = useApi(() => api.get<{id: number; name: string}[]>('/organizations').catch(() => []), []);
 
-  // Fetch from API with fallback to mock
+  // Fetch from API; useApi handles errors
   const { data: apiRequests, loading, refetch } = useApi(async () => {
-    try {
-      const raw = await api.get<ApiRequestResponse[]>('/requests');
-      return raw.map(mapApiRequest);
-    } catch {
-      return [];
-    }
+    const raw = await api.get<ApiRequestResponse[]>('/requests');
+    return raw.map(mapApiRequest);
   }, []);
 
   useEffect(() => {

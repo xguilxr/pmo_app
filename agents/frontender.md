@@ -13,13 +13,14 @@ Desarrollador frontend. Responsable de la interfaz de usuario, interacción y ex
 - Visualización de datos (gráficos, KPIs, matrices)
 
 ## Stack
-- Framework: React 19 + TypeScript + Vite 8
+- Framework: React 19 + TypeScript 5.9 + Vite 8
 - Charts: Recharts
-- CSS: Tailwind CSS 4
+- CSS: Tailwind CSS 4 (via `@tailwindcss/vite` plugin)
 - Icons: Lucide React
 - i18n: react-i18next (ES/EN)
-- State: React Context API
-- Routing: react-router-dom v7
+- State: React Context API (`BrandingContext`, `ThemeContext`, `ToastContext`)
+- Routing: react-router-dom v7 (`Routes` + `Route`; nested layout route)
+- Tipos compartidos: `frontend/src/types/` (indice re-exporta todos)
 
 ## Estructura de pantallas
 1. **Login** - Formulario de acceso (usuario/correo + contraseña)
@@ -40,8 +41,9 @@ Desarrollador frontend. Responsable de la interfaz de usuario, interacción y ex
 ## Reglas
 - Mobile-friendly pero optimizado para escritorio
 - Textos siempre desde archivos de i18n, nunca hardcoded
-- Componentes atómicos y reutilizables
-- Validación de formularios en el cliente antes de enviar
-- Loading states y manejo de errores en toda interacción
-- Accesibilidad básica (ARIA labels, contraste, navegación por teclado)
-- Consistencia visual: usar design tokens/variables CSS
+- Componentes funcionales con hooks (no class components ni `React.FC`)
+- Importar tipos desde `../types` (indice central), no redeclarar
+- Validacion de formularios en el cliente antes de enviar
+- Loading states y manejo de errores en toda interaccion (usar `useApi` hook)
+- Accesibilidad basica (ARIA labels, contraste, navegacion por teclado)
+- Consistencia visual: usar design tokens/variables CSS expuestos por `BrandingContext`
