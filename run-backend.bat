@@ -49,4 +49,4 @@ call "%_VENV_ACTIVATE%"
 
 REM Entrar a backend y arrancar uvicorn
 cd backend
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8080 --log-config log_config.yaml
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8080
