@@ -128,7 +128,7 @@ def export_project_xlsx(
         bottom=Side(style='thin', color='D1D5DB'),
     )
 
-    def write_sheet(ws, headers, rows):
+    def write_sheet(ws: object, headers: list[str], rows: list[list[str | int | float | None]]) -> None:
         for col_idx, h in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col_idx, value=h)
             cell.font = header_font

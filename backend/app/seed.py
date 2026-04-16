@@ -18,12 +18,7 @@ from app.models.program import Program
 from app.models.project import Project
 from app.models.project_request import ProjectRequest
 from app.models.modules import Risk, Issue, Change, Document, Lesson, Minute
-from app.models.task import Task, TaskDependency
-from app.models.area import ProjectArea
-from app.models.objective import ProjectObjective
-from app.models.audit import AuditLog
-from app.models.report import ProgressReport
-from app.models.backlog import BacklogItem
+import app.models  # noqa: F401 - register all models with SQLAlchemy mapper
 from app.auth.security import hash_password
 
 

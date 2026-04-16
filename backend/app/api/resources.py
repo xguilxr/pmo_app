@@ -17,8 +17,6 @@ from app.services.folio import generate_folio
 router = APIRouter(prefix="/resources", tags=["Resources"])
 
 
-# ── Schemas ──────────────────────────────────────────────────────────────────
-
 class ResourceCreate(BaseModel):
     name: str
     email: Optional[str] = None
@@ -84,8 +82,6 @@ class AssignResourcePayload(BaseModel):
     role: Optional[str] = None
 
 
-# ── Work Log Schemas ─────────────────────────────────────────────────────────
-
 class WorkLogCreate(BaseModel):
     resource_id: int
     project_id: Optional[int] = None
@@ -108,8 +104,6 @@ class WorkLogResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-# ── Availability Schemas ─────────────────────────────────────────────────────
-
 class AvailabilityCreate(BaseModel):
     resource_id: int
     available_date: date
@@ -127,8 +121,6 @@ class AvailabilityResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
-
-# ── Resource CRUD ────────────────────────────────────────────────────────────
 
 @router.get("", response_model=list[ResourceResponse])
 def list_resources(
@@ -179,8 +171,6 @@ def delete_resource(resource_id: int, db: Session = Depends(get_db), current_use
     soft_delete(db, get_or_404(db, Resource, resource_id, detail="Recurso no encontrado"))
 
 
-# ── Project-Resource Assignment ──────────────────────────────────────────────
-
 @router.post("/projects/{project_id}/assign", status_code=status.HTTP_201_CREATED)
 def assign_resource_to_project(
     project_id: int,
@@ -210,8 +200,6 @@ def unassign_resource(project_id: int, resource_id: int, db: Session = Depends(g
     )
     db.commit()
 
-
-# ── Work Logs ────────────────────────────────────────────────────────────────
 
 @router.get("/work-logs", response_model=list[WorkLogResponse])
 def list_work_logs(
@@ -258,8 +246,6 @@ def delete_work_log(log_id: int, db: Session = Depends(get_db), current_user: Us
         resource.hours_worked = max(0, (resource.hours_worked or 0) - wl.hours)
     db.commit()
 
-
-# ── Availability ─────────────────────────────────────────────────────────────
 
 @router.get("/availability", response_model=list[AvailabilityResponse])
 def list_availability(

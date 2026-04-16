@@ -6,13 +6,21 @@ Consolidates repeated patterns across all API route files:
 - partial update (model_dump + setattr loop)
 """
 
+from __future__ import annotations
+
 from datetime import datetime, timezone
+from typing import TypeVar
 
 from fastapi import HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.database import Base
 
-def get_or_404(db: Session, model, record_id: int, *, detail: str = "Registro no encontrado"):
+T = TypeVar("T", bound=Base)
+
+
+def get_or_404(db: Session, model: type[T], record_id: int, *, detail: str = "Registro no encontrado") -> T:
     """Load a record by ID, excluding soft-deleted records. Raise 404 if not found.
 
     Usage::
@@ -25,7 +33,7 @@ def get_or_404(db: Session, model, record_id: int, *, detail: str = "Registro no
     return obj
 
 
-def apply_update(db: Session, obj, data) -> None:
+def apply_update(db: Session, obj: Base, data: BaseModel) -> None:
     """Apply a Pydantic partial-update schema to a SQLAlchemy model instance.
 
     Iterates over ``data.model_dump(exclude_unset=True)`` and sets each
@@ -42,7 +50,7 @@ def apply_update(db: Session, obj, data) -> None:
     db.refresh(obj)
 
 
-def soft_delete(db: Session, obj) -> None:
+def soft_delete(db: Session, obj: Base) -> None:
     """Mark a record as soft-deleted by setting ``deleted_at`` to now(UTC), then commit.
 
     Usage::
