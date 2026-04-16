@@ -13,6 +13,12 @@ Esta guia cubre tanto planes **Shared/Business** (solo cPanel) como planes
 >   feature SSH deshabilitada): **salta el Paso 2** y usa la seccion
 >   [Ruta B: Deploy 100% desde cPanel UI](#ruta-b-deploy-100-desde-cpanel-ui)
 >   que usa Git Version Control + Application Manager + Cron Jobs.
+>
+> **Si tu cPanel NO soporta Python** (Application Manager solo ofrece Node.js,
+> sin selector de version de Python al registrar la app), ni Ruta A ni Ruta B
+> funcionaran. Usa [deploy-render.md](./deploy-render.md) para desplegar el
+> backend en Render free tier con el frontend en HostGator, mientras el
+> soporte de HostGator habilita Python (si es que tu plan lo permite).
 
 ---
 
@@ -552,18 +558,14 @@ Python al registrar la app.
 
 > **Si no hay soporte Python en tu cPanel**, tienes tres opciones:
 >
-> 1. **Pedir a soporte HostGator que lo habiliten** (suele tomar 5-30 min).
->    Texto de ticket sugerido:
->    > Hola, mi cuenta cPanel `tuusuario` necesita **Setup Python App**
->    > (Passenger Python / cPanel Python Selector) habilitado para desplegar
->    > una app FastAPI. ¿Pueden activar el modulo Python en mi paquete?
->    > Gracias.
-> 2. **Backend externo + frontend en HostGator**: despliega el backend Python
->    en Railway / Render / Fly.io / PythonAnywhere (tiene free tier suficiente
->    para demos), deja el frontend estatico en `public_html` de HostGator, y
->    en B.6 ajusta `VITE_API_URL` al dominio del backend externo. El proxy
->    `.htaccess` de B.7 ya **no aplica** en ese caso — cambia las CORS del
->    backend externo para aceptar tu dominio HostGator.
+> 1. **Pedir a soporte HostGator que lo habiliten** (suele tomar 5-30 min,
+>    a veces hasta 24 h, y puede ser rechazado segun el plan). Texto y
+>    canales de contacto en [deploy-render.md](./deploy-render.md).
+> 2. **Backend en Render + frontend en HostGator** (recomendado mientras
+>    esperas el ticket, o permanente si HostGator no habilita Python).
+>    Guia completa: [deploy-render.md](./deploy-render.md). El frontend
+>    estatico queda en `public_html` y el `.htaccess` de B.7 se simplifica
+>    (sin proxy `/api/*`).
 > 3. **Upgrade del plan** a Business/VPS confirmando con soporte que incluya
 >    Setup Python App antes de pagar.
 
