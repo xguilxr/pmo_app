@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -28,36 +29,66 @@ settings = get_settings()
 _log = logging.getLogger(__name__)
 
 
+_ADD_COLUMN_RE = re.compile(
+    r"^\s*ALTER\s+TABLE\s+(?P<table>\w+)\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+"
+    r"(?P<column>\w+)\s+(?P<rest>.+)$",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
 def _sync_schema_on_startup() -> None:
     """Ensure all model columns/tables exist in the database.
 
-    Uses IF NOT EXISTS so this is safe to run on every startup.
+    MySQL gained ``ADD COLUMN IF NOT EXISTS`` in 8.0.29 — HostGator shared
+    still runs older builds, so we pre-check ``information_schema.COLUMNS``
+    and only issue the ALTER when the column is actually missing.
     """
     from app.database import engine, Base
     import app.models  # noqa: ensure all models are registered
     from sqlalchemy import text
 
-    # First, create any missing tables (does NOT add columns to existing tables)
     Base.metadata.create_all(bind=engine)
 
-    # Then, add any missing columns via raw SQL (ALTER TABLE ... ADD COLUMN IF NOT EXISTS)
     sql_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migrations", "sync_schema.sql")
-    if os.path.exists(sql_path):
-        with open(sql_path, encoding="utf-8") as f:
-            sql = f.read()
-        # Execute each statement separately — each in its own transaction
-        # so one failure (e.g. column already exists) doesn't abort the rest.
-        for stmt in sql.split(";"):
-            stmt = stmt.strip()
-            if stmt and not stmt.startswith("--"):
-                lines = [l for l in stmt.split("\n") if not l.strip().startswith("--")]
-                clean = "\n".join(lines).strip()
-                if clean:
-                    try:
-                        with engine.begin() as conn:
-                            conn.execute(text(clean))
-                    except Exception as exc:
-                        _log.warning("sync_schema statement skipped: %s", exc)
+    if not os.path.exists(sql_path):
+        return
+
+    with open(sql_path, encoding="utf-8") as f:
+        sql = f.read()
+
+    for stmt in sql.split(";"):
+        lines = [l for l in stmt.split("\n") if not l.strip().startswith("--")]
+        clean = "\n".join(lines).strip()
+        if not clean:
+            continue
+
+        match = _ADD_COLUMN_RE.match(clean)
+        if match:
+            table = match.group("table")
+            column = match.group("column")
+            rest = match.group("rest").strip().rstrip(";")
+            try:
+                with engine.begin() as conn:
+                    exists = conn.execute(
+                        text(
+                            "SELECT 1 FROM information_schema.COLUMNS "
+                            "WHERE TABLE_SCHEMA = DATABASE() "
+                            "AND TABLE_NAME = :t AND COLUMN_NAME = :c"
+                        ),
+                        {"t": table, "c": column},
+                    ).first()
+                    if exists:
+                        continue
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {rest}"))
+            except Exception as exc:
+                _log.warning("sync_schema ADD COLUMN %s.%s skipped: %s", table, column, exc)
+            continue
+
+        try:
+            with engine.begin() as conn:
+                conn.execute(text(clean))
+        except Exception as exc:
+            _log.warning("sync_schema statement skipped: %s", exc)
 
 
 @asynccontextmanager
