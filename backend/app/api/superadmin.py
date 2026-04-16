@@ -240,12 +240,18 @@ def get_tenant_detail(
 ):
     """Get tenant with full detail: programs, projects, users, requests."""
     from app.models.project_request import ProjectRequest
+    from sqlalchemy.orm import selectinload
 
     org = db.query(Organization).filter(
         Organization.id == tenant_id, Organization.deleted_at.is_(None)
     ).first()
     if not org:
         raise HTTPException(status_code=404, detail="Tenant no encontrado")
+
+    # Legacy rows may have config_json = NULL; Pydantic is ok with None but the
+    # frontend is cleaner with a dict.
+    if org.config_json is None:
+        org.config_json = {}
 
     # Counts
     user_count = (
@@ -260,51 +266,64 @@ def get_tenant_detail(
         .scalar() or 0
     )
 
-    # Programs with project counts
+    # Programs with project counts — single query, no N+1
     programs = db.query(Program).filter(
         Program.organization_id == org.id, Program.deleted_at.is_(None)
     ).all()
-    programs_data = []
-    for p in programs:
-        pc = db.query(func.count(Project.id)).filter(
-            Project.program_id == p.id, Project.deleted_at.is_(None)
-        ).scalar() or 0
-        programs_data.append({
-            "id": p.id, "name": p.name, "status": p.status,
-            "project_count": pc,
+    program_project_counts = dict(
+        db.query(Project.program_id, func.count(Project.id))
+        .filter(
+            Project.organization_id == org.id,
+            Project.deleted_at.is_(None),
+            Project.program_id.isnot(None),
+        )
+        .group_by(Project.program_id)
+        .all()
+    )
+    programs_data = [
+        {
+            "id": p.id,
+            "name": p.name,
+            "status": p.status,
+            "project_count": program_project_counts.get(p.id, 0),
             "start_date": str(p.start_date) if p.start_date else None,
             "end_date": str(p.end_date) if p.end_date else None,
-        })
+        }
+        for p in programs
+    ]
 
-    # Projects with program name
+    # Projects — build program name map up front (no N+1)
+    program_name_map = {p.id: p.name for p in programs}
     projects = db.query(Project).filter(
         Project.organization_id == org.id, Project.deleted_at.is_(None)
     ).order_by(Project.created_at.desc()).all()
-    projects_data = []
-    for prj in projects:
-        prog_name = None
-        if prj.program_id:
-            prog = db.query(Program).filter(Program.id == prj.program_id).first()
-            if prog:
-                prog_name = prog.name
-        projects_data.append({
-            "id": prj.id, "folio": prj.folio, "name": prj.name,
-            "type": prj.type, "phase": prj.phase, "health": prj.health or "green",
-            "progress": prj.progress or 0, "planned_progress": prj.planned_progress or 0,
-            "budget": prj.budget or 0, "program_name": prog_name,
-        })
+    projects_data = [
+        {
+            "id": prj.id,
+            "folio": prj.folio,
+            "name": prj.name,
+            "type": prj.type,
+            "phase": prj.phase,
+            "health": prj.health or "green",
+            "progress": prj.progress or 0,
+            "planned_progress": prj.planned_progress or 0,
+            "budget": prj.budget or 0,
+            "program_name": program_name_map.get(prj.program_id) if prj.program_id else None,
+        }
+        for prj in projects
+    ]
 
-    # Users in this org — single query with ORM, roles auto-loaded via selectin
+    # Users in this org — explicit selectinload for roles, single query
     user_objs = (
         db.query(User)
+        .options(selectinload(User.roles))
         .join(User.organizations)
         .filter(Organization.id == org.id, User.deleted_at.is_(None))
         .order_by(User.full_name)
         .all()
     )
-    users_data = []
-    for u in user_objs:
-        users_data.append({
+    users_data = [
+        {
             "id": u.id,
             "username": u.username,
             "full_name": u.full_name,
@@ -312,19 +331,25 @@ def get_tenant_detail(
             "is_active": u.is_active,
             "last_login": str(u.last_login) if u.last_login else None,
             "roles": [r.name for r in (u.roles or [])],
-        })
+        }
+        for u in user_objs
+    ]
 
     # Project requests
     reqs = db.query(ProjectRequest).filter(
         ProjectRequest.organization_id == org.id, ProjectRequest.deleted_at.is_(None)
     ).order_by(ProjectRequest.created_at.desc()).all()
-    requests_data = []
-    for r in reqs:
-        requests_data.append({
-            "id": r.id, "folio": r.folio, "title": r.title,
-            "status": r.status, "requester_name": r.requester_name or "",
+    requests_data = [
+        {
+            "id": r.id,
+            "folio": r.folio,
+            "title": r.title,
+            "status": r.status,
+            "requester_name": r.requester_name or "",
             "request_date": str(r.request_date) if r.request_date else "",
-        })
+        }
+        for r in reqs
+    ]
 
     resp = TenantDetailResponse.model_validate(org)
     resp.user_count = user_count

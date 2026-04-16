@@ -3,6 +3,7 @@ import type { OrgBrief, LoginResponse, CurrentUser } from '../types';
 
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const ACTIVITY_KEY = 'pmo_last_activity';
+const TENANT_KEY = 'pmo_tenant_id';
 
 export async function login(usernameOrEmail: string, password: string): Promise<LoginResponse> {
   const data = await api.post<LoginResponse>('/auth/login', {
@@ -20,6 +21,12 @@ export async function login(usernameOrEmail: string, password: string): Promise<
       organizations: data.organizations,
     }),
   );
+  // Auto-select a default tenant so tenant-scoped endpoints don't 400:
+  // - regular users with one org: that org
+  // - superadmin with many orgs: the first one (they can switch later)
+  if (data.organizations && data.organizations.length > 0) {
+    localStorage.setItem(TENANT_KEY, String(data.organizations[0].id));
+  }
   touchActivity();
   return data;
 }
@@ -27,8 +34,19 @@ export async function login(usernameOrEmail: string, password: string): Promise<
 export function logout() {
   setToken(null);
   localStorage.removeItem('pmo_user');
+  localStorage.removeItem(TENANT_KEY);
   localStorage.removeItem(ACTIVITY_KEY);
   window.location.href = '/login';
+}
+
+export function getActiveTenantId(): number | null {
+  const raw = localStorage.getItem(TENANT_KEY);
+  return raw ? parseInt(raw, 10) : null;
+}
+
+export function setActiveTenantId(id: number | null): void {
+  if (id === null) localStorage.removeItem(TENANT_KEY);
+  else localStorage.setItem(TENANT_KEY, String(id));
 }
 
 export function getCurrentUser(): CurrentUser | null {
