@@ -8,19 +8,21 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 ## [Unreleased]
 
 ### Cambiado
-- **Arquitectura de despliegue**: migracion a self-hosted. El backend ahora
-  corre en la PC del dueño via Docker Desktop + Cloudflare Tunnel; MySQL y
-  frontend estatico permanecen en HostGator. Motivo: el plan HostGator
-  disponible no ofrece soporte Python (Application Manager es Node-only y
-  no hay Setup Python App / Python Selector). Nueva guia canonica:
+- **Arquitectura de despliegue**: migracion a self-hosted nativo. El backend
+  ahora corre en la PC del dueño con **Python venv + uvicorn nativo**
+  envuelto como servicio de Windows via NSSM (sin Docker). Expuesto al
+  internet via Cloudflare Tunnel; MySQL y frontend estatico permanecen en
+  HostGator. Motivo: el plan HostGator disponible no ofrece soporte Python
+  (Application Manager es Node-only). Docker se descarto despues por
+  complejidad de setup en la PC destino. Nueva guia canonica:
   [`docs/deploy-self-hosted.md`](./deploy-self-hosted.md).
-- `docs/deploy-flow.md` reescrito para el nuevo workflow (sin cPanel Git
-  Version Control, sin Application Manager restart, sin Cron Jobs de
-  migracion — ahora es `git pull` + `docker compose up -d --build` en la PC).
-- `docker/docker-compose.selfhosted.yml` nuevo: compose slim para
-  levantar solo el backend apuntando a MySQL remoto.
-- Agent prompts (`backender.md`, `dba.md`) actualizados para reflejar la
-  nueva plataforma.
+- `docs/deploy-flow.md` reescrito para el nuevo workflow nativo (`git pull`
+  + `pip install -r requirements.txt` + `nssm restart pmo-backend` en la PC).
+- Agent prompts (`backender.md`, `dba.md`) actualizados.
+- `run-backend.bat` agregado en la raiz del repo para activar el venv y
+  arrancar uvicorn (usado tanto manualmente como por NSSM).
+- `pmo-backend.service` movido de `docker/` a `scripts/` para que la ruta no
+  sugiera dependencia de Docker.
 
 ### Archivado (movido a `docs/archive/`)
 - `deploy-hostgator.md` — ruta 100% HostGator con Passenger; requiere Setup
@@ -35,6 +37,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 - `render.yaml` — blueprint de Render, ruta rechazada.
 - `a2wsgi>=1.10.0` de `backend/requirements.txt` — solo se usaba en
   `passenger_wsgi.py`.
+- `.cpanel.yml` — script de deploy via cPanel Git Version Control, ya no
+  aplicable.
+- `docker/docker-compose.selfhosted.yml` — alternativa Docker descartada en
+  favor del venv nativo.
 
 ---
 
