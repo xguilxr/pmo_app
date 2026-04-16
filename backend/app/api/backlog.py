@@ -121,9 +121,29 @@ def create_backlog_item(
     return item
 
 
+def _get_backlog_for_tenant(db: Session, item_id: int, tenant: Organization) -> BacklogItem:
+    item = (
+        db.query(BacklogItem)
+        .filter(
+            BacklogItem.id == item_id,
+            BacklogItem.organization_id == tenant.id,
+            BacklogItem.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if not item:
+        raise HTTPException(status_code=404, detail="Elemento de backlog no encontrado")
+    return item
+
+
 @router.get("/{item_id}", response_model=BacklogResponse)
-def get_backlog_item(item_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return get_or_404(db, BacklogItem, item_id, detail="Elemento de backlog no encontrado")
+def get_backlog_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    return _get_backlog_for_tenant(db, item_id, tenant)
 
 
 @router.patch("/{item_id}", response_model=BacklogResponse)
@@ -132,12 +152,18 @@ def update_backlog_item(
     data: BacklogUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    item = get_or_404(db, BacklogItem, item_id, detail="Elemento de backlog no encontrado")
+    item = _get_backlog_for_tenant(db, item_id, tenant)
     apply_update(db, item, data)
     return item
 
 
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_backlog_item(item_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    soft_delete(db, get_or_404(db, BacklogItem, item_id, detail="Elemento de backlog no encontrado"))
+def delete_backlog_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    soft_delete(db, _get_backlog_for_tenant(db, item_id, tenant))

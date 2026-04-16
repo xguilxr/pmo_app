@@ -45,9 +45,29 @@ def list_programs(
     ]
 
 
+def _get_program_for_tenant(db: Session, program_id: int, tenant: Organization) -> Program:
+    program = (
+        db.query(Program)
+        .filter(
+            Program.id == program_id,
+            Program.organization_id == tenant.id,
+            Program.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if not program:
+        raise HTTPException(status_code=404, detail="Programa no encontrado")
+    return program
+
+
 @router.get("/{program_id}", response_model=ProgramDetailResponse)
-def get_program(program_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    program = get_or_404(db, Program, program_id, detail="Programa no encontrado")
+def get_program(
+    program_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    program = _get_program_for_tenant(db, program_id, tenant)
     return ProgramDetailResponse(
         id=program.id, name=program.name, description=program.description, status=program.status,
         start_date=program.start_date, end_date=program.end_date,
@@ -59,7 +79,14 @@ def get_program(program_id: int, db: Session = Depends(get_db), current_user: Us
 
 
 @router.post("", response_model=ProgramResponse, status_code=status.HTTP_201_CREATED)
-def create_program(data: ProgramCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_program(
+    data: ProgramCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    if data.organization_id != tenant.id and not current_user.is_superadmin:
+        raise HTTPException(status_code=403, detail="No puedes crear programas en otra organizacion")
     org = db.query(Organization).filter(Organization.id == data.organization_id).first()
     if not org:
         raise HTTPException(status_code=404, detail="Organización no encontrada")
@@ -85,8 +112,14 @@ def create_program(data: ProgramCreate, db: Session = Depends(get_db), current_u
 
 
 @router.patch("/{program_id}", response_model=ProgramResponse)
-def update_program(program_id: int, data: ProgramUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    program = get_or_404(db, Program, program_id, detail="Programa no encontrado")
+def update_program(
+    program_id: int,
+    data: ProgramUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    program = _get_program_for_tenant(db, program_id, tenant)
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(program, field, value)
     db.commit()
@@ -101,8 +134,13 @@ def update_program(program_id: int, data: ProgramUpdate, db: Session = Depends(g
 
 
 @router.delete("/{program_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_program(program_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    program = get_or_404(db, Program, program_id, detail="Programa no encontrado")
+def delete_program(
+    program_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    program = _get_program_for_tenant(db, program_id, tenant)
 
     now = datetime.now(timezone.utc)
 

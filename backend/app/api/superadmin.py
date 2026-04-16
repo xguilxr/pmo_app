@@ -549,10 +549,12 @@ def deactivate_tenant(
     db: Session = Depends(get_db),
     _admin: User = Depends(get_superadmin_user),
 ):
-    """Soft-deactivate a tenant (sets is_active=False).
+    """Soft-delete a tenant (preserves audit trail).
 
-    Does NOT delete data — use this for suspension.  For hard delete,
-    use the organizations endpoint cascade.
+    Sets ``is_active=False`` and ``deleted_at=now()`` so the tenant drops out
+    of normal lookups (which filter ``deleted_at.is_(None)``) but the row and
+    its cascade of data remain in MySQL for recovery or audit. For irreversible
+    wipe of test tenants use ``DELETE /tenants/{id}/permanent``.
     """
     org = db.query(Organization).filter(
         Organization.id == tenant_id, Organization.deleted_at.is_(None)
@@ -560,6 +562,7 @@ def deactivate_tenant(
     if not org:
         raise HTTPException(status_code=404, detail="Tenant no encontrado")
     org.is_active = False
+    org.deleted_at = func.now()
     db.commit()
     invalidate_tenant_cache()
 
@@ -762,13 +765,12 @@ def hard_delete_tenant(
 ):
     """PERMANENTLY delete a tenant and all its data.
 
-    This operation is **irreversible**. It cascades through all tenant-scoped
-    tables via explicit ORM deletes (safer than DB-level CASCADE because it
-    runs audit hooks and respects soft-delete for user/org rows the tenant
-    shares). Use only for wiping test tenants before going live.
-
-    Requires ``?confirm_slug=<slug>`` to match the tenant's slug as a double
-    check, mirroring GitHub's repo deletion pattern.
+    This is the **explicit escape hatch** for wiping test tenants before going
+    live. It is deliberately hard-delete (not soft) and irreversible. Audit
+    trail is preserved elsewhere — the normal UI path is
+    ``DELETE /tenants/{id}`` (soft-delete). Requires ``?confirm_slug=<slug>``
+    to match the tenant's slug as a double check, mirroring GitHub's repo
+    deletion pattern.
     """
     from app.models.project_request import ProjectRequest
     from app.models.modules import Risk, Issue, Change, Document, Lesson, Minute
