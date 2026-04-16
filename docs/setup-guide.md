@@ -116,8 +116,10 @@ docker run -d \
   --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 ```
 
-### Opción C: HostGator (producción)
-Crear la base de datos desde cPanel > MySQL Databases. Consultar [`deploy-hostgator.md`](deploy-hostgator.md).
+### Opción C: HostGator MySQL remoto (producción self-hosted)
+Crear la base de datos desde cPanel > MySQL Databases y habilitar Remote
+MySQL para tu IP. Consultar [`deploy-self-hosted.md`](deploy-self-hosted.md)
+Paso S.1 para la configuracion completa.
 
 ### Configurar en .env
 ```
@@ -287,8 +289,10 @@ npm run dev
 | `OLLAMA_BASE_URL` | localhost:11434 | Servidor dedicado o Claude API |
 | `AI_DEFAULT_ENGINE` | ollama | claude_api (opcional) |
 
-### En HostGator (cPanel):
-Consultar [`deploy-hostgator.md`](deploy-hostgator.md) para la guia paso a paso de despliegue en produccion.
+### En producción (self-hosted + HostGator):
+Consultar [`deploy-self-hosted.md`](deploy-self-hosted.md) para la guia
+paso a paso: backend en tu PC con Docker Desktop + Cloudflare Tunnel, BD
+y frontend en HostGator.
 
 El `.env` **nunca se sube** al repositorio (está en `.gitignore`).
 Las credenciales de producción se configuran directamente en el servidor.

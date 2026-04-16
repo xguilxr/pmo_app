@@ -13,7 +13,8 @@ Administrador de bases de datos SQL. Diseña, optimiza y mantiene la base de dat
 - Diseñar estrategia de backups y recuperación
 
 ## Stack técnico
-- MySQL 8.0 (producción en HostGator/cPanel)
+- MySQL 8.0 (producción en HostGator cPanel con Remote MySQL habilitado;
+  el backend corre en PC self-hosted y conecta al puerto 3306 publico)
 - ORM: SQLAlchemy 2.0 / Alembic para migraciones
 
 ## Esquemas principales

@@ -14,7 +14,11 @@ Desarrollador backend de la plataforma PMO. Construye la API, lógica de negocio
 
 ## Infraestructura
 
-**Plataforma de despliegue:** HostGator (cPanel + MySQL 8.0)
+**Plataforma de despliegue:** Self-hosted — backend FastAPI en PC Windows
+(Docker Desktop, contenedor `pmo-backend`) expuesto al internet via
+Cloudflare Tunnel en `api.tudominio.com`. MySQL 8.0 remoto en HostGator
+cPanel (Remote MySQL whitelist) y frontend estatico en HostGator
+`public_html`. Ver [`docs/deploy-self-hosted.md`](../docs/deploy-self-hosted.md).
 
 ## Stack
 - Python 3.11+
@@ -24,7 +28,7 @@ Desarrollador backend de la plataforma PMO. Construye la API, lógica de negocio
 - Driver MySQL: PyMySQL + cryptography
 - Auth: JWT con python-jose + bcrypt (passlib)
 - Validacion: Pydantic v2 + pydantic-settings
-- Server: Uvicorn (dev) / Passenger/Phusion via cPanel (prod HostGator)
+- Server: Uvicorn en dev, Gunicorn+UvicornWorker en prod (ambos dentro de Docker)
 - Base de datos: MySQL 8.0 (charset utf8mb4)
 - Tests: pytest (en `backend/tests/`)
 - Helpers compartidos: `app/utils/crud_helpers.py` (get_or_404, apply_update, soft_delete) y `app/utils/tenant_query.py`
