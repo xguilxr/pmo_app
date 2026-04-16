@@ -35,6 +35,8 @@ yarn-debug.log*
 yarn-error.log*
 .next/
 out/
+frontend/dist/
+backend/static_frontend/
 
 # IDE
 .vscode/

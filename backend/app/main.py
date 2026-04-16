@@ -151,6 +151,7 @@ app.include_router(superadmin.router, prefix="/api")
 
 
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
 os.makedirs(uploads_dir, exist_ok=True)
 
@@ -176,3 +177,22 @@ def health_check() -> dict[str, str]:
         "version": "0.3.0",
         "database": "connected" if db_ok else "unavailable",
     }
+
+
+# Optional: serve the built SPA from backend/static_frontend if present.
+# Build the frontend with `VITE_API_URL=/api` and copy frontend/dist/* into
+# backend/static_frontend/ so the same uvicorn serves UI and API on one host.
+class _SPAStaticFiles(StaticFiles):
+    async def get_response(self, path, scope):
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code == 404:
+                return await super().get_response("index.html", scope)
+            raise
+
+
+_spa_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static_frontend")
+if os.path.isdir(_spa_dir) and os.path.isfile(os.path.join(_spa_dir, "index.html")):
+    app.mount("/", _SPAStaticFiles(directory=_spa_dir, html=True), name="spa")
+    _log.info("Mounted SPA from %s", _spa_dir)
