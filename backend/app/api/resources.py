@@ -144,9 +144,25 @@ def list_resources(
     return q.order_by(Resource.name).all()
 
 
+def _get_tenant_resource(db: Session, resource_id: int, tenant: Organization) -> Resource:
+    r = db.query(Resource).filter(
+        Resource.id == resource_id,
+        Resource.organization_id == tenant.id,
+        Resource.deleted_at.is_(None),
+    ).first()
+    if not r:
+        raise HTTPException(status_code=404, detail="Recurso no encontrado")
+    return r
+
+
 @router.get("/{resource_id}", response_model=ResourceResponse)
-def get_resource(resource_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return get_or_404(db, Resource, resource_id, detail="Recurso no encontrado")
+def get_resource(
+    resource_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    return _get_tenant_resource(db, resource_id, tenant)
 
 
 @router.post("", response_model=ResourceResponse, status_code=status.HTTP_201_CREATED)
@@ -160,15 +176,38 @@ def create_resource(data: ResourceCreate, db: Session = Depends(get_db), current
 
 
 @router.patch("/{resource_id}", response_model=ResourceResponse)
-def update_resource(resource_id: int, data: ResourceUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    r = get_or_404(db, Resource, resource_id, detail="Recurso no encontrado")
+def update_resource(
+    resource_id: int,
+    data: ResourceUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    r = _get_tenant_resource(db, resource_id, tenant)
     apply_update(db, r, data)
     return r
 
 
 @router.delete("/{resource_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_resource(resource_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    soft_delete(db, get_or_404(db, Resource, resource_id, detail="Recurso no encontrado"))
+def delete_resource(
+    resource_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    soft_delete(db, _get_tenant_resource(db, resource_id, tenant))
+
+
+def _get_tenant_project(db: Session, project_id: int, tenant: Organization):
+    from app.models.project import Project
+    p = db.query(Project).filter(
+        Project.id == project_id,
+        Project.organization_id == tenant.id,
+        Project.deleted_at.is_(None),
+    ).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    return p
 
 
 @router.post("/projects/{project_id}/assign", status_code=status.HTTP_201_CREATED)
@@ -177,7 +216,10 @@ def assign_resource_to_project(
     payload: AssignResourcePayload,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
+    _get_tenant_project(db, project_id, tenant)
+    _get_tenant_resource(db, payload.resource_id, tenant)
     db.execute(
         project_resources.insert().values(
             project_id=project_id,
@@ -191,7 +233,15 @@ def assign_resource_to_project(
 
 
 @router.delete("/projects/{project_id}/unassign/{resource_id}", status_code=status.HTTP_204_NO_CONTENT)
-def unassign_resource(project_id: int, resource_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def unassign_resource(
+    project_id: int,
+    resource_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    _get_tenant_project(db, project_id, tenant)
+    _get_tenant_resource(db, resource_id, tenant)
     db.execute(
         project_resources.delete().where(
             project_resources.c.project_id == project_id,
@@ -209,8 +259,12 @@ def list_work_logs(
     date_to: date | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    q = db.query(ResourceWorkLog).filter(ResourceWorkLog.deleted_at.is_(None))
+    q = db.query(ResourceWorkLog).filter(
+        ResourceWorkLog.deleted_at.is_(None),
+        ResourceWorkLog.organization_id == tenant.id,
+    )
     if resource_id:
         q = q.filter(ResourceWorkLog.resource_id == resource_id)
     if project_id:
@@ -223,25 +277,45 @@ def list_work_logs(
 
 
 @router.post("/work-logs", response_model=WorkLogResponse, status_code=status.HTTP_201_CREATED)
-def create_work_log(data: WorkLogCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    wl = ResourceWorkLog(created_by_id=current_user.id, **data.model_dump())
+def create_work_log(
+    data: WorkLogCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    resource = _get_tenant_resource(db, data.resource_id, tenant)
+    wl = ResourceWorkLog(
+        created_by_id=current_user.id,
+        organization_id=tenant.id,
+        **data.model_dump(),
+    )
     db.add(wl)
-    # Update accumulated hours on resource
-    resource = db.query(Resource).filter(Resource.id == data.resource_id).first()
-    if resource:
-        resource.hours_worked = (resource.hours_worked or 0) + data.hours
+    resource.hours_worked = (resource.hours_worked or 0) + data.hours
     db.commit()
     db.refresh(wl)
     return wl
 
 
 @router.delete("/work-logs/{log_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_work_log(log_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    wl = get_or_404(db, ResourceWorkLog, log_id, detail="Registro no encontrado")
+def delete_work_log(
+    log_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    wl = db.query(ResourceWorkLog).filter(
+        ResourceWorkLog.id == log_id,
+        ResourceWorkLog.organization_id == tenant.id,
+        ResourceWorkLog.deleted_at.is_(None),
+    ).first()
+    if not wl:
+        raise HTTPException(status_code=404, detail="Registro no encontrado")
     from datetime import datetime, timezone
     wl.deleted_at = datetime.now(timezone.utc)
-    # Subtract hours from resource
-    resource = db.query(Resource).filter(Resource.id == wl.resource_id).first()
+    resource = db.query(Resource).filter(
+        Resource.id == wl.resource_id,
+        Resource.organization_id == tenant.id,
+    ).first()
     if resource:
         resource.hours_worked = max(0, (resource.hours_worked or 0) - wl.hours)
     db.commit()
@@ -254,8 +328,12 @@ def list_availability(
     date_to: date | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
 ):
-    q = db.query(ResourceAvailability).filter(ResourceAvailability.deleted_at.is_(None))
+    q = db.query(ResourceAvailability).filter(
+        ResourceAvailability.deleted_at.is_(None),
+        ResourceAvailability.organization_id == tenant.id,
+    )
     if resource_id:
         q = q.filter(ResourceAvailability.resource_id == resource_id)
     if date_from:
@@ -266,8 +344,14 @@ def list_availability(
 
 
 @router.post("/availability", response_model=AvailabilityResponse, status_code=status.HTTP_201_CREATED)
-def create_availability(data: AvailabilityCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    av = ResourceAvailability(**data.model_dump())
+def create_availability(
+    data: AvailabilityCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    _get_tenant_resource(db, data.resource_id, tenant)
+    av = ResourceAvailability(organization_id=tenant.id, **data.model_dump())
     db.add(av)
     db.commit()
     db.refresh(av)
@@ -275,5 +359,17 @@ def create_availability(data: AvailabilityCreate, db: Session = Depends(get_db),
 
 
 @router.delete("/availability/{avail_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_availability(avail_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    soft_delete(db, get_or_404(db, ResourceAvailability, avail_id, detail="Registro no encontrado"))
+def delete_availability(
+    avail_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    av = db.query(ResourceAvailability).filter(
+        ResourceAvailability.id == avail_id,
+        ResourceAvailability.organization_id == tenant.id,
+        ResourceAvailability.deleted_at.is_(None),
+    ).first()
+    if not av:
+        raise HTTPException(status_code=404, detail="Registro no encontrado")
+    soft_delete(db, av)

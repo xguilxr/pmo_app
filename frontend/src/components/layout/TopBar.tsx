@@ -2,12 +2,18 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
-  Bell, Globe, User, ChevronDown, Settings, LogOut, Sun, Moon,
+  Bell, Globe, User, ChevronDown, Settings, LogOut, Sun, Moon, KeyRound, Building2,
   FolderKanban, AlertTriangle, FileText, RefreshCw, CheckCheck, Bug, Shield, TrendingUp, Clock
 } from 'lucide-react';
-import { logout, getCurrentUser } from '../../services/auth';
+import { logout, getCurrentUser, isSuperAdmin, getActiveTenantId, setActiveTenantId } from '../../services/auth';
 import { useTheme } from '../../context/ThemeContext';
 import { api } from '../../services/api';
+
+interface TenantBrief {
+  id: number;
+  name: string;
+  slug: string | null;
+}
 
 interface NotificationItem {
   id: number;
@@ -53,11 +59,16 @@ export default function TopBar() {
   const { isDark, toggleTheme } = useTheme();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [tenantOpen, setTenantOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [tenants, setTenants] = useState<TenantBrief[]>([]);
+  const [activeTenantId, setActiveTenantIdState] = useState<number | null>(getActiveTenantId());
   const menuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const tenantRef = useRef<HTMLDivElement>(null);
   const user = getCurrentUser();
+  const superadmin = isSuperAdmin();
 
   const fetchUnreadCount = useCallback(async () => {
     try {
@@ -120,14 +131,65 @@ export default function TopBar() {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) setUserMenuOpen(false);
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) setNotifOpen(false);
+      if (tenantRef.current && !tenantRef.current.contains(event.target as Node)) setTenantOpen(false);
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Load tenants list for superadmin (others have it in user.organizations)
+  useEffect(() => {
+    if (!superadmin) {
+      setTenants((user?.organizations || []).map(o => ({ id: o.id, name: o.name, slug: o.slug ?? null })));
+      return;
+    }
+    api.get<TenantBrief[]>('/superadmin/tenants').then(setTenants).catch(() => {});
+  }, [superadmin, user?.organizations]);
+
+  const handleSelectTenant = (id: number) => {
+    setActiveTenantId(id);
+    setActiveTenantIdState(id);
+    setTenantOpen(false);
+    // Reload so every in-flight query picks up the new X-Tenant-ID header.
+    window.location.reload();
+  };
+
+  const activeTenantName = tenants.find(t => t.id === activeTenantId)?.name;
+
   return (
     <header className="h-[56px] glass border-b border-border sticky top-0 z-10 flex items-center justify-between px-6">
-      <div />
+      <div className="flex items-center gap-2">
+        {tenants.length > 1 && (
+          <div className="relative" ref={tenantRef}>
+            <button
+              onClick={() => setTenantOpen(!tenantOpen)}
+              className="flex items-center gap-2 px-3 h-9 rounded-xl border border-border bg-surface hover:bg-surface-hover text-[12.5px] font-medium text-text-secondary transition-all"
+              title="Cambiar de organización"
+            >
+              <Building2 className="w-4 h-4 text-accent" />
+              <span className="max-w-[180px] truncate">{activeTenantName || 'Seleccionar organización'}</span>
+              <ChevronDown className={`w-3 h-3 text-text-tertiary transition-transform ${tenantOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {tenantOpen && (
+              <div className="absolute left-0 top-[48px] w-[260px] liquid-modal rounded-2xl py-1 animate-fade-in max-h-[360px] overflow-y-auto">
+                <div className="px-4 py-2 border-b border-border-light text-[10px] uppercase tracking-widest text-text-tertiary font-medium">
+                  {superadmin ? 'Organizaciones (super admin)' : 'Tus organizaciones'}
+                </div>
+                {tenants.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => handleSelectTenant(t.id)}
+                    className={`flex items-center gap-2 w-full px-4 py-2.5 text-left text-[13px] hover:bg-surface-hover transition-colors ${t.id === activeTenantId ? 'text-accent font-medium' : 'text-text-secondary font-light'}`}
+                  >
+                    <Building2 className="w-4 h-4 flex-shrink-0 opacity-70" />
+                    <span className="truncate">{t.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
       <div className="flex items-center gap-1.5">
         {/* Theme toggle */}
         <button
@@ -248,6 +310,13 @@ export default function TopBar() {
               >
                 <Settings className="w-4 h-4 text-text-tertiary" />
                 {t('nav.manageAccount')}
+              </button>
+              <button
+                onClick={() => { setUserMenuOpen(false); navigate('/settings/password'); }}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-[13px] font-light text-text-secondary hover:bg-surface-hover transition-colors"
+              >
+                <KeyRound className="w-4 h-4 text-text-tertiary" />
+                Cambiar contraseña
               </button>
               <div className="border-t border-border-light">
                 <button

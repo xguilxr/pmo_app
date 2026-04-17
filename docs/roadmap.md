@@ -39,25 +39,28 @@
 | C6 | Superadmin endpoints con `.delete()` en lugar de soft delete | `backend/app/api/superadmin.py` (purge paths) | 1 | `[DONE]` 13e51ab |
 
 ### 🟠 Importantes (antes de producción)
-| # | Issue | Archivo | Fase |
-|---|-------|---------|------|
-| H1 | 30+ FKs sin índice (perf al crecer) | `backend/app/models/*` | 2 |
-| H2 | No hay Alembic — schema sync ad-hoc | `backend/migrations/` | 2 |
-| H3 | `tests/` vacío — CI no bloquea regresiones | `backend/tests/` | 2 |
-| H4 | Sin Sentry / error tracking agregado | N/A | 2 |
-| H5 | Sin password policy (se permite `"1"`) | `backend/app/schemas/user.py` | 2 |
-| H6 | N+1 en `/programs`, `/projects` listado | `backend/app/api/programs.py:42,56,99` | 2 |
-| H7 | 15 fallbacks `localhost:8080` duplicados en componentes | `frontend/src/components/project/*` | 2 |
-| H8 | `TaskDependency`, `ResourceWorkLog`, `ResourceAvailability` sin `organization_id` | `backend/app/models/task.py`, `resource.py` | 2 |
+| # | Issue | Archivo | Fase | Estado |
+|---|-------|---------|------|--------|
+| H1 | 30+ FKs sin índice (perf al crecer) | `backend/app/models/*` | 2 | pendiente |
+| H2 | No hay Alembic — schema sync ad-hoc | `backend/migrations/` | 2 | pendiente |
+| H3 | `tests/` vacío — CI no bloquea regresiones | `backend/tests/` | 2 | pendiente |
+| H4 | Sin Sentry / error tracking agregado | N/A | 2 | pendiente |
+| H5 | Sin password policy (se permite `"1"`) | `backend/app/schemas/user.py` | 2 | `[DONE]` 53c064d |
+| H6 | N+1 en `/programs`, `/projects` listado | `backend/app/api/programs.py`, `projects.py` | 2 | `[DONE]` 53c064d |
+| H7 | 15 fallbacks `localhost:8080` duplicados en componentes | `frontend/src/components/project/*` | 2 | `[DONE]` 53c064d |
+| H8 | `TaskDependency`, `ResourceWorkLog`, `ResourceAvailability` sin `organization_id` | `backend/app/models/task.py`, `resource.py` | 2 | `[DONE]` |
+| H9 | Inactividad no cierra sesión — cliente tiene constante pero no la aplica al navegar | `frontend/src/services/auth.ts`, `App.tsx` | 2 | `[DONE]` 53c064d |
+| H10 | Cambio de password self-service no existe (el endpoint `/password-reset-request` solo loggea) | `backend/app/api/auth.py`, `frontend/src/pages/` | 2 | `[DONE]` 53c064d |
+| H11 | Resources API cross-tenant: `get_resource`, `list_work_logs`, `list_availability` y assign/unassign no filtraban por tenant | `backend/app/api/resources.py` | 2 | `[DONE]` (este commit) |
 
 ### 🟡 Deuda técnica (postergar)
-| # | Issue | Esfuerzo | Fase |
-|---|-------|---------|------|
-| L1 | Tenant switcher en TopBar para super-admin | 2h | 2 |
-| L2 | Ruta duplicada `/admin/empresas` → `/admin/organizations` | 10min | 2 |
-| L3 | Paginación en listados grandes | 4h | 3 |
-| L4 | Redis para tenant cache (multi-instancia) | 1d | 4 |
-| L5 | JWT key rotation | 1d | 4 |
+| # | Issue | Esfuerzo | Fase | Estado |
+|---|-------|---------|------|--------|
+| L1 | Tenant switcher en TopBar para super-admin | 2h | 2 | `[DONE]` 53c064d |
+| L2 | Ruta duplicada `/admin/empresas` → `/admin/organizations` | 10min | 2 | `[DONE]` 53c064d |
+| L3 | Paginación en listados grandes | 4h | 3 | pendiente |
+| L4 | Redis para tenant cache (multi-instancia) | 1d | 4 | pendiente |
+| L5 | JWT key rotation | 1d | 4 | pendiente |
 
 ---
 
@@ -107,13 +110,17 @@ Cada fase entrega valor por sí sola. No empezar la siguiente sin cerrar la ante
 - [ ] Generar baseline Alembic desde modelos actuales (H2)
 - [ ] `sync_schema.sql` + `_sync_schema_on_startup` → `alembic upgrade head` en `entrypoint`
 - [ ] Agregar los 30+ índices en una migración (H1)
-- [ ] Agregar `organization_id` a `TaskDependency`, `ResourceWorkLog`, `ResourceAvailability` (H8)
+- [x] Agregar `organization_id` a `TaskDependency`, `ResourceWorkLog`, `ResourceAvailability` (H8)
 - [ ] Suite pytest mínima: auth, tenant isolation, CRUD core (H3) — target 20 tests
 - [ ] Sentry free tier + slack alerts (H4)
-- [ ] Password policy min 12 chars / mayúscula / dígito (H5)
-- [ ] Centralizar `API_BASE_URL` en frontend (H7)
-- [ ] Eliminar ruta duplicada `/admin/empresas` (L2)
-- [ ] Tenant switcher en `TopBar` para super-admin (L1)
+- [x] Password policy min 12 chars / mayúscula / dígito (H5)
+- [x] Fix N+1 en `/programs` y `/projects` listado (H6)
+- [x] Centralizar `API_BASE_URL` en frontend (H7)
+- [x] Auto-logout + banner en 401 para cubrir inactividad (H9)
+- [x] Self-service change-password + admin reset sin email (H10)
+- [x] Tenant filters en resources API (H11 — encontrado durante H8)
+- [x] Eliminar ruta duplicada `/admin/empresas` (L2)
+- [x] Tenant switcher en `TopBar` para super-admin (L1)
 
 **Deliverable**: `https://tudominio.com` corriendo en cloud, CI bloquea regresiones, errores en Slack.
 

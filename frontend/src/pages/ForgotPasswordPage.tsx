@@ -58,14 +58,20 @@ export default function ForgotPasswordPage() {
               <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-emerald-500/15">
                 <CheckCircle2 className="w-7 h-7 text-emerald-400" />
               </div>
-              <p className="text-[13px] text-white/80 font-light leading-relaxed">{t('forgotPassword.successMessage')}</p>
+              <p className="text-[13px] text-white/80 font-light leading-relaxed">
+                Registramos tu solicitud. El envío automático por correo aún no está habilitado;
+                contacta al administrador de tu organización para recibir una contraseña temporal.
+                Una vez dentro, podés cambiarla desde el menú de usuario.
+              </p>
               <button onClick={() => navigate('/login')} className="w-full btn-gradient text-white rounded-xl py-3 text-[13px] font-medium tracking-wide transition-all">
                 {t('forgotPassword.backToLogin')}
               </button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
-              <p className="text-[12px] text-white/50 font-light leading-relaxed">{t('forgotPassword.instructions')}</p>
+              <p className="text-[12px] text-white/50 font-light leading-relaxed">
+                Ingresá tu correo. Tu administrador recibirá la alerta y podrá reiniciar tu contraseña desde el panel de usuarios.
+              </p>
 
               {error && (
                 <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-[13px] rounded-xl px-4 py-3 font-light">

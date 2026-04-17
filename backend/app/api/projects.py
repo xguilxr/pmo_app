@@ -1,7 +1,7 @@
 from datetime import date, datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, contains_eager, joinedload
 
 from app.database import get_db
 from app.models.user import User
@@ -50,9 +50,17 @@ def list_projects(
     current_user: User = Depends(get_current_user),
     tenant: Organization = Depends(get_current_tenant),
 ):
-    query = db.query(Project).join(Organization).filter(
-        Project.deleted_at.is_(None),
-        Project.organization_id == tenant.id,
+    # Eager-load organization (via JOIN already used for filtering) and program
+    # to avoid N+1 when the response serializer reads p.organization.name and
+    # p.program.name for each row.
+    query = (
+        db.query(Project)
+        .join(Organization)
+        .options(contains_eager(Project.organization), joinedload(Project.program))
+        .filter(
+            Project.deleted_at.is_(None),
+            Project.organization_id == tenant.id,
+        )
     )
 
     if phase and phase != "Todos":

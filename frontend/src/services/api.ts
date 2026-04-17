@@ -1,5 +1,6 @@
-// Base API configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+// Base API configuration. Exported so components that hit non-wrapped URLs
+// (e.g. file downloads via <a href>) share the same origin.
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 // Token management — always read from localStorage to avoid stale module vars
 export function setToken(token: string | null) {
@@ -9,6 +10,18 @@ export function setToken(token: string | null) {
 
 export function getToken(): string | null {
   return localStorage.getItem('pmo_token');
+}
+
+// Called on any 401 so an expired or revoked token drops the user at /login
+// instead of leaving the UI stuck showing errors.
+function handleUnauthorized() {
+  localStorage.removeItem('pmo_token');
+  localStorage.removeItem('pmo_tenant_id');
+  localStorage.removeItem('pmo_user');
+  localStorage.removeItem('pmo_last_activity');
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login?expired=1';
+  }
 }
 
 // Generic fetch wrapper with auth header and tenant header
@@ -25,7 +38,8 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   const res = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
 
   if (res.status === 401) {
-    throw new Error('Unauthorized');
+    handleUnauthorized();
+    throw new Error('Sesión expirada');
   }
 
   if (!res.ok) {
@@ -52,7 +66,10 @@ async function apiFetchForm<T>(path: string, form: FormData): Promise<T> {
     headers,
   });
 
-  if (res.status === 401) throw new Error('Unauthorized');
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new Error('Sesión expirada');
+  }
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(error.detail || `API Error ${res.status}`);

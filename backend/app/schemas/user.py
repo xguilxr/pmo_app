@@ -1,5 +1,22 @@
-from pydantic import BaseModel, EmailStr
+import re
+
+from pydantic import BaseModel, EmailStr, field_validator
 from datetime import datetime
+
+
+PASSWORD_POLICY_MSG = (
+    "La contraseña debe tener al menos 12 caracteres, una mayúscula y un dígito."
+)
+
+
+def enforce_password_policy(value: str) -> str:
+    if len(value) < 12:
+        raise ValueError(PASSWORD_POLICY_MSG)
+    if not re.search(r"[A-Z]", value):
+        raise ValueError(PASSWORD_POLICY_MSG)
+    if not re.search(r"\d", value):
+        raise ValueError(PASSWORD_POLICY_MSG)
+    return value
 
 
 class UserCreate(BaseModel):
@@ -9,6 +26,11 @@ class UserCreate(BaseModel):
     password: str
     role_ids: list[int] = []
     organization_ids: list[int] = []
+
+    @field_validator("password")
+    @classmethod
+    def _policy(cls, v: str) -> str:
+        return enforce_password_policy(v)
 
 
 class UserUpdate(BaseModel):

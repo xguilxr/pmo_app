@@ -1,4 +1,5 @@
 import logging
+import secrets
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -6,8 +7,24 @@ from sqlalchemy import or_
 
 from app.database import get_db
 from app.models.user import User
-from app.schemas.auth import LoginRequest, TokenResponse, PasswordResetRequest, PasswordResetResponse
-from app.auth.security import verify_password, create_access_token
+from app.schemas.auth import (
+    LoginRequest,
+    TokenResponse,
+    PasswordResetRequest,
+    PasswordResetResponse,
+    ChangePasswordRequest,
+    ChangePasswordResponse,
+    AdminResetPasswordResponse,
+)
+from app.schemas.user import enforce_password_policy
+from app.auth.security import (
+    verify_password,
+    create_access_token,
+    hash_password,
+    get_current_user,
+)
+from app.dependencies import get_current_tenant
+from app.models.organization import Organization
 
 logger = logging.getLogger(__name__)
 
@@ -87,3 +104,72 @@ def request_password_reset(payload: PasswordResetRequest, db: Session = Depends(
         logger.info("Password reset requested for unknown email=%s", payload.email)
 
     return PasswordResetResponse()
+
+
+@router.post("/change-password", response_model=ChangePasswordResponse)
+def change_password(
+    payload: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Authenticated user changes their own password.
+
+    Requires the current password (so a stolen token alone cannot rotate the
+    credential) and enforces the shared password policy on the new value.
+    """
+    if not verify_password(payload.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="La contraseña actual no coincide")
+    if payload.new_password == payload.current_password:
+        raise HTTPException(
+            status_code=400,
+            detail="La nueva contraseña debe ser distinta de la actual",
+        )
+    try:
+        enforce_password_policy(payload.new_password)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    current_user.hashed_password = hash_password(payload.new_password)
+    current_user.failed_login_attempts = 0
+    current_user.locked_until = None
+    db.commit()
+    return ChangePasswordResponse()
+
+
+@router.post(
+    "/users/{user_id}/reset-password",
+    response_model=AdminResetPasswordResponse,
+    tags=["Users"],
+)
+def admin_reset_password(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    """Admin/superadmin resets another user's password to a new random value.
+
+    The plaintext is returned **once** in the response so the admin can hand
+    it over through a secure channel. No email is sent — this is the
+    offline-friendly substitute for the missing SMTP flow.
+
+    Non-superadmin admins can only reset users that belong to their active
+    tenant, enforcing the same multi-tenant isolation as the rest of the app.
+    """
+    user = db.query(User).filter(User.id == user_id, User.deleted_at.is_(None)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if not current_user.is_superadmin:
+        user_org_ids = {o.id for o in user.organizations}
+        if tenant.id not in user_org_ids:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        # Tenant admins should not reset superadmins
+        if user.is_superadmin:
+            raise HTTPException(status_code=403, detail="No puedes resetear un super admin")
+
+    new_password = secrets.token_urlsafe(12)  # ~16 chars, satisfies policy
+    user.hashed_password = hash_password(new_password)
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    db.commit()
+    return AdminResetPasswordResponse(user_id=user.id, new_password=new_password)

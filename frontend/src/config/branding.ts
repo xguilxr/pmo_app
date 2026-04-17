@@ -1,3 +1,5 @@
+import { API_BASE_URL } from '../services/api';
+
 export interface BrandingConfig {
   orgId: string;
   orgName: string;
@@ -174,8 +176,7 @@ export function applyApiBranding(data: ApiBranding) {
 
 export async function fetchAndApplyBranding(): Promise<ApiBranding | null> {
   try {
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
-    const res = await fetch(`${API_BASE}/branding/current`);
+    const res = await fetch(`${API_BASE_URL}/branding/current`);
     if (!res.ok) return null;
     const data: ApiBranding = await res.json();
     if (data.tenant_id) {
