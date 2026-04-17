@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, X, Download, Edit2, Trash2, Lightbulb, CheckCircle2, TrendingUp, AlertCircle } from 'lucide-react';
-import { api } from '../../services/api';
+import { api, API_BASE_URL } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
 import type { Lesson } from '../../types';
@@ -60,7 +60,7 @@ export default function ProjectLessonsTab({ projectId }: { projectId: number }) 
 
   const handleExport = () => {
     const token = localStorage.getItem('pmo_token');
-    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8080/api'}/exports/lessons?project_id=${projectId}`;
+    const url = `${API_BASE_URL}/exports/lessons?project_id=${projectId}`;
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.blob())
       .then(blob => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `lecciones_${projectId}.csv`; a.click(); })

@@ -49,6 +49,8 @@
 | H6 | N+1 en `/programs`, `/projects` listado | `backend/app/api/programs.py:42,56,99` | 2 |
 | H7 | 15 fallbacks `localhost:8080` duplicados en componentes | `frontend/src/components/project/*` | 2 |
 | H8 | `TaskDependency`, `ResourceWorkLog`, `ResourceAvailability` sin `organization_id` | `backend/app/models/task.py`, `resource.py` | 2 |
+| H9 | Inactividad no cierra sesión — cliente tiene constante pero no la aplica al navegar | `frontend/src/services/auth.ts`, `App.tsx` | 2 |
+| H10 | Cambio de password self-service no existe (el endpoint `/password-reset-request` solo loggea) | `backend/app/api/auth.py`, `frontend/src/pages/` | 2 |
 
 ### 🟡 Deuda técnica (postergar)
 | # | Issue | Esfuerzo | Fase |

@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -28,18 +29,34 @@ def list_programs(
     current_user: User = Depends(get_current_user),
     tenant: Organization = Depends(get_current_tenant),
 ):
-    query = db.query(Program).filter(
-        Program.deleted_at.is_(None),
-        Program.organization_id == tenant.id,
+    programs = (
+        db.query(Program)
+        .filter(
+            Program.deleted_at.is_(None),
+            Program.organization_id == tenant.id,
+        )
+        .order_by(Program.name.asc())
+        .all()
     )
-    programs = query.order_by(Program.name.asc()).all()
+    # Batch project counts in a single GROUP BY query to avoid iterating the
+    # lazy relationship once per program (N+1 at ~100 rows = 100 queries).
+    counts = dict(
+        db.query(Project.program_id, func.count(Project.id))
+        .filter(
+            Project.organization_id == tenant.id,
+            Project.deleted_at.is_(None),
+            Project.program_id.isnot(None),
+        )
+        .group_by(Project.program_id)
+        .all()
+    )
     return [
         ProgramResponse(
             id=p.id, name=p.name, description=p.description, status=p.status,
             start_date=p.start_date, end_date=p.end_date,
             organization_id=p.organization_id, responsible_id=p.responsible_id,
             created_at=p.created_at,
-            project_count=len([proj for proj in p.projects if proj.deleted_at is None]),
+            project_count=counts.get(p.id, 0),
         )
         for p in programs
     ]

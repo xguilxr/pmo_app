@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, useSearchParams } from 'react-router-dom';
 import { FolderKanban, Globe, Eye, EyeOff, Loader2, Sun, Moon } from 'lucide-react';
 import { login, isAuthenticated } from '../services/auth';
 import { useTheme } from '../context/ThemeContext';
@@ -8,6 +8,7 @@ import { useTheme } from '../context/ThemeContext';
 export default function LoginPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { isDark, toggleTheme } = useTheme();
 
   if (isAuthenticated()) {
@@ -17,7 +18,11 @@ export default function LoginPage() {
   const [userOrEmail, setUserOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(
+    searchParams.get('expired') === '1'
+      ? 'Tu sesión expiró por inactividad. Inicia sesión nuevamente.'
+      : '',
+  );
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {

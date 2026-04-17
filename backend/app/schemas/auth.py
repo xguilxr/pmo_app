@@ -32,3 +32,20 @@ class PasswordResetRequest(BaseModel):
 class PasswordResetResponse(BaseModel):
     success: bool = True
     message: str = "Si el correo está registrado, recibirás un enlace para restablecer tu contraseña."
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class ChangePasswordResponse(BaseModel):
+    success: bool = True
+    message: str = "Contraseña actualizada."
+
+
+class AdminResetPasswordResponse(BaseModel):
+    """Returned when an admin resets a user's password."""
+
+    user_id: int
+    new_password: str  # plaintext, shown once to the admin

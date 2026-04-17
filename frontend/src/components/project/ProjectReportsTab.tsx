@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, X, BarChart3, Download, FileBarChart, Calendar, Trash2, Send, Eye, Sparkles, TrendingUp, FileCheck, ClipboardList } from 'lucide-react';
-import { api } from '../../services/api';
+import { api, API_BASE_URL } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
 import type { Report } from '../../types';
@@ -83,7 +83,7 @@ export default function ProjectReportsTab({ projectId }: { projectId: number }) 
 
   const handleDownload = (id: number) => {
     const token = localStorage.getItem('pmo_token');
-    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8080/api'}/reports/${id}/download`;
+    const url = `${API_BASE_URL}/reports/${id}/download`;
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.blob())
       .then(blob => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `reporte_${id}.html`; a.click(); })

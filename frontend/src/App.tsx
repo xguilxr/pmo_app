@@ -5,6 +5,7 @@ import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import LoginPage from './pages/LoginPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
 import MinutesPage from './pages/MinutesPage';
 import RequestsPage from './pages/RequestsPage';
 import RisksPage from './pages/RisksPage';
@@ -53,13 +54,13 @@ export default function App() {
           <Route path="/admin/users" element={<AdminUsersPage />} />
           <Route path="/admin/roles" element={<AdminRolesPage />} />
           <Route path="/admin/organizations" element={<AdminOrganizationsPage />} />
-          <Route path="/admin/empresas" element={<AdminOrganizationsPage />} />
           <Route path="/admin/permissions" element={<AdminPermissionsPage />} />
           <Route path="/admin/project-types" element={<AdminProjectTypesPage />} />
           <Route path="/admin/variables" element={<AdminVariablesPage />} />
           <Route path="/admin/logs" element={<AdminLogsPage />} />
           <Route path="/admin/projects" element={<AdminProjectsPage />} />
           <Route path="/admin/programs" element={<AdminProgramsPage />} />
+          <Route path="/settings/password" element={<ChangePasswordPage />} />
           <Route path="/superadmin" element={<SuperadminDashboardPage />} />
           <Route path="/superadmin/tenants/:id" element={<SuperadminTenantDetailPage />} />
         </Route>

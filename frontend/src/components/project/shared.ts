@@ -25,6 +25,8 @@ export const labelCls =
  * @param filename  - Filename for the downloaded file
  * @param onError   - Callback invoked on failure (e.g. toastError)
  */
+import { API_BASE_URL } from '../../services/api';
+
 export function exportCsv(
   endpoint: string,
   projectId: number,
@@ -32,10 +34,10 @@ export function exportCsv(
   onError: (msg: string) => void,
 ): void {
   const token = localStorage.getItem('pmo_token');
-  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
-  fetch(`${baseUrl}/exports/${endpoint}?project_id=${projectId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
+  const tenantId = localStorage.getItem('pmo_tenant_id');
+  const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+  if (tenantId) headers['X-Tenant-ID'] = tenantId;
+  fetch(`${API_BASE_URL}/exports/${endpoint}?project_id=${projectId}`, { headers })
     .then((r) => r.blob())
     .then((blob) => {
       const a = document.createElement('a');

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Eye, Download, Trash2, X, FileBarChart, BarChart3, Bot, Calendar, Send } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
-import { api } from '../services/api';
+import { api, API_BASE_URL } from '../services/api';
 import { useApi, LoadingSpinner, ErrorMessage } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
 
@@ -115,7 +115,7 @@ export default function ReportsPage() {
   const handleDownload = async (report: Report) => {
     try {
       const token = localStorage.getItem('pmo_token');
-      const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8080/api'}/reports/${report.id}/download`;
+      const url = `${API_BASE_URL}/reports/${report.id}/download`;
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       const blob = await res.blob();
       const a = document.createElement('a');

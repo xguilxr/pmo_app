@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, X, Download, Edit2, Trash2, FileSpreadsheet, FileDown } from 'lucide-react';
-import { api } from '../../services/api';
+import { api, API_BASE_URL } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
 import type { BacklogItem } from '../../types';
@@ -54,7 +54,7 @@ export default function ProjectBacklogTab({ projectId }: { projectId: number }) 
 
   const handleExport = () => {
     const token = localStorage.getItem('pmo_token');
-    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8080/api'}/exports/backlog?project_id=${projectId}`;
+    const url = `${API_BASE_URL}/exports/backlog?project_id=${projectId}`;
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.blob())
       .then(blob => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `backlog_${projectId}.csv`; a.click(); })
@@ -63,7 +63,7 @@ export default function ProjectBacklogTab({ projectId }: { projectId: number }) 
 
   const handleDownloadTemplate = () => {
     const token = localStorage.getItem('pmo_token');
-    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8080/api'}/exports/backlog-template`;
+    const url = `${API_BASE_URL}/exports/backlog-template`;
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.blob())
       .then(blob => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'plantilla_backlog.xlsx'; a.click(); })
@@ -72,7 +72,7 @@ export default function ProjectBacklogTab({ projectId }: { projectId: number }) 
 
   const handleDownloadXlsx = () => {
     const token = localStorage.getItem('pmo_token');
-    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8080/api'}/exports/project-xlsx?project_id=${projectId}`;
+    const url = `${API_BASE_URL}/exports/project-xlsx?project_id=${projectId}`;
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.blob())
       .then(blob => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `proyecto_backlog_raid_${projectId}.xlsx`; a.click(); })

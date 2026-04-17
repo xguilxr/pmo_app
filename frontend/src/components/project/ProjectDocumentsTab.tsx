@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Plus, X, Download, Edit2, Trash2, Upload, FileText, FileSpreadsheet, FileImage, Files, FolderOpen, ChevronDown, ChevronRight } from 'lucide-react';
-import { api } from '../../services/api';
+import { api, API_BASE_URL } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
 import type { Document, UploadResponse } from '../../types';
@@ -115,8 +115,7 @@ export default function ProjectDocumentsTab({ projectId }: { projectId: number }
           formData.append('category', form.category);
 
           const token = localStorage.getItem('pmo_token');
-          const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
-          const res = await fetch(`${baseUrl}/uploads`, {
+          const res = await fetch(`${API_BASE_URL}/uploads`, {
             method: 'POST',
             headers: { Authorization: `Bearer ${token}` },
             body: formData,
@@ -157,8 +156,7 @@ export default function ProjectDocumentsTab({ projectId }: { projectId: number }
   const handleDownload = (doc: Document) => {
     if (!doc.file_path) return;
     const token = localStorage.getItem('pmo_token');
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
-    fetch(`${baseUrl}/uploads/${encodeURIComponent(doc.file_path)}`, {
+    fetch(`${API_BASE_URL}/uploads/${encodeURIComponent(doc.file_path)}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.blob())
