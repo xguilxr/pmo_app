@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Building2, Users, FolderKanban, Layers,
   FileText, Power, PowerOff, Edit2, Save, X, Upload, Trash2, AlertTriangle,
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { setActiveTenantId } from '../../services/auth';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import PageHeader from '../../components/common/PageHeader';
 import HealthBadge from '../../components/common/HealthBadge';
@@ -107,6 +108,12 @@ export default function SuperadminTenantDetailPage() {
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+
+  // Activate this tenant so downstream tenant-scoped calls (e.g. admin pages
+  // navigated to from this view) automatically send X-Tenant-ID.
+  useEffect(() => {
+    if (id) setActiveTenantId(parseInt(id, 10));
+  }, [id]);
 
   const { data: tenant, loading, refetch } = useApi(
     () => api.get<TenantDetail>(`/superadmin/tenants/${id}/detail`), [id]

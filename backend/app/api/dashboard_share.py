@@ -13,7 +13,9 @@ from app.models.project import Project
 from app.models.project_request import ProjectRequest
 from app.models.modules import Risk, Issue, Change
 from app.models.dashboard_share import DashboardShareLink
+from app.models.organization import Organization
 from app.auth.security import get_current_user
+from app.dependencies import get_current_tenant
 from sqlalchemy import func
 
 router = APIRouter(prefix="/dashboard-share", tags=["Dashboard Share"])
@@ -59,8 +61,19 @@ class PinVerify(BaseModel):
 # ── Admin endpoints (authenticated) ─────────────────────────────────────────
 
 @router.get("/links", response_model=list[ShareLinkResponse])
-def list_share_links(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    links = db.query(DashboardShareLink).filter(DashboardShareLink.deleted_at.is_(None)).all()
+def list_share_links(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    links = (
+        db.query(DashboardShareLink)
+        .filter(
+            DashboardShareLink.organization_id == tenant.id,
+            DashboardShareLink.deleted_at.is_(None),
+        )
+        .all()
+    )
     return [
         ShareLinkResponse(
             id=l.id,
@@ -77,7 +90,14 @@ def list_share_links(db: Session = Depends(get_db), current_user: User = Depends
 
 
 @router.post("/links", response_model=ShareLinkResponse, status_code=status.HTTP_201_CREATED)
-def create_share_link(data: ShareLinkCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_share_link(
+    data: ShareLinkCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    if data.organization_id != tenant.id and not current_user.is_superadmin:
+        raise HTTPException(status_code=403, detail="No puedes crear enlaces para otra organizacion")
     token = secrets.token_urlsafe(48)
     pin_hash = pwd_context.hash(data.pin) if data.pin else None
     link = DashboardShareLink(
@@ -104,8 +124,20 @@ def create_share_link(data: ShareLinkCreate, db: Session = Depends(get_db), curr
 
 
 @router.delete("/links/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_share_link(link_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    link = db.query(DashboardShareLink).filter(DashboardShareLink.id == link_id).first()
+def delete_share_link(
+    link_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant: Organization = Depends(get_current_tenant),
+):
+    link = (
+        db.query(DashboardShareLink)
+        .filter(
+            DashboardShareLink.id == link_id,
+            DashboardShareLink.organization_id == tenant.id,
+        )
+        .first()
+    )
     if not link:
         raise HTTPException(status_code=404, detail="Enlace no encontrado")
     link.deleted_at = datetime.now(timezone.utc)

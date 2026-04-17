@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Building2, Users, FolderKanban, Plus, Activity,
   Server, ChevronRight, Search, Power, PowerOff,
   Copy, Check, KeyRound,
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { setActiveTenantId } from '../../services/auth';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import PageHeader from '../../components/common/PageHeader';
 
@@ -69,6 +70,7 @@ const emptyProvision: ProvisionForm = {
 
 export default function SuperadminDashboardPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [showProvision, setShowProvision] = useState(false);
   const [form, setForm] = useState<ProvisionForm>({ ...emptyProvision });
@@ -226,10 +228,15 @@ export default function SuperadminDashboardPage() {
       {/* Tenant Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.map(tenant => (
-          <Link
+          <button
             key={tenant.id}
-            to={`/superadmin/tenants/${tenant.id}`}
-            className="liquid-glass-border rounded-2xl p-5 card-glow hover:scale-[1.01] transition-all group"
+            onClick={() => {
+              // Activate the tenant so tenant-scoped endpoints (users, projects,
+              // etc.) receive X-Tenant-ID for this org on subsequent calls.
+              setActiveTenantId(tenant.id);
+              navigate(`/superadmin/tenants/${tenant.id}`);
+            }}
+            className="liquid-glass-border rounded-2xl p-5 card-glow hover:scale-[1.01] transition-all group text-left"
           >
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -290,7 +297,7 @@ export default function SuperadminDashboardPage() {
               </p>
               <ChevronRight className="w-4 h-4 text-text-tertiary group-hover:text-accent transition-colors" />
             </div>
-          </Link>
+          </button>
         ))}
       </div>
 

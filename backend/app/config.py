@@ -1,3 +1,5 @@
+import secrets
+import sys
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -6,10 +8,11 @@ class Settings(BaseSettings):
     # Environment
     app_env: str = "development"
     debug: bool = True
-    secret_key: str = "change-me-to-a-random-secret"
+    # Required secrets — must be provided via env. No default for non-dev envs.
+    secret_key: str = ""
 
-    # Database
-    database_url: str = "mysql+pymysql://pmo_user:secreto@localhost:3306/pmo_db?charset=utf8mb4"
+    # Database — required in prod, sane localhost default in dev
+    database_url: str = "mysql+pymysql://pmo_user@localhost:3306/pmo_db?charset=utf8mb4"
     database_pool_size: int = 5
 
     # Server
@@ -17,7 +20,7 @@ class Settings(BaseSettings):
     port: int = 8080
 
     # Auth
-    jwt_secret: str = "change-me-to-a-random-jwt-secret"
+    jwt_secret: str = ""
     jwt_expiration_hours: int = 24
     password_reset_token_expiry_minutes: int = 30
 
@@ -57,4 +60,23 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    s = Settings()
+    is_prod = s.app_env.lower() in ("production", "prod", "staging")
+    missing = [
+        name
+        for name, value in (("SECRET_KEY", s.secret_key), ("JWT_SECRET", s.jwt_secret))
+        if not value
+    ]
+    if is_prod and missing:
+        raise RuntimeError(
+            f"Missing required env vars in {s.app_env}: {', '.join(missing)}. "
+            "Generate with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+        )
+    if not s.secret_key:
+        s.secret_key = secrets.token_urlsafe(64)
+        print("WARNING: SECRET_KEY not set; generated ephemeral value (dev only).", file=sys.stderr)
+    if not s.jwt_secret:
+        s.jwt_secret = secrets.token_urlsafe(64)
+        print("WARNING: JWT_SECRET not set; generated ephemeral value (dev only). "
+              "Tokens will be invalidated on every restart.", file=sys.stderr)
+    return s
