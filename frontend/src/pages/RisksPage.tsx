@@ -67,8 +67,8 @@ export default function RisksPage() {
     if (projectFilter !== 'all' && r.project_name !== projectFilter) return false;
     if (severityMin && r.severity < Number(severityMin)) return false;
     if (severityMax && r.severity > Number(severityMax)) return false;
-    if (dateFrom && r.identificationDate < dateFrom) return false;
-    if (dateTo && r.identificationDate > dateTo) return false;
+    if (dateFrom && r.identification_date < dateFrom) return false;
+    if (dateTo && r.identification_date > dateTo) return false;
     return true;
   });
 
@@ -143,7 +143,7 @@ export default function RisksPage() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {filtered.map(r => (
-              <tr key={r.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/projects/${r.projectId}`)}>
+              <tr key={r.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/projects/${r.project_id}`)}>
                 <td className="px-4 py-3 font-mono text-xs text-gray-500">{r.folio}</td>
                 <td className="px-4 py-3 font-medium text-gray-900">{r.title}</td>
                 <td className="px-4 py-3 text-blue-600 text-xs">{r.project_name}</td>

@@ -207,35 +207,32 @@ export default function SuperadminTenantDetailPage() {
           { label: tenant.name },
         ]}
         title={tenant.name}
-        actions={
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleToggleActive}
-              disabled={saving}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all ${
-                tenant.is_active
-                  ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20'
-                  : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-              }`}
-            >
-              {tenant.is_active ? <><PowerOff className="w-3.5 h-3.5" /> Desactivar</> : <><Power className="w-3.5 h-3.5" /> Activar</>}
-            </button>
-            <button
-              onClick={() => { setShowDeleteModal(true); setDeleteConfirm(''); }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
-              title="Eliminar permanentemente"
-            >
-              <Trash2 className="w-3.5 h-3.5" /> Eliminar
-            </button>
-            <Link
-              to="/superadmin"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border text-[12px] text-text-secondary hover:bg-surface-hover transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" /> Volver
-            </Link>
-          </div>
-        }
-      />
+      >
+        <button
+          onClick={handleToggleActive}
+          disabled={saving}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all ${
+            tenant.is_active
+              ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20'
+              : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+          }`}
+        >
+          {tenant.is_active ? <><PowerOff className="w-3.5 h-3.5" /> Desactivar</> : <><Power className="w-3.5 h-3.5" /> Activar</>}
+        </button>
+        <button
+          onClick={() => { setShowDeleteModal(true); setDeleteConfirm(''); }}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
+          title="Eliminar permanentemente"
+        >
+          <Trash2 className="w-3.5 h-3.5" /> Eliminar
+        </button>
+        <Link
+          to="/superadmin"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border text-[12px] text-text-secondary hover:bg-surface-hover transition-colors"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" /> Volver
+        </Link>
+      </PageHeader>
 
       {/* Tenant Header Card */}
       <div className="liquid-glass-border rounded-2xl p-6 card-glow">

@@ -1,5 +1,5 @@
 import { setToken, api } from './api';
-import type { OrgBrief, LoginResponse, CurrentUser } from '../types';
+import type { LoginResponse, CurrentUser } from '../types';
 
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const ACTIVITY_KEY = 'pmo_last_activity';
