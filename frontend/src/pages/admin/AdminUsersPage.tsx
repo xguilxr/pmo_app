@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Plus, Edit2, Trash2, X, Check } from 'lucide-react';
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner, ErrorMessage } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
+import { getActiveTenantId, isSuperAdmin } from '../../services/auth';
 
 interface UserItem {
   id: number;
@@ -78,6 +80,14 @@ export default function AdminUsersPage() {
   useEffect(() => {
     if (apiUsers) setUsers(apiUsers);
   }, [apiUsers]);
+
+  // This page is tenant-scoped (calls /users which requires a tenant). A super
+  // admin without an active tenant would hit "Super admin debe especificar
+  // X-Tenant-ID" on every endpoint, so route them to the platform-wide view.
+  // Placed after all hooks to respect rules-of-hooks.
+  if (isSuperAdmin() && !getActiveTenantId()) {
+    return <Navigate to="/superadmin/users" replace />;
+  }
 
   const openCreate = () => {
     setEditing(null);

@@ -1491,8 +1491,11 @@ def list_access_logs(
 ):
     """Access log: logins (success/failed/blocked), logouts, password events.
 
-    Platform-level (``organization_id IS NULL``) to avoid duplicates — the same
-    login writes one platform row plus one per tenant the user belongs to.
+    When no ``tenant_id`` is passed, each login event is deduplicated across
+    the platform-level row (``organization_id IS NULL``) and the per-tenant
+    rows written for the same event. This keeps the view readable even for
+    legacy events that only have tenant-scoped rows (before the platform row
+    was added) — otherwise the page would look empty for those.
     """
     since = datetime.utcnow() - timedelta(days=days)
     q = (
@@ -1506,14 +1509,31 @@ def list_access_logs(
     )
     if tenant_id is not None:
         q = q.filter(AuditLog.organization_id == tenant_id)
-    else:
-        # Default: only platform-level rows to avoid duplicates
-        q = q.filter(AuditLog.organization_id.is_(None))
     if action:
         q = q.filter(AuditLog.action == action)
     if user_id is not None:
         q = q.filter(AuditLog.user_id == user_id)
-    q = q.order_by(AuditLog.timestamp.desc()).offset(offset).limit(limit)
+    # Fetch more than requested so the Python dedupe still produces ``limit``
+    # entries. The 4x fan-out covers the worst case of a user with 3 tenants.
+    fetch_cap = limit * 4 if tenant_id is None else limit
+    q = q.order_by(AuditLog.timestamp.desc()).offset(offset).limit(fetch_cap)
+
+    rows = q.all()
+    if tenant_id is None:
+        # Prefer the platform-level row per (user, action, second) — otherwise
+        # keep the first tenant row we see so the event still shows.
+        seen: dict[tuple, tuple] = {}
+        for log, user, org in rows:
+            ts_key = log.timestamp.replace(microsecond=0) if log.timestamp else None
+            key = (log.user_id, log.action, ts_key, log.ip_address)
+            existing = seen.get(key)
+            if existing is None or (log.organization_id is None and existing[0].organization_id is not None):
+                seen[key] = (log, user, org)
+        deduped = list(seen.values())
+        deduped.sort(key=lambda t: t[0].timestamp or datetime.min, reverse=True)
+        rows = deduped[:limit]
+    else:
+        rows = rows[:limit]
 
     return [
         AccessLogEntry(
@@ -1528,7 +1548,7 @@ def list_access_logs(
             ip_address=log.ip_address,
             details=log.details,
         )
-        for log, user, org in q.all()
+        for log, user, org in rows
     ]
 
 
@@ -1572,7 +1592,9 @@ def list_activity_logs(
         .outerjoin(Organization, Organization.id == AuditLog.organization_id)
         .filter(
             AuditLog.action.notin_(list(_ACCESS_ACTIONS)),
-            AuditLog.module != "auth",
+            # Tolerate legacy rows with NULL module (NULL != 'auth' evaluates
+            # to UNKNOWN in SQL, which would otherwise filter them out).
+            or_(AuditLog.module.is_(None), AuditLog.module != "auth"),
             AuditLog.timestamp >= since,
         )
     )

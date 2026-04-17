@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Activity, Building2, Users, FolderKanban, Layers, Shield,
-  LogIn, AlertTriangle, ChevronRight, PowerOff, Power,
+  LogIn, AlertTriangle, ChevronRight, PowerOff, Power, Plus,
 } from 'lucide-react';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import PageHeader from '../../components/common/PageHeader';
@@ -85,12 +85,20 @@ export default function SuperadminOverviewPage() {
         title="Panel Super Admin"
         subtitle="Resumen de tenants y salud de la plataforma"
       >
-        <Link
-          to="/superadmin/tenants"
-          className="flex items-center gap-2 px-4 py-2 rounded-xl btn-gradient text-white text-[13px] font-medium shadow-lg shadow-accent/20 hover:shadow-accent/30 transition-all"
-        >
-          <Building2 className="w-4 h-4" /> Gestionar tenants
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/superadmin/tenants"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border text-[13px] text-text-secondary hover:bg-surface-hover transition-colors"
+          >
+            <Building2 className="w-4 h-4" /> Gestionar tenants
+          </Link>
+          <Link
+            to="/superadmin/tenants?new=1"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl btn-gradient text-white text-[13px] font-medium shadow-lg shadow-accent/20 hover:shadow-accent/30 transition-all"
+          >
+            <Plus className="w-4 h-4" /> Nuevo tenant
+          </Link>
+        </div>
       </PageHeader>
 
       {/* Platform stats */}

@@ -109,44 +109,59 @@ Si un agente encuentra un bug que no está en el roadmap:
 
 El dueño ejecuta el sistema en su PC (servicio NSSM `pmo_app_backend` + IIS /
 frontend empacado). Cuando el agente modifica archivos debe **terminar siempre**
-el mensaje final con un bloque `## Próximos pasos` que incluya:
+el mensaje final con un bloque `## Próximos pasos` con **tres subsecciones
+obligatorias**:
 
-1. **Resumen de commits** — SHA + mensaje corto (si es una sola corrida con
-   varios commits, listarlos en orden).
-2. **Replicación en el ambiente activo** — secuencia exacta de comandos que el
-   operador tiene que ejecutar desde su PC. Usar el template:
+1. **Resumen de commits** — SHA + mensaje corto, en orden cronológico.
+2. **Archivos actualizados** — lista plana de rutas tocadas (solo las que
+   cambian en ese hand-off), agrupadas por área si son muchas (backend /
+   frontend / docs / migrations).
+3. **Pasos para replicar el deploy** — secuencia exacta de comandos que el
+   operador tiene que ejecutar desde su PC.
 
-   ```
-   ## Próximos pasos
+Template:
 
-   ### Commits
-   - <sha1> <mensaje>
-   - <sha2> <mensaje>
+```
+## Próximos pasos
 
-   ### Replicar en ambiente de pruebas (PC personal)
-   1. (Si aplica) Abrir/mergear PR: <link o "no se creó PR; pedir al usuario">
-   2. `git pull origin <branch>` en la carpeta del repo local
-   3. Backend cambiado:
-      - `cd backend && .venv\Scripts\activate`
-      - `pip install -r requirements.txt` (solo si `requirements.txt` cambió)
-      - Si hay cambios de schema: revisar `backend/migrations/sync_schema.sql`
-        y respaldar MySQL HostGator antes de reiniciar
-      - `nssm restart pmo_app_backend`
-   4. Frontend cambiado:
-      - `cd frontend && npm install` (solo si `package.json` cambió)
-      - `npm run build`
-      - Copiar `frontend/dist/*` a `backend/static_frontend/` (o lo que use
-        el deploy script)
-      - `nssm restart pmo_app_backend` (sirve el bundle estático)
-   5. Validar en la URL de ngrok: <qué pantalla probar>
-   ```
+### Commits
+- <sha1> <mensaje>
+- <sha2> <mensaje>
 
-3. **Omitir pasos que no aplican** (si la corrida solo tocó docs, basta con
-   `git pull`; si solo cambió frontend, no reiniciar backend a menos que
-   sirva el bundle).
-4. **Señalar acciones destructivas explícitamente** (migraciones de schema,
-   rotación de secretos, borrado de datos) con el prefijo **⚠ Requiere
-   backup previo**.
+### Archivos actualizados
+- backend/app/api/<file>.py
+- backend/migrations/sync_schema.sql   ⚠ Requiere backup previo
+- frontend/src/pages/<file>.tsx
+- docs/<file>.md
+
+### Replicar en ambiente de pruebas (PC personal)
+1. (Si aplica) Abrir/mergear PR: <link o "no se creó PR; pedir al usuario">
+2. `git pull origin <branch>` en la carpeta del repo local
+3. Backend cambiado:
+   - `cd backend && .venv\Scripts\activate`
+   - `pip install -r requirements.txt` (solo si `requirements.txt` cambió)
+   - Si hay cambios de schema: revisar `backend/migrations/sync_schema.sql`
+     y respaldar MySQL HostGator antes de reiniciar
+   - `nssm restart pmo_app_backend`
+4. Frontend cambiado:
+   - `cd frontend && npm install` (solo si `package.json` cambió)
+   - `npm run build`
+   - Copiar `frontend/dist/*` a `backend/static_frontend/` (o lo que use
+     el deploy script)
+   - `nssm restart pmo_app_backend` (sirve el bundle estático)
+5. Validar en la URL de ngrok: <qué pantalla probar>
+```
+
+Reglas:
+
+- **Omitir pasos que no aplican**: si la corrida solo tocó docs, basta con
+  `git pull`; si solo cambió frontend, no reiniciar backend a menos que
+  sirva el bundle.
+- **Señalar acciones destructivas explícitamente** (migraciones de schema,
+  rotación de secretos, borrado de datos) con el prefijo **⚠ Requiere
+  backup previo** en la lista de archivos y en el paso correspondiente.
+- **Siempre incluir las tres subsecciones** aunque alguna sea corta — el
+  operador las usa como checklist antes de tocar nada.
 
 Si el agente **no** modificó archivos (solo investigó o respondió una
 pregunta), puede omitir el bloque.

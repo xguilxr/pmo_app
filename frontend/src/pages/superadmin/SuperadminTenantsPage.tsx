@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Building2, Plus, Search, Power, PowerOff, Copy, Check, KeyRound,
   Edit2, Trash2, Eye, Shield,
@@ -47,6 +47,7 @@ interface ProvisionResult {
 
 export default function SuperadminTenantsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toastSuccess, toastError } = useToast();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -61,6 +62,19 @@ export default function SuperadminTenantsPage() {
 
   const { data: tenants, loading, refetch } = useApi(
     () => superadminApi.listTenants(true), []);
+
+  // Open the create modal when navigated here with ?new=1 (e.g. from the
+  // Overview page "Nuevo tenant" shortcut). Strip the flag after opening so
+  // refreshes don't reopen the modal.
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setForm({ ...emptyForm });
+      setFormError('');
+      setShowForm('create');
+      searchParams.delete('new');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const filtered = useMemo(() => {
     const list = tenants || [];
