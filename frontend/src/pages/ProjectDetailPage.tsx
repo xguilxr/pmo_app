@@ -82,8 +82,8 @@ export default function ProjectDetailPage() {
         plannedProgress: apiProject.planned_progress || 0,
         budget: apiProject.budget,
         realBudget: apiProject.real_budget || 0,
-        startDate: apiProject.start_date,
-        endDate: apiProject.end_date,
+        startDate: apiProject.start_date || '',
+        endDate: apiProject.end_date || '',
         health: (apiProject.health || 'green') as 'green' | 'yellow' | 'red',
       }
     : null;
