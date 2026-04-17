@@ -44,3 +44,9 @@ class TaskDependency(Base):
     predecessor_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
     successor_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
     dependency_type = Column(String(10), default="FS")  # FS, SS, FF, SF
+    # Explicit tenant column so queries can filter without joining both parents.
+    # Nullable until backfill migration runs; code paths that create dependencies
+    # must populate it from the predecessor task's organization_id.
+    organization_id = Column(
+        Integer, ForeignKey("organizations.id"), nullable=True, index=True
+    )

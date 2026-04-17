@@ -31,6 +31,28 @@ ALTER TABLE project_closures ADD COLUMN IF NOT EXISTS organization_id INTEGER;
 ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS organization_id INTEGER;
 ALTER TABLE approval_logs ADD COLUMN IF NOT EXISTS organization_id INTEGER;
 
+-- H8: tenant column on child tables that previously depended on the parent
+-- for isolation. Backfill pulls the tenant from the parent so historical rows
+-- become queryable by organization_id without extra joins.
+ALTER TABLE task_dependencies ADD COLUMN IF NOT EXISTS organization_id INTEGER;
+ALTER TABLE resource_work_logs ADD COLUMN IF NOT EXISTS organization_id INTEGER;
+ALTER TABLE resource_availabilities ADD COLUMN IF NOT EXISTS organization_id INTEGER;
+
+UPDATE task_dependencies td
+JOIN tasks t ON t.id = td.predecessor_id
+SET td.organization_id = t.organization_id
+WHERE td.organization_id IS NULL;
+
+UPDATE resource_work_logs wl
+JOIN resources r ON r.id = wl.resource_id
+SET wl.organization_id = r.organization_id
+WHERE wl.organization_id IS NULL;
+
+UPDATE resource_availabilities ra
+JOIN resources r ON r.id = ra.resource_id
+SET ra.organization_id = r.organization_id
+WHERE ra.organization_id IS NULL;
+
 -- -------------------------------------------------------
 -- users: super admin flag
 -- -------------------------------------------------------

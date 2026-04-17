@@ -58,6 +58,11 @@ class ResourceWorkLog(TimestampMixin, Base):
     hours = Column(Float, nullable=False)
     notes = Column(Text, nullable=True)
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    # Explicit tenant column: queries filter by this instead of joining the
+    # resource. Nullable until backfill migration runs.
+    organization_id = Column(
+        Integer, ForeignKey("organizations.id"), nullable=True, index=True
+    )
 
     resource = relationship("Resource", back_populates="work_logs")
 
@@ -69,5 +74,8 @@ class ResourceAvailability(TimestampMixin, Base):
     available_date = Column(Date, nullable=False)
     available_hours = Column(Float, nullable=False)       # 0-24
     notes = Column(Text, nullable=True)
+    organization_id = Column(
+        Integer, ForeignKey("organizations.id"), nullable=True, index=True
+    )
 
     resource = relationship("Resource", back_populates="availabilities")
