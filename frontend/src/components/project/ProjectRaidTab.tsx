@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, X, Download, Edit2, Trash2, AlertTriangle, Zap, Bug, Scale, FileSpreadsheet } from 'lucide-react';
+import { Plus, X, Edit2, Trash2, AlertTriangle, Zap, Bug, Scale, FileSpreadsheet } from 'lucide-react';
 import { api, API_BASE_URL } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
@@ -21,11 +21,6 @@ const severityColor = (s: number) =>
   : 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400';
 
 const typeLabel: Record<string, string> = { action: 'Accion', issue: 'Incidencia', decision: 'Decision' };
-const typeColor: Record<string, string> = {
-  action: 'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400',
-  issue: 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400',
-  decision: 'bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-400',
-};
 const priorityColor: Record<string, string> = {
   Alta: 'text-red-600 dark:text-red-400', Media: 'text-amber-600 dark:text-amber-400', Baja: 'text-emerald-600 dark:text-emerald-400',
 };

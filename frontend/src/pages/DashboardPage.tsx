@@ -36,8 +36,6 @@ const HEALTH_COLORS: Record<string, { name: string; color: string }> = {
   red: { name: 'Critico', color: '#ef4444' },
 };
 
-const CHART_COLORS = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd'];
-
 export default function DashboardPage() {
   const { t } = useTranslation();
 
@@ -80,7 +78,7 @@ export default function DashboardPage() {
 
   const computedBudgetByType = useMemo(() => {
     const typeMap = new Map<string, number>();
-    projectData.forEach(p => { typeMap.set(p.type, (typeMap.get(p.type) || 0) + p.budget); });
+    projectData.forEach(p => { const t = p.type ?? 'Otro'; typeMap.set(t, (typeMap.get(t) || 0) + p.budget); });
     return Array.from(typeMap.entries()).map(([type, budget]) => ({ type, budget }));
   }, [projectData]);
 

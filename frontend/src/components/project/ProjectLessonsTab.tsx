@@ -24,7 +24,7 @@ export default function ProjectLessonsTab({ projectId }: { projectId: number }) 
 
   const openEdit = (l: Lesson) => {
     setEditing(l);
-    setForm({ title: l.title, description: l.description || '', category: l.category, project_phase: l.project_phase || '', recommendation: l.recommendation || '' });
+    setForm({ title: l.title, description: l.description || '', category: l.category ?? 'improvement', project_phase: l.project_phase || '', recommendation: l.recommendation || '' });
     setShowModal(true);
   };
 
@@ -106,7 +106,7 @@ export default function ProjectLessonsTab({ projectId }: { projectId: number }) 
       ) : (
         <div className="space-y-3">
           {filtered.map(l => {
-            const cat = categoryConfig[l.category] || categoryConfig.improvement;
+            const cat = categoryConfig[l.category ?? 'improvement'] || categoryConfig.improvement;
             const Icon = cat.icon;
             return (
               <div key={l.id} className="liquid-glass-border rounded-2xl p-5 hover:border-border-hover hover:shadow-sm transition-all">

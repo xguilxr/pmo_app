@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -53,7 +53,6 @@ export default function ProjectDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
-  const { toastSuccess, toastError } = useToast();
   const [activeTab, setActiveTab] = useState('charter');
   const [showEditModal, setShowEditModal] = useState(false);
 
@@ -72,7 +71,7 @@ export default function ProjectDetailPage() {
         folio: apiProject.folio,
         name: apiProject.name,
         description: apiProject.description || '',
-        type: apiProject.type,
+        type: apiProject.type || '',
         priority: apiProject.priority as 'Alta' | 'Media' | 'Baja',
         company: apiProject.organization_name || '',
         organizationId: apiProject.organization_id || 0,

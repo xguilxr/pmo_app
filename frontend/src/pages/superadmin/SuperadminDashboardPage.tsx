@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Building2, Users, FolderKanban, Plus, Activity,
@@ -69,7 +68,6 @@ const emptyProvision: ProvisionForm = {
 };
 
 export default function SuperadminDashboardPage() {
-  const { t } = useTranslation();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [showProvision, setShowProvision] = useState(false);
@@ -139,15 +137,14 @@ export default function SuperadminDashboardPage() {
       <PageHeader
         breadcrumb={[{ label: 'Super Admin' }]}
         title="PMOAAS - Panel Super Admin"
-        actions={
-          <button
-            onClick={() => setShowProvision(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl btn-gradient text-white text-[13px] font-medium shadow-lg shadow-accent/20 hover:shadow-accent/30 transition-all"
-          >
-            <Plus className="w-4 h-4" /> Provisionar Tenant
-          </button>
-        }
-      />
+      >
+        <button
+          onClick={() => setShowProvision(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl btn-gradient text-white text-[13px] font-medium shadow-lg shadow-accent/20 hover:shadow-accent/30 transition-all"
+        >
+          <Plus className="w-4 h-4" /> Provisionar Tenant
+        </button>
+      </PageHeader>
 
       {/* Health Overview */}
       {health && (

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Edit2, Trash2, X, Search, Layers } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Search } from 'lucide-react';
 import { api } from '../../services/api';
 import { useApi, LoadingSpinner, ErrorMessage } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';

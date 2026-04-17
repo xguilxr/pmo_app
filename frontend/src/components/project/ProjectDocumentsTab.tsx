@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Plus, X, Download, Edit2, Trash2, Upload, FileText, FileSpreadsheet, FileImage, Files, FolderOpen, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, X, Download, Edit2, Trash2, Upload, FileText, FileSpreadsheet, FileImage, FolderOpen, ChevronDown, ChevronRight } from 'lucide-react';
 import { api, API_BASE_URL } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';
@@ -73,13 +73,13 @@ export default function ProjectDocumentsTab({ projectId }: { projectId: number }
   };
 
   const getDocsForFolder = (folder: typeof FOLDERS[number]) => {
-    return (docs || []).filter(d => folder.categories.includes(d.category));
+    return (docs || []).filter(d => folder.categories.includes(d.category ?? ''));
   };
 
   // Documents that don't match any folder go to "otros"
   const getUncategorizedDocs = () => {
     const allKnown = FOLDERS.flatMap(f => f.categories);
-    return (docs || []).filter(d => !allKnown.includes(d.category));
+    return (docs || []).filter(d => !allKnown.includes(d.category ?? ''));
   };
 
   const openCreate = (defaultCategory?: string) => {
@@ -91,7 +91,7 @@ export default function ProjectDocumentsTab({ projectId }: { projectId: number }
 
   const openEdit = (doc: Document) => {
     setEditing(doc);
-    setForm({ name: doc.name, description: doc.description || '', category: doc.category });
+    setForm({ name: doc.name, description: doc.description || '', category: doc.category ?? 'artefacto' });
     setSelectedFile(null);
     setShowModal(true);
   };
@@ -249,7 +249,7 @@ export default function ProjectDocumentsTab({ projectId }: { projectId: number }
                             <div className="flex items-center gap-2">
                               <span className="text-[13px] font-medium text-text-primary truncate">{doc.name}</span>
                               <span className="text-[10px] font-mono text-text-tertiary">{doc.folio}</span>
-                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${folder.bg} ${folder.color}`}>{categoryLabel(doc.category)}</span>
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${folder.bg} ${folder.color}`}>{categoryLabel(doc.category ?? '')}</span>
                             </div>
                             {doc.description && <p className="text-[11px] text-text-tertiary truncate mt-0.5">{doc.description}</p>}
                           </div>

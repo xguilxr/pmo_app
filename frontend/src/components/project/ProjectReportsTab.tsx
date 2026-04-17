@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, X, BarChart3, Download, FileBarChart, Calendar, Trash2, Send, Eye, Sparkles, TrendingUp, FileCheck, ClipboardList } from 'lucide-react';
+import { Plus, X, BarChart3, Download, FileBarChart, Calendar, Trash2, Send, Eye, Sparkles, TrendingUp, FileCheck } from 'lucide-react';
 import { api, API_BASE_URL } from '../../services/api';
 import { useApi, LoadingSpinner } from '../../hooks/useApi';
 import { useToast } from '../../context/ToastContext';

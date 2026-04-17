@@ -21,7 +21,6 @@ import {
   LogOut,
   Sliders,
   Layers,
-  Activity,
   Crown,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -75,7 +74,7 @@ export default function Sidebar() {
               <Crown className="w-4 h-4" />
               Panel de Tenants
             </NavLink>
-            <NavLink to="/superadmin" className={({ isActive }) => {
+            <NavLink to="/superadmin" className={() => {
               // Match any /superadmin/tenants/* path
               const isTenantPath = window.location.pathname.startsWith('/superadmin/tenants');
               return `flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-normal transition-all duration-200 ${
