@@ -5,6 +5,13 @@ can access these endpoints.  Provides:
 - Tenant (Organization) CRUD with full multi-tenant field management
 - Tenant provisioning automation (create org + asset dir + initial admin)
 - Server health / monitoring snapshot
+- Cross-tenant user and role management (platform-wide)
+- Access logs (logins, password changes) and activity logs
+- Join-as-admin shortcut so a superadmin can operate inside any tenant
+
+The router deliberately does not use ``get_current_tenant``; tenant scope is
+derived from path params so the endpoints still work on inactive tenants
+(the regular tenant dependency filters ``is_active.is_(True)``).
 """
 
 import os
@@ -12,23 +19,26 @@ import platform
 import re
 import secrets
 import shutil
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import func, text
+from sqlalchemy import func, or_, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.auth.security import get_superadmin_user, hash_password
 from app.database import get_db
 from app.middleware.tenant import invalidate_tenant_cache
+from app.models.audit import AuditLog
 from app.models.organization import Organization
 from app.models.program import Program
 from app.models.project import Project
-from app.models.role import Role
+from app.models.role import Permission, Role
 from app.models.user import User
+from app.schemas.user import enforce_password_policy
+from app.services.audit import log_action
 
 router = APIRouter(prefix="/superadmin", tags=["Super Admin"])
 
@@ -944,3 +954,751 @@ def _ensure_asset_dir(slug: str) -> str:
     if not os.path.exists(gitkeep):
         open(gitkeep, "a").close()
     return path
+
+
+# =============================================================================
+# Tenant lifecycle helpers (activate/deactivate, join-as-admin)
+# =============================================================================
+
+class ToggleActiveRequest(BaseModel):
+    is_active: bool
+
+
+@router.patch("/tenants/{tenant_id}/active", response_model=TenantResponse)
+def toggle_tenant_active(
+    tenant_id: int,
+    data: ToggleActiveRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_superadmin_user),
+):
+    """Activate or deactivate a tenant without losing data.
+
+    Deactivating also clears ``deleted_at`` so the tenant stays visible to the
+    super admin (it just blocks regular login via the tenant domain). Use the
+    ``DELETE`` endpoint for a true soft-delete with audit removal.
+    """
+    org = db.query(Organization).filter(Organization.id == tenant_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Tenant no encontrado")
+    org.is_active = data.is_active
+    # If reactivating a previously soft-deleted tenant, clear deleted_at too
+    if data.is_active and org.deleted_at is not None:
+        org.deleted_at = None
+    log_action(
+        db,
+        user_id=admin.id,
+        action="tenant_activated" if data.is_active else "tenant_deactivated",
+        module="superadmin",
+        record_id=org.id,
+        details={"slug": org.slug, "name": org.name},
+    )
+    db.commit()
+    db.refresh(org)
+    invalidate_tenant_cache()
+
+    user_count = (
+        db.execute(
+            text("SELECT COUNT(*) FROM user_organizations WHERE organization_id = :oid"),
+            {"oid": org.id},
+        ).scalar() or 0
+    )
+    project_count = (
+        db.query(func.count(Project.id))
+        .filter(Project.organization_id == org.id, Project.deleted_at.is_(None))
+        .scalar() or 0
+    )
+    resp = TenantResponse.model_validate(org)
+    resp.user_count = user_count
+    resp.project_count = project_count
+    return resp
+
+
+@router.post("/tenants/{tenant_id}/join-as-admin", response_model=dict)
+def join_tenant_as_admin(
+    tenant_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_superadmin_user),
+):
+    """Add the current super admin as ``Administrador`` of the tenant.
+
+    Convenience shortcut for "I need to do admin-level work in this tenant
+    right now". Idempotent: if already a member, just ensures the role is set.
+    """
+    org = db.query(Organization).filter(Organization.id == tenant_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Tenant no encontrado")
+
+    already_member = any(o.id == org.id for o in admin.organizations)
+    if not already_member:
+        admin.organizations.append(org)
+
+    admin_role = db.query(Role).filter(Role.name == "Administrador").first()
+    has_role = admin_role and any(r.id == admin_role.id for r in admin.roles)
+    if admin_role and not has_role:
+        admin.roles.append(admin_role)
+
+    log_action(
+        db,
+        user_id=admin.id,
+        action="join_as_admin",
+        module="superadmin",
+        record_id=org.id,
+        organization_id=org.id,
+        details={"slug": org.slug, "already_member": already_member},
+    )
+    db.commit()
+    return {
+        "tenant_id": org.id,
+        "tenant_name": org.name,
+        "user_id": admin.id,
+        "already_member": already_member,
+        "role_assigned": admin_role.name if admin_role else None,
+    }
+
+
+# =============================================================================
+# Cross-tenant user management
+# =============================================================================
+
+class SuperUserResponse(BaseModel):
+    id: int
+    username: str
+    email: str
+    full_name: str
+    is_active: bool
+    is_superadmin: bool
+    last_login: Optional[datetime] = None
+    created_at: datetime
+    roles: list[str] = []
+    organizations: list[dict] = []  # [{id, name, slug}]
+
+
+class SuperUserCreate(BaseModel):
+    username: str
+    email: EmailStr
+    full_name: str
+    password: str
+    is_superadmin: bool = False
+    role_ids: list[int] = []
+    organization_ids: list[int] = []
+
+
+class SuperUserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    is_active: Optional[bool] = None
+    is_superadmin: Optional[bool] = None
+    role_ids: Optional[list[int]] = None
+    organization_ids: Optional[list[int]] = None
+
+
+def _serialize_user(user: User) -> SuperUserResponse:
+    return SuperUserResponse(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        full_name=user.full_name,
+        is_active=user.is_active,
+        is_superadmin=user.is_superadmin,
+        last_login=user.last_login,
+        created_at=user.created_at,
+        roles=[r.name for r in (user.roles or [])],
+        organizations=[
+            {"id": o.id, "name": o.name, "slug": o.slug}
+            for o in (user.organizations or [])
+        ],
+    )
+
+
+@router.get("/users", response_model=list[SuperUserResponse])
+def list_all_users(
+    search: Optional[str] = None,
+    tenant_id: Optional[int] = None,
+    role: Optional[str] = None,
+    only_active: bool = False,
+    include_superadmins: bool = True,
+    limit: int = Query(200, le=1000),
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_superadmin_user),
+):
+    """Cross-tenant user listing for super admins."""
+    q = db.query(User).options(
+        selectinload(User.roles), selectinload(User.organizations)
+    ).filter(User.deleted_at.is_(None))
+
+    if only_active:
+        q = q.filter(User.is_active.is_(True))
+    if not include_superadmins:
+        q = q.filter(User.is_superadmin.is_(False))
+    if search:
+        like = f"%{search}%"
+        q = q.filter(
+            or_(User.username.ilike(like), User.email.ilike(like), User.full_name.ilike(like))
+        )
+    if tenant_id is not None:
+        q = q.join(User.organizations).filter(Organization.id == tenant_id)
+    if role:
+        q = q.join(User.roles).filter(Role.name == role)
+
+    q = q.order_by(User.full_name.asc()).offset(offset).limit(limit)
+    return [_serialize_user(u) for u in q.all()]
+
+
+@router.post(
+    "/users",
+    response_model=SuperUserResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_user_anywhere(
+    data: SuperUserCreate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_superadmin_user),
+):
+    """Create a user and attach them to any orgs/roles. No tenant scope."""
+    try:
+        enforce_password_policy(data.password)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    if db.query(User).filter(User.username == data.username).first():
+        raise HTTPException(status_code=400, detail="El nombre de usuario ya está en uso")
+    if db.query(User).filter(User.email == data.email).first():
+        raise HTTPException(status_code=400, detail="El correo electrónico ya está registrado")
+
+    user = User(
+        username=data.username,
+        email=str(data.email),
+        full_name=data.full_name,
+        hashed_password=hash_password(data.password),
+        is_active=True,
+        is_superadmin=data.is_superadmin,
+        created_by_id=admin.id,
+    )
+    if data.role_ids:
+        user.roles = db.query(Role).filter(Role.id.in_(data.role_ids)).all()
+    if data.organization_ids:
+        user.organizations = (
+            db.query(Organization).filter(Organization.id.in_(data.organization_ids)).all()
+        )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    log_action(
+        db, user_id=admin.id, action="user_create_platform",
+        module="superadmin", record_id=user.id,
+        details={"username": user.username, "email": user.email},
+    )
+    db.commit()
+    return _serialize_user(user)
+
+
+@router.patch("/users/{user_id}", response_model=SuperUserResponse)
+def update_user_anywhere(
+    user_id: int,
+    data: SuperUserUpdate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_superadmin_user),
+):
+    user = db.query(User).filter(User.id == user_id, User.deleted_at.is_(None)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    update_data = data.model_dump(exclude_unset=True)
+
+    if "role_ids" in update_data:
+        role_ids = update_data.pop("role_ids")
+        if role_ids is not None:
+            user.roles = db.query(Role).filter(Role.id.in_(role_ids)).all()
+    if "organization_ids" in update_data:
+        org_ids = update_data.pop("organization_ids")
+        if org_ids is not None:
+            user.organizations = (
+                db.query(Organization).filter(Organization.id.in_(org_ids)).all()
+            )
+
+    # Guardrail: never allow the current super admin to strip their own super
+    # admin flag via this endpoint — would lock them out of the panel.
+    if "is_superadmin" in update_data and user.id == admin.id and update_data["is_superadmin"] is False:
+        raise HTTPException(
+            status_code=400,
+            detail="No puedes quitarte tu propio rol de super admin",
+        )
+
+    for field, value in update_data.items():
+        setattr(user, field, value)
+
+    db.commit()
+    db.refresh(user)
+
+    log_action(
+        db, user_id=admin.id, action="user_update_platform",
+        module="superadmin", record_id=user.id, details={"fields": list(update_data.keys())},
+    )
+    db.commit()
+    return _serialize_user(user)
+
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user_anywhere(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_superadmin_user),
+):
+    user = db.query(User).filter(User.id == user_id, User.deleted_at.is_(None)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if user.id == admin.id:
+        raise HTTPException(status_code=400, detail="No puedes eliminar tu propio usuario")
+    user.deleted_at = datetime.now(timezone.utc)
+    user.is_active = False
+    log_action(
+        db, user_id=admin.id, action="user_delete_platform",
+        module="superadmin", record_id=user.id,
+        details={"username": user.username},
+    )
+    db.commit()
+
+
+class PasswordResetResult(BaseModel):
+    user_id: int
+    username: str
+    new_password: str  # returned once
+
+
+@router.post("/users/{user_id}/reset-password", response_model=PasswordResetResult)
+def reset_user_password(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_superadmin_user),
+):
+    """Force-reset a user's password to a new random value (returned once)."""
+    user = db.query(User).filter(User.id == user_id, User.deleted_at.is_(None)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    new_password = secrets.token_urlsafe(12)  # ~16 chars, satisfies policy
+    user.hashed_password = hash_password(new_password)
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    log_action(
+        db, user_id=admin.id, action="password_reset_platform",
+        module="superadmin", record_id=user.id,
+        details={"username": user.username},
+    )
+    db.commit()
+    return PasswordResetResult(
+        user_id=user.id, username=user.username, new_password=new_password,
+    )
+
+
+# =============================================================================
+# Platform-wide roles & permissions
+# =============================================================================
+
+class RoleResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    is_system: bool = False
+    user_count: int = 0
+    permission_ids: list[int] = []
+
+
+class RoleCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    permission_ids: list[int] = []
+
+
+class RoleUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    permission_ids: Optional[list[int]] = None
+
+
+class PermissionResponse(BaseModel):
+    id: int
+    module: str
+    action: str
+    description: Optional[str] = None
+
+
+def _serialize_role(role: Role, user_count: int) -> RoleResponse:
+    return RoleResponse(
+        id=role.id,
+        name=role.name,
+        description=role.description,
+        is_system=bool(role.is_system),
+        user_count=user_count,
+        permission_ids=[p.id for p in (role.permissions or [])],
+    )
+
+
+@router.get("/roles", response_model=list[RoleResponse])
+def list_platform_roles(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_superadmin_user),
+):
+    roles = db.query(Role).options(selectinload(Role.permissions)).order_by(Role.name).all()
+    counts = dict(
+        db.execute(
+            text(
+                "SELECT role_id, COUNT(*) FROM user_roles "
+                "JOIN users u ON u.id = user_roles.user_id "
+                "WHERE u.deleted_at IS NULL GROUP BY role_id"
+            )
+        ).fetchall()
+    )
+    return [_serialize_role(r, int(counts.get(r.id, 0))) for r in roles]
+
+
+@router.post("/roles", response_model=RoleResponse, status_code=status.HTTP_201_CREATED)
+def create_platform_role(
+    data: RoleCreate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_superadmin_user),
+):
+    if db.query(Role).filter(Role.name == data.name).first():
+        raise HTTPException(status_code=400, detail="Ya existe un rol con ese nombre")
+    role = Role(name=data.name, description=data.description, is_system=False)
+    if data.permission_ids:
+        role.permissions = (
+            db.query(Permission).filter(Permission.id.in_(data.permission_ids)).all()
+        )
+    db.add(role)
+    db.commit()
+    db.refresh(role)
+    log_action(
+        db, user_id=admin.id, action="role_create_platform",
+        module="superadmin", record_id=role.id, details={"name": role.name},
+    )
+    db.commit()
+    return _serialize_role(role, 0)
+
+
+@router.patch("/roles/{role_id}", response_model=RoleResponse)
+def update_platform_role(
+    role_id: int,
+    data: RoleUpdate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_superadmin_user),
+):
+    role = db.query(Role).filter(Role.id == role_id).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Rol no encontrado")
+    if role.is_system and data.name and data.name != role.name:
+        raise HTTPException(status_code=400, detail="No puedes renombrar un rol del sistema")
+
+    update_data = data.model_dump(exclude_unset=True)
+    if "permission_ids" in update_data:
+        perm_ids = update_data.pop("permission_ids")
+        if perm_ids is not None:
+            role.permissions = (
+                db.query(Permission).filter(Permission.id.in_(perm_ids)).all()
+            )
+    for field, value in update_data.items():
+        setattr(role, field, value)
+
+    db.commit()
+    db.refresh(role)
+    log_action(
+        db, user_id=admin.id, action="role_update_platform",
+        module="superadmin", record_id=role.id, details={"name": role.name},
+    )
+    db.commit()
+    count = db.execute(
+        text(
+            "SELECT COUNT(*) FROM user_roles JOIN users u ON u.id = user_roles.user_id "
+            "WHERE role_id = :rid AND u.deleted_at IS NULL"
+        ),
+        {"rid": role.id},
+    ).scalar() or 0
+    return _serialize_role(role, int(count))
+
+
+@router.delete("/roles/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_platform_role(
+    role_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_superadmin_user),
+):
+    role = db.query(Role).filter(Role.id == role_id).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Rol no encontrado")
+    if role.is_system:
+        raise HTTPException(status_code=400, detail="No puedes eliminar un rol del sistema")
+    # Detach from users first so FKs don't fail
+    role.users.clear()
+    role.permissions.clear()
+    db.delete(role)
+    log_action(
+        db, user_id=admin.id, action="role_delete_platform",
+        module="superadmin", record_id=role.id, details={"name": role.name},
+    )
+    db.commit()
+
+
+@router.get("/permissions", response_model=list[PermissionResponse])
+def list_platform_permissions(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_superadmin_user),
+):
+    perms = db.query(Permission).order_by(Permission.module, Permission.action).all()
+    return [
+        PermissionResponse(
+            id=p.id, module=p.module, action=p.action, description=p.description,
+        )
+        for p in perms
+    ]
+
+
+# =============================================================================
+# Access logs (logins, password changes) + activity logs
+# =============================================================================
+
+_ACCESS_ACTIONS = {
+    "login_success", "login_failed", "login_blocked", "logout",
+    "password_change", "password_reset", "password_reset_platform",
+    "password_reset_request",
+}
+
+
+class AccessLogEntry(BaseModel):
+    id: int
+    timestamp: datetime
+    action: str
+    user_id: Optional[int] = None
+    username: Optional[str] = None
+    full_name: Optional[str] = None
+    organization_id: Optional[int] = None
+    organization_name: Optional[str] = None
+    ip_address: Optional[str] = None
+    details: Optional[str] = None
+
+
+@router.get("/access-logs", response_model=list[AccessLogEntry])
+def list_access_logs(
+    action: Optional[str] = None,
+    user_id: Optional[int] = None,
+    tenant_id: Optional[int] = None,
+    days: int = Query(30, ge=1, le=365),
+    limit: int = Query(200, le=1000),
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_superadmin_user),
+):
+    """Access log: logins (success/failed/blocked), logouts, password events.
+
+    Platform-level (``organization_id IS NULL``) to avoid duplicates — the same
+    login writes one platform row plus one per tenant the user belongs to.
+    """
+    since = datetime.utcnow() - timedelta(days=days)
+    q = (
+        db.query(AuditLog, User, Organization)
+        .outerjoin(User, User.id == AuditLog.user_id)
+        .outerjoin(Organization, Organization.id == AuditLog.organization_id)
+        .filter(
+            AuditLog.action.in_(list(_ACCESS_ACTIONS)),
+            AuditLog.timestamp >= since,
+        )
+    )
+    if tenant_id is not None:
+        q = q.filter(AuditLog.organization_id == tenant_id)
+    else:
+        # Default: only platform-level rows to avoid duplicates
+        q = q.filter(AuditLog.organization_id.is_(None))
+    if action:
+        q = q.filter(AuditLog.action == action)
+    if user_id is not None:
+        q = q.filter(AuditLog.user_id == user_id)
+    q = q.order_by(AuditLog.timestamp.desc()).offset(offset).limit(limit)
+
+    return [
+        AccessLogEntry(
+            id=log.id,
+            timestamp=log.timestamp,
+            action=log.action,
+            user_id=log.user_id,
+            username=user.username if user else None,
+            full_name=user.full_name if user else None,
+            organization_id=log.organization_id,
+            organization_name=org.name if org else None,
+            ip_address=log.ip_address,
+            details=log.details,
+        )
+        for log, user, org in q.all()
+    ]
+
+
+class ActivityLogEntry(BaseModel):
+    id: int
+    timestamp: datetime
+    action: str
+    module: str
+    record_id: Optional[int] = None
+    user_id: Optional[int] = None
+    username: Optional[str] = None
+    full_name: Optional[str] = None
+    organization_id: Optional[int] = None
+    organization_name: Optional[str] = None
+    ip_address: Optional[str] = None
+    details: Optional[str] = None
+
+
+@router.get("/activity-logs", response_model=list[ActivityLogEntry])
+def list_activity_logs(
+    module: Optional[str] = None,
+    action: Optional[str] = None,
+    tenant_id: Optional[int] = None,
+    user_id: Optional[int] = None,
+    days: int = Query(30, ge=1, le=365),
+    limit: int = Query(200, le=1000),
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_superadmin_user),
+):
+    """Platform-wide activity log (all modules except auth).
+
+    Covers CRUD on organizations, programs, projects, risks, issues, changes,
+    minutes, etc. Filterable by tenant so a super admin can audit a single
+    organization without hopping into it.
+    """
+    since = datetime.utcnow() - timedelta(days=days)
+    q = (
+        db.query(AuditLog, User, Organization)
+        .outerjoin(User, User.id == AuditLog.user_id)
+        .outerjoin(Organization, Organization.id == AuditLog.organization_id)
+        .filter(
+            AuditLog.action.notin_(list(_ACCESS_ACTIONS)),
+            AuditLog.module != "auth",
+            AuditLog.timestamp >= since,
+        )
+    )
+    if module:
+        q = q.filter(AuditLog.module == module)
+    if action:
+        q = q.filter(AuditLog.action == action)
+    if tenant_id is not None:
+        q = q.filter(AuditLog.organization_id == tenant_id)
+    if user_id is not None:
+        q = q.filter(AuditLog.user_id == user_id)
+    q = q.order_by(AuditLog.timestamp.desc()).offset(offset).limit(limit)
+
+    return [
+        ActivityLogEntry(
+            id=log.id,
+            timestamp=log.timestamp,
+            action=log.action,
+            module=log.module,
+            record_id=log.record_id,
+            user_id=log.user_id,
+            username=user.username if user else None,
+            full_name=user.full_name if user else None,
+            organization_id=log.organization_id,
+            organization_name=org.name if org else None,
+            ip_address=log.ip_address,
+            details=log.details,
+        )
+        for log, user, org in q.all()
+    ]
+
+
+# =============================================================================
+# Platform overview (dashboard stats)
+# =============================================================================
+
+class OverviewResponse(BaseModel):
+    tenant_count: int
+    tenant_active_count: int
+    tenant_inactive_count: int
+    user_count: int
+    superadmin_count: int
+    project_count: int
+    program_count: int
+    logins_last_24h: int
+    failed_logins_last_24h: int
+    recent_tenants: list[dict] = []       # last 5 provisioned tenants
+    tenants_by_industry: list[dict] = []  # [{industry, count}]
+
+
+@router.get("/overview", response_model=OverviewResponse)
+def platform_overview(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_superadmin_user),
+):
+    """Aggregated stats for the super admin landing page."""
+    tenant_count = db.query(func.count(Organization.id)).filter(
+        Organization.deleted_at.is_(None)
+    ).scalar() or 0
+    tenant_active = db.query(func.count(Organization.id)).filter(
+        Organization.deleted_at.is_(None), Organization.is_active.is_(True)
+    ).scalar() or 0
+    tenant_inactive = tenant_count - tenant_active
+
+    user_count = db.query(func.count(User.id)).filter(User.deleted_at.is_(None)).scalar() or 0
+    superadmin_count = db.query(func.count(User.id)).filter(
+        User.deleted_at.is_(None), User.is_superadmin.is_(True)
+    ).scalar() or 0
+    project_count = db.query(func.count(Project.id)).filter(
+        Project.deleted_at.is_(None)
+    ).scalar() or 0
+    program_count = db.query(func.count(Program.id)).filter(
+        Program.deleted_at.is_(None)
+    ).scalar() or 0
+
+    since_24h = datetime.utcnow() - timedelta(hours=24)
+    logins_24h = db.query(func.count(AuditLog.id)).filter(
+        AuditLog.action == "login_success",
+        AuditLog.organization_id.is_(None),
+        AuditLog.timestamp >= since_24h,
+    ).scalar() or 0
+    failed_logins_24h = db.query(func.count(AuditLog.id)).filter(
+        AuditLog.action.in_(["login_failed", "login_blocked"]),
+        AuditLog.organization_id.is_(None),
+        AuditLog.timestamp >= since_24h,
+    ).scalar() or 0
+
+    recent = (
+        db.query(Organization)
+        .filter(Organization.deleted_at.is_(None))
+        .order_by(Organization.created_at.desc())
+        .limit(5)
+        .all()
+    )
+    recent_tenants = [
+        {
+            "id": o.id,
+            "name": o.name,
+            "slug": o.slug,
+            "created_at": o.created_at.isoformat() if o.created_at else None,
+            "is_active": o.is_active,
+        }
+        for o in recent
+    ]
+
+    industry_rows = (
+        db.query(Organization.industry, func.count(Organization.id))
+        .filter(Organization.deleted_at.is_(None))
+        .group_by(Organization.industry)
+        .all()
+    )
+    tenants_by_industry = [
+        {"industry": ind or "Sin industria", "count": int(cnt)}
+        for ind, cnt in industry_rows
+    ]
+
+    return OverviewResponse(
+        tenant_count=int(tenant_count),
+        tenant_active_count=int(tenant_active),
+        tenant_inactive_count=int(tenant_inactive),
+        user_count=int(user_count),
+        superadmin_count=int(superadmin_count),
+        project_count=int(project_count),
+        program_count=int(program_count),
+        logins_last_24h=int(logins_24h),
+        failed_logins_last_24h=int(failed_logins_24h),
+        recent_tenants=recent_tenants,
+        tenants_by_industry=tenants_by_industry,
+    )

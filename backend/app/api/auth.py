@@ -202,6 +202,21 @@ def change_password(
     current_user.hashed_password = hash_password(payload.new_password)
     current_user.failed_login_attempts = 0
     current_user.locked_until = None
+    log_action(
+        db,
+        user_id=current_user.id,
+        action="password_change",
+        module="auth",
+    )
+    for org in current_user.organizations:
+        if org.is_active and org.deleted_at is None:
+            log_action(
+                db,
+                user_id=current_user.id,
+                action="password_change",
+                module="auth",
+                organization_id=org.id,
+            )
     db.commit()
     return ChangePasswordResponse()
 
@@ -241,5 +256,23 @@ def admin_reset_password(
     user.hashed_password = hash_password(new_password)
     user.failed_login_attempts = 0
     user.locked_until = None
+    log_action(
+        db,
+        user_id=current_user.id,
+        action="password_reset",
+        module="auth",
+        record_id=user.id,
+        details={"target_user": user.username, "by": current_user.username},
+        organization_id=tenant.id if tenant else None,
+    )
+    # Also platform-level copy so super admin access logs catch resets without tenant dup
+    log_action(
+        db,
+        user_id=current_user.id,
+        action="password_reset",
+        module="auth",
+        record_id=user.id,
+        details={"target_user": user.username, "by": current_user.username},
+    )
     db.commit()
     return AdminResetPasswordResponse(user_id=user.id, new_password=new_password)

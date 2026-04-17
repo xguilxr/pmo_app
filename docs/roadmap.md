@@ -121,6 +121,7 @@ Cada fase entrega valor por sí sola. No empezar la siguiente sin cerrar la ante
 - [x] Tenant filters en resources API (H11 — encontrado durante H8)
 - [x] Eliminar ruta duplicada `/admin/empresas` (L2)
 - [x] Tenant switcher en `TopBar` para super-admin (L1)
+- [x] Super Admin v2: overview, gestión de tenants end-to-end, usuarios y roles cross-tenant, logs de acceso/actividad, dashboard general (ver `docs/super-admin.md`)
 
 **Deliverable**: `https://tudominio.com` corriendo en cloud, CI bloquea regresiones, errores en Slack.
 

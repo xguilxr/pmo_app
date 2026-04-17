@@ -26,8 +26,15 @@ import AdminVariablesPage from './pages/admin/AdminVariablesPage';
 import AdminLogsPage from './pages/admin/AdminLogsPage';
 import AdminProjectsPage from './pages/admin/AdminProjectsPage';
 import AdminProgramsPage from './pages/admin/AdminProgramsPage';
-import SuperadminDashboardPage from './pages/superadmin/SuperadminDashboardPage';
+import SuperAdminGuard from './components/superadmin/SuperAdminGuard';
+import SuperadminOverviewPage from './pages/superadmin/SuperadminOverviewPage';
+import SuperadminTenantsPage from './pages/superadmin/SuperadminTenantsPage';
 import SuperadminTenantDetailPage from './pages/superadmin/SuperadminTenantDetailPage';
+import SuperadminUsersPage from './pages/superadmin/SuperadminUsersPage';
+import SuperadminRolesPage from './pages/superadmin/SuperadminRolesPage';
+import SuperadminDashboardPage from './pages/superadmin/SuperadminDashboardPage';
+import SuperadminAccessLogsPage from './pages/superadmin/SuperadminAccessLogsPage';
+import SuperadminActivityLogsPage from './pages/superadmin/SuperadminActivityLogsPage';
 import './i18n';
 
 export default function App() {
@@ -61,8 +68,17 @@ export default function App() {
           <Route path="/admin/projects" element={<AdminProjectsPage />} />
           <Route path="/admin/programs" element={<AdminProgramsPage />} />
           <Route path="/settings/password" element={<ChangePasswordPage />} />
-          <Route path="/superadmin" element={<SuperadminDashboardPage />} />
-          <Route path="/superadmin/tenants/:id" element={<SuperadminTenantDetailPage />} />
+          {/* Super admin — guarded by is_superadmin check */}
+          <Route element={<SuperAdminGuard />}>
+            <Route path="/superadmin" element={<SuperadminOverviewPage />} />
+            <Route path="/superadmin/tenants" element={<SuperadminTenantsPage />} />
+            <Route path="/superadmin/tenants/:id" element={<SuperadminTenantDetailPage />} />
+            <Route path="/superadmin/users" element={<SuperadminUsersPage />} />
+            <Route path="/superadmin/roles" element={<SuperadminRolesPage />} />
+            <Route path="/superadmin/dashboard" element={<SuperadminDashboardPage />} />
+            <Route path="/superadmin/logs/access" element={<SuperadminAccessLogsPage />} />
+            <Route path="/superadmin/logs/activity" element={<SuperadminActivityLogsPage />} />
+          </Route>
         </Route>
       </Routes>
     </BrowserRouter>
