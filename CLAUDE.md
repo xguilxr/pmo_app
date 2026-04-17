@@ -102,3 +102,52 @@ Si un agente encuentra un bug que no está en el roadmap:
   `node_modules/.venv` sin confirmar.
 - No correr migraciones contra MySQL de HostGator sin backup previo.
 - No commitear `.env`, `*.pem`, `secrets/`.
+
+---
+
+## 7. Cierre obligatorio de cada corrida (hand-off al operador)
+
+El dueño ejecuta el sistema en su PC (servicio NSSM `pmo_app_backend` + IIS /
+frontend empacado). Cuando el agente modifica archivos debe **terminar siempre**
+el mensaje final con un bloque `## Próximos pasos` que incluya:
+
+1. **Resumen de commits** — SHA + mensaje corto (si es una sola corrida con
+   varios commits, listarlos en orden).
+2. **Replicación en el ambiente activo** — secuencia exacta de comandos que el
+   operador tiene que ejecutar desde su PC. Usar el template:
+
+   ```
+   ## Próximos pasos
+
+   ### Commits
+   - <sha1> <mensaje>
+   - <sha2> <mensaje>
+
+   ### Replicar en ambiente de pruebas (PC personal)
+   1. (Si aplica) Abrir/mergear PR: <link o "no se creó PR; pedir al usuario">
+   2. `git pull origin <branch>` en la carpeta del repo local
+   3. Backend cambiado:
+      - `cd backend && .venv\Scripts\activate`
+      - `pip install -r requirements.txt` (solo si `requirements.txt` cambió)
+      - Si hay cambios de schema: revisar `backend/migrations/sync_schema.sql`
+        y respaldar MySQL HostGator antes de reiniciar
+      - `nssm restart pmo_app_backend`
+   4. Frontend cambiado:
+      - `cd frontend && npm install` (solo si `package.json` cambió)
+      - `npm run build`
+      - Copiar `frontend/dist/*` a `backend/static_frontend/` (o lo que use
+        el deploy script)
+      - `nssm restart pmo_app_backend` (sirve el bundle estático)
+   5. Validar en la URL de ngrok: <qué pantalla probar>
+   ```
+
+3. **Omitir pasos que no aplican** (si la corrida solo tocó docs, basta con
+   `git pull`; si solo cambió frontend, no reiniciar backend a menos que
+   sirva el bundle).
+4. **Señalar acciones destructivas explícitamente** (migraciones de schema,
+   rotación de secretos, borrado de datos) con el prefijo **⚠ Requiere
+   backup previo**.
+
+Si el agente **no** modificó archivos (solo investigó o respondió una
+pregunta), puede omitir el bloque.
+
