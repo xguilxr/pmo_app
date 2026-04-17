@@ -351,14 +351,34 @@ def get_tenant_detail(
         for r in reqs
     ]
 
-    resp = TenantDetailResponse.model_validate(org)
-    resp.user_count = user_count
-    resp.project_count = project_count
-    resp.programs = programs_data
-    resp.projects = projects_data
-    resp.users = users_data
-    resp.requests = requests_data
-    return resp
+    # Build the response explicitly. We must NOT use ``model_validate(org)``
+    # because Organization has ``programs`` / ``projects`` relationships
+    # (lazy="selectin") that Pydantic would pull as ORM instances and try to
+    # validate against ``list[dict]`` — causing 9 validation errors.
+    return TenantDetailResponse(
+        id=org.id,
+        name=org.name,
+        legal_name=org.legal_name,
+        slug=org.slug,
+        domain=org.domain,
+        industry=org.industry,
+        country=org.country,
+        contact_name=org.contact_name,
+        contact_email=org.contact_email,
+        contact_phone=org.contact_phone,
+        logo_url=org.logo_url,
+        primary_color=org.primary_color,
+        secondary_color=org.secondary_color,
+        config_json=org.config_json or {},
+        is_active=org.is_active,
+        created_at=org.created_at,
+        user_count=user_count,
+        project_count=project_count,
+        programs=programs_data,
+        projects=projects_data,
+        users=users_data,
+        requests=requests_data,
+    )
 
 
 def _slugify(value: str) -> str:
@@ -612,6 +632,67 @@ def provision_tenant(
         asset_directory=asset_dir,
     )
 
+
+
+class LoginEventResponse(BaseModel):
+    id: int
+    timestamp: datetime
+    user_id: Optional[int]
+    username: Optional[str]
+    full_name: Optional[str]
+    action: str
+    organization_id: Optional[int]
+    organization_name: Optional[str]
+    ip_address: Optional[str]
+    details: Optional[str]
+
+    model_config = {"from_attributes": True}
+
+
+@router.get("/login-events", response_model=list[LoginEventResponse])
+def list_login_events(
+    limit: int = Query(100, le=500),
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_superadmin_user),
+):
+    """Platform-wide login events (success / failed / blocked).
+
+    Superadmin view over ``audit_log`` for ``module='auth'``. Joins user and
+    org so the UI can show "who, where, when" without N+1 follow-ups.
+    """
+    from app.models.audit import AuditLog
+
+    # One row per login attempt platform-level (organization_id IS NULL). The
+    # per-tenant duplicates are filtered out to avoid showing the same login
+    # N times when a user belongs to N orgs.
+    q = (
+        db.query(AuditLog, User, Organization)
+        .outerjoin(User, User.id == AuditLog.user_id)
+        .outerjoin(Organization, Organization.id == AuditLog.organization_id)
+        .filter(AuditLog.module == "auth", AuditLog.organization_id.is_(None))
+        .order_by(AuditLog.timestamp.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+
+    results = []
+    for log, user, org in q.all():
+        results.append(
+            LoginEventResponse(
+                id=log.id,
+                timestamp=log.timestamp,
+                user_id=log.user_id,
+                username=user.username if user else None,
+                full_name=user.full_name if user else None,
+                action=log.action,
+                organization_id=log.organization_id,
+                organization_name=org.name if org else None,
+                ip_address=log.ip_address,
+                details=log.details,
+            )
+        )
+    return results
 
 
 @router.get("/health", response_model=ServerHealthResponse)
