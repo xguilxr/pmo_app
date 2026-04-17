@@ -29,14 +29,14 @@
 ## 1. Inventario de issues por severidad
 
 ### 🔴 Críticas (arreglar esta semana)
-| # | Issue | Archivo:línea | Fase |
-|---|-------|--------------|------|
-| C1 | `/api/dashboard-share/links` no filtra por org (cross-tenant leak) | `backend/app/api/dashboard_share.py:63,108` | 1 |
-| C2 | `/api/backlog/{id}` PATCH/DELETE sin verificación de org | `backend/app/api/backlog.py:129,142` | 1 |
-| C3 | `/api/programs/{id}` GET/PATCH sin filtro tenant | `backend/app/api/programs.py:49` | 1 |
-| C4 | `/api/users/{id}` PATCH/DELETE cross-org | `backend/app/api/users.py` | 1 |
-| C5 | Password default `secreto` en historia de git + defaults en `config.py` | `backend/app/config.py:12,25`; commit `a51dd55` | 1 |
-| C6 | Superadmin endpoints con `.delete()` en lugar de soft delete | `backend/app/api/superadmin.py` (purge paths) | 1 |
+| # | Issue | Archivo:línea | Fase | Estado |
+|---|-------|--------------|------|--------|
+| C1 | `/api/dashboard-share/links` no filtra por org (cross-tenant leak) | `backend/app/api/dashboard_share.py:63,108` | 1 | `[DONE]` 13e51ab |
+| C2 | `/api/backlog/{id}` PATCH/DELETE sin verificación de org | `backend/app/api/backlog.py:129,142` | 1 | `[DONE]` 13e51ab |
+| C3 | `/api/programs/{id}` GET/PATCH sin filtro tenant | `backend/app/api/programs.py:49` | 1 | `[DONE]` 13e51ab |
+| C4 | `/api/users/{id}` PATCH/DELETE cross-org | `backend/app/api/users.py` | 1 | `[DONE]` 13e51ab |
+| C5 | Password default `secreto` en historia de git + defaults en `config.py` | `backend/app/config.py:12,25`; commit `a51dd55` | 1 | `[DONE]` 13e51ab |
+| C6 | Superadmin endpoints con `.delete()` en lugar de soft delete | `backend/app/api/superadmin.py` (purge paths) | 1 | `[DONE]` 13e51ab |
 
 ### 🟠 Importantes (antes de producción)
 | # | Issue | Archivo | Fase |
@@ -78,12 +78,16 @@ Cada fase entrega valor por sí sola. No empezar la siguiente sin cerrar la ante
 
 ---
 
-### Fase 1 — Seguridad & aislamiento (1 semana)
+### Fase 1 — Seguridad & aislamiento (1 semana) — `[DONE]` commit `13e51ab`
 **Goal**: cerrar las 6 cross-tenant leaks + rotar secretos antes de exponer.
-- [ ] C1-C4: añadir filtro `organization_id == tenant.id` en los 4 endpoints
-- [ ] C5: generar nuevos `SECRET_KEY` + `JWT_SECRET`, moverlos a `.env` sin default hardcoded, rotar en prod
-- [ ] C6: convertir `.delete()` a `deleted_at = func.now()` + commit en los 3 superadmin purge paths
-- [ ] Eliminar `secreto` de `docker-compose.yml` (o aceptar + rotar)
+- [x] C1-C4: añadir filtro `organization_id == tenant.id` en los 4 endpoints
+- [x] C5: `SECRET_KEY` + `JWT_SECRET` sin default hardcoded, prod falla si faltan
+- [x] C6: `DELETE /tenants/{id}` ahora soft-delete; `/permanent` queda como escape hatch explícito
+- [x] Eliminar `secreto` de `docker-compose.yml` (requiere `DB_PASSWORD` explícito)
+
+**Pendiente operativo** (se hace al desplegar, no en código):
+- [ ] Rotar `SECRET_KEY` y `JWT_SECRET` en la máquina de demo + HostGator + futuro servidor
+- [ ] Rotar password del usuario MySQL en HostGator
 
 **Deliverable**: pentest básico manual pasa; no cross-tenant access.
 
