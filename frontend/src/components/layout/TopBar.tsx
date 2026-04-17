@@ -71,6 +71,10 @@ export default function TopBar() {
   const superadmin = isSuperAdmin();
 
   const fetchUnreadCount = useCallback(async () => {
+    // Notifications are tenant-scoped. Skip when no tenant is selected (typical
+    // for superadmins browsing the /superadmin panel) to avoid 400 errors from
+    // get_current_tenant.
+    if (!getActiveTenantId()) return;
     try {
       const data = await api.get<{ count: number }>('/notifications/unread-count');
       setUnreadCount(data.count);
@@ -78,6 +82,7 @@ export default function TopBar() {
   }, []);
 
   const fetchNotifications = useCallback(async () => {
+    if (!getActiveTenantId()) return;
     try {
       const data = await api.get<NotificationItem[]>('/notifications?limit=30');
       setNotifications(data);

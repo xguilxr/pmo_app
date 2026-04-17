@@ -1,7 +1,7 @@
 import logging
 import secrets
-from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -25,6 +25,7 @@ from app.auth.security import (
 )
 from app.dependencies import get_current_tenant
 from app.models.organization import Organization
+from app.services.audit import log_action
 
 logger = logging.getLogger(__name__)
 
@@ -32,36 +33,105 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(request: LoginRequest, db: Session = Depends(get_db)):
+def login(request: LoginRequest, http_request: Request, db: Session = Depends(get_db)):
     user = db.query(User).filter(
         or_(User.username == request.username_or_email, User.email == request.username_or_email),
         User.deleted_at.is_(None),
     ).first()
 
+    ip = http_request.client.host if http_request.client else None
+
     if not user:
+        log_action(
+            db,
+            user_id=None,
+            action="login_failed",
+            module="auth",
+            details={"username_or_email": request.username_or_email, "reason": "unknown_user"},
+            ip_address=ip,
+        )
+        db.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales incorrectas")
 
     # Check if locked
-    if user.locked_until and user.locked_until > datetime.now(timezone.utc):
+    if user.locked_until and user.locked_until > datetime.utcnow():
+        log_action(
+            db,
+            user_id=user.id,
+            action="login_blocked",
+            module="auth",
+            details={"reason": "account_locked", "locked_until": user.locked_until.isoformat()},
+            ip_address=ip,
+        )
+        # Also write an audit row per tenant the user belongs to so tenant admins
+        # see the attempt in their own audit log.
+        for org in user.organizations:
+            if org.is_active and org.deleted_at is None:
+                log_action(
+                    db,
+                    user_id=user.id,
+                    action="login_blocked",
+                    module="auth",
+                    organization_id=org.id,
+                    ip_address=ip,
+                )
+        db.commit()
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cuenta bloqueada temporalmente")
 
     if not verify_password(request.password, user.hashed_password):
         user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
         if user.failed_login_attempts >= 5:
             from datetime import timedelta
-            user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=15)
+            user.locked_until = datetime.utcnow() + timedelta(minutes=15)
+        log_action(
+            db,
+            user_id=user.id,
+            action="login_failed",
+            module="auth",
+            details={"reason": "bad_password", "attempts": user.failed_login_attempts},
+            ip_address=ip,
+        )
+        for org in user.organizations:
+            if org.is_active and org.deleted_at is None:
+                log_action(
+                    db,
+                    user_id=user.id,
+                    action="login_failed",
+                    module="auth",
+                    organization_id=org.id,
+                    details={"attempts": user.failed_login_attempts},
+                    ip_address=ip,
+                )
         db.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales incorrectas")
 
     # Successful login
     user.failed_login_attempts = 0
     user.locked_until = None
-    user.last_login = datetime.now(timezone.utc)
-    db.commit()
+    user.last_login = datetime.utcnow()
 
     # Build org list for JWT and response
     user_orgs = [o for o in user.organizations if o.is_active and o.deleted_at is None]
     org_ids = [o.id for o in user_orgs]
+
+    # Write a login row per tenant so each tenant's audit log surfaces the event.
+    log_action(
+        db,
+        user_id=user.id,
+        action="login_success",
+        module="auth",
+        ip_address=ip,
+    )
+    for org in user_orgs:
+        log_action(
+            db,
+            user_id=user.id,
+            action="login_success",
+            module="auth",
+            organization_id=org.id,
+            ip_address=ip,
+        )
+    db.commit()
 
     token = create_access_token(data={
         "sub": str(user.id),
