@@ -310,7 +310,14 @@ export default function TopBar() {
                 <p className="text-[11px] text-text-tertiary font-light">{user?.roles?.join(', ') || ''}</p>
               </div>
               <button
-                onClick={() => { setUserMenuOpen(false); navigate('/admin/users'); }}
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  // Super admins don't belong to a specific tenant by default,
+                  // so routing them through /admin/users (tenant-scoped) would
+                  // trigger the "Super admin debe especificar X-Tenant-ID"
+                  // error. Send them to the platform-wide users view instead.
+                  navigate(superadmin ? '/superadmin/users' : '/admin/users');
+                }}
                 className="flex items-center gap-3 w-full px-4 py-2.5 text-[13px] font-light text-text-secondary hover:bg-surface-hover transition-colors"
               >
                 <Settings className="w-4 h-4 text-text-tertiary" />

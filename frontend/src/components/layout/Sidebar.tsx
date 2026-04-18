@@ -72,11 +72,10 @@ export default function Sidebar() {
             <p className="px-3 pb-2 pt-1 text-[10px] font-medium text-sidebar-text/40 uppercase tracking-widest">Super Admin</p>
             <NavLink to="/superadmin" className={linkClass} end>
               <Crown className="w-4 h-4" />
-              Panel de Tenants
+              Panel Super Admin
             </NavLink>
-            <NavLink to="/superadmin" className={() => {
-              // Match any /superadmin/tenants/* path
-              const isTenantPath = window.location.pathname.startsWith('/superadmin/tenants');
+            <NavLink to="/superadmin/tenants" className={({ isActive }) => {
+              const isTenantPath = isActive || window.location.pathname.startsWith('/superadmin/tenants');
               return `flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-normal transition-all duration-200 ${
                 isTenantPath
                   ? 'bg-gradient-to-r from-accent/20 to-accent/10 text-white shadow-sm shadow-accent/10 backdrop-blur-sm'
@@ -84,27 +83,35 @@ export default function Sidebar() {
               }`;
             }}>
               <Building2 className="w-4 h-4" />
-              Gestionar Tenants
+              Gestión de Tenants
             </NavLink>
-
-            <div className="pt-4">
-              <p className="px-3 pb-2 text-[10px] font-medium text-sidebar-text/40 uppercase tracking-widest">Sistema</p>
-            </div>
-            <NavLink to="/" className={linkClass} end>
+            <NavLink to="/superadmin/dashboard" className={linkClass}>
               <LayoutDashboard className="w-4 h-4" />
               Dashboard General
             </NavLink>
-            <NavLink to="/admin/users" className={linkClass}>
+
+            <div className="pt-4">
+              <p className="px-3 pb-2 text-[10px] font-medium text-sidebar-text/40 uppercase tracking-widest">Plataforma</p>
+            </div>
+            <NavLink to="/superadmin/users" className={linkClass}>
               <Users className="w-4 h-4" />
               Usuarios
             </NavLink>
-            <NavLink to="/admin/roles" className={linkClass}>
+            <NavLink to="/superadmin/roles" className={linkClass}>
               <Shield className="w-4 h-4" />
               Roles
             </NavLink>
-            <NavLink to="/admin/logs" className={linkClass}>
+
+            <div className="pt-4">
+              <p className="px-3 pb-2 text-[10px] font-medium text-sidebar-text/40 uppercase tracking-widest">Logs</p>
+            </div>
+            <NavLink to="/superadmin/logs/access" className={linkClass}>
               <FileText className="w-4 h-4" />
-              Logs
+              Logs de acceso
+            </NavLink>
+            <NavLink to="/superadmin/logs/activity" className={linkClass}>
+              <ClipboardList className="w-4 h-4" />
+              Logs de actividad
             </NavLink>
           </>
         ) : (
